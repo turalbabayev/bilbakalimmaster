@@ -135,11 +135,15 @@ const ExportSubbranchToDocx = ({ konuBaslik, altKonuBaslik, altDallar }) => {
   };
   
   return (
-    <div className="flex space-x-2">
+    <div className="flex flex-col sm:flex-row gap-2">
       <button
         onClick={() => exportToDocx(true)}
         disabled={loading}
-        className={`px-4 py-2 ${loading ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-md flex items-center`}
+        className={`px-4 py-2 ${
+          loading 
+            ? 'bg-gray-400 dark:bg-gray-600' 
+            : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600'
+        } text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center`}
       >
         {loading ? (
           <>
@@ -162,7 +166,11 @@ const ExportSubbranchToDocx = ({ konuBaslik, altKonuBaslik, altDallar }) => {
       <button
         onClick={() => exportToDocx(false)}
         disabled={loadingSimple}
-        className={`px-4 py-2 ${loadingSimple ? 'bg-gray-400' : 'bg-green-500 hover:bg-green-600'} text-white rounded-md flex items-center`}
+        className={`px-4 py-2 ${
+          loadingSimple 
+            ? 'bg-gray-400 dark:bg-gray-600' 
+            : 'bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600'
+        } text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center`}
       >
         {loadingSimple ? (
           <>

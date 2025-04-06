@@ -53,16 +53,19 @@ function QuestionContent() {
 
     return (
         <Layout>
-            <div className="min-h-screen bg-gray-400">
-                <div className="container mx-auto py-6 px-4">
-                    <div className="flex items-center justify-between mb-6">
-                        <h1 className="text-2xl font-bold text-gray-800 mb-6">{baslik}</h1>
-                        <div className="flex space-x-2">
+            <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
+                <div className="container mx-auto py-8 px-4">
+                    <div className="flex items-center justify-between mb-8">
+                        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">{baslik}</h1>
+                        <div className="flex space-x-3">
                             <ExportToDocx konuBaslik={baslik} altKonular={altKonular} />
                             <button
-                                className="px-4 py-2 bg-blue-500 text-white rounded-md mb-6"
+                                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-md transition-all duration-200 flex items-center"
                                 onClick={() => setIsModalOpen(true)}
                             >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                                </svg>
                                 Soru Ekle
                             </button>
                         </div>
@@ -70,62 +73,78 @@ function QuestionContent() {
                     {Object.keys(altKonular).length > 0 ? (
                         <div className="space-y-6">
                             {Object.entries(altKonular).map(([key, altKonu]) => (
-                                <div key={key} className="bg-white shadow-md rounded-lg p-6">
+                                <div key={key} className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-6 border border-gray-100 dark:border-gray-700 transition-all duration-200 hover:shadow-xl">
                                     <div className="flex items-center justify-between">
-                                        <h2 className="text-2xl font-semibold text-indigo-600 mb-4" onClick={() => toggleExpandBranch(key)}>
+                                        <h2 
+                                            className="text-2xl font-semibold text-indigo-600 dark:text-indigo-400 mb-4 cursor-pointer hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors" 
+                                            onClick={() => toggleExpandBranch(key)}
+                                        >
                                             {altKonu.baslik || "Alt konu yok."}
                                         </h2>
                                         <div className="flex items-center space-x-4">
-                                            <span className="text-gray-500 text-sm font-bold">
+                                            <span className="text-gray-500 dark:text-gray-400 text-sm font-medium bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
                                                 {altKonu.sorular ? Object.keys(altKonu.sorular).length : 0} Soru
                                             </span>
                                             <button
                                                 onClick={() => toggleExpand(key)}
-                                                className="text-gray-500 hover:text-gray-700 focus:outline-none"
+                                                className="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 transition-colors"
                                             >
-                                                {expandedAltKonu === key ? "-" : "+"}
+                                                {expandedAltKonu === key ? 
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
+                                                    </svg> 
+                                                    : 
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                                                    </svg>
+                                                }
                                             </button>
                                         </div>
                                     </div>
                                     {expandedAltKonu === key && (
-                                        <ul className="space-y-4">
+                                        <ul className="space-y-5 mt-6">
                                             {altKonu.sorular ? (
                                                 Object.entries(altKonu.sorular).map(([soruKey, soru]) => (
-                                                    <li key={soruKey} className="bg-gray-100 p-4 rounded-md shadow-sm flex flex-col">
+                                                    <li key={soruKey} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg shadow-sm flex flex-col transition-all duration-200 hover:shadow-md">
                                                         <div className="flex justify-between items-start">
                                                             <div className="flex-1 min-w-0">
-                                                                <p className="text-lg font-medium text-gray-700 mb-2 break-words">
-                                                                    <span className="font-bold text-blue-700 mr-2">#{soru.soruNumarasi || "?"}</span>
+                                                                <p className="text-lg font-medium text-gray-700 dark:text-gray-200 mb-3 break-words">
+                                                                    <span className="font-bold text-indigo-600 dark:text-indigo-400 mr-2">#{soru.soruNumarasi || "?"}</span>
                                                                     {soru.soruMetni || "Soru yok"}
                                                                 </p>
-                                                                <ul className="space-y-2">
+                                                                <ul className="space-y-2 mb-4">
                                                                     {Array.isArray(soru.cevaplar)
                                                                         ? soru.cevaplar.map((cevap, index) => (
-                                                                            <li key={index} className="flex items-center space-x-2">
-                                                                                <span className="font-bold text-gray-800">{String.fromCharCode(65 + index)}.</span>
-                                                                                <p className="text-gray-700 break-words">{cevap}</p>
+                                                                            <li key={index} className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
+                                                                                <span className="font-bold bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white w-6 h-6 flex items-center justify-center rounded-full">{String.fromCharCode(65 + index)}</span>
+                                                                                <p className="break-words">{cevap}</p>
                                                                             </li>
                                                                         ))
                                                                         : "Cevaplar bulunamadı."}
                                                                 </ul>
-                                                                <p className="text-sm font-bold text-green-600 mt-2">
+                                                                <p className="text-sm font-medium text-green-600 dark:text-green-400 mt-2">
                                                                     Doğru Cevap: {soru.dogruCevap || "Belirtilmemiş"} 
                                                                     {soru.dogruCevap && soru.cevaplar && Array.isArray(soru.cevaplar) && (
-                                                                        <span className="ml-2 bg-green-100 px-2 py-1 rounded-full">
+                                                                        <span className="ml-2 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
                                                                             ({String.fromCharCode(65 + soru.cevaplar.indexOf(soru.dogruCevap))} şıkkı)
                                                                         </span>
                                                                     )}
                                                                 </p>
-                                                                <p className="text-lg font-bold text-gray-700 mt-2 break-words">
-                                                                    Açıklama: {soru.aciklama || "Belirtilmemiş"}
+                                                                <p className="text-base text-gray-700 dark:text-gray-300 mt-3 break-words">
+                                                                    <span className="font-semibold">Açıklama:</span> {soru.aciklama || "Belirtilmemiş"}
                                                                 </p>
                                                             </div>
                                                             <div className="flex flex-col space-y-2 ml-4">
                                                                 <button
-                                                                    className="bg-yellow-500 text-white px-2 py-1 rounded-md hover:bg-yellow-600"
+                                                                    className="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200"
                                                                     onClick={() => handleUpdateClick(`konular/${id}/altkonular/${key}/sorular/${soruKey}`)}
                                                                 >
-                                                                    Güncelle
+                                                                    <div className="flex items-center">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                                                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                                                        </svg>
+                                                                        Güncelle
+                                                                    </div>
                                                                 </button>
                                                                 <DeleteQuestion
                                                                     soruRef={`konular/${id}/altkonular/${key}/sorular/${soruKey}`}
@@ -133,15 +152,15 @@ function QuestionContent() {
                                                                 />
                                                             </div>
                                                         </div>
-                                                        <div className="mt-4 flex justify-end text-gray-600 space-x-4">
-                                                            <p>⚠️ Bildirilme: {soru.report || 0}</p>
-                                                            <p>👍 Beğenme: {soru.liked || 0}</p>
-                                                            <p>👎 Beğenilmeme: {soru.unliked || 0}</p>
+                                                        <div className="mt-4 flex justify-end text-gray-500 dark:text-gray-400 space-x-4 text-sm">
+                                                            <p className="flex items-center"><span className="mr-1">⚠️</span> {soru.report || 0}</p>
+                                                            <p className="flex items-center"><span className="mr-1">👍</span> {soru.liked || 0}</p>
+                                                            <p className="flex items-center"><span className="mr-1">👎</span> {soru.unliked || 0}</p>
                                                         </div>
                                                     </li>
                                                 ))
                                             ) : (
-                                                <li className="text-gray-700">Soru bulunamadı.</li>
+                                                <li className="text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">Soru bulunamadı.</li>
                                             )}
                                         </ul>
                                     )}
@@ -149,7 +168,9 @@ function QuestionContent() {
                             ))}
                         </div>
                     ) : (
-                        <p className="text-gray-700">Alt konular bulunamadı.</p>
+                        <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-8 text-center">
+                            <p className="text-gray-600 dark:text-gray-400">Alt konular bulunamadı.</p>
+                        </div>
                     )}
                 </div>
             </div>
