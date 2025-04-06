@@ -8,6 +8,7 @@ const ExportToDocx = ({ konuBaslik, altKonular }) => {
   const exportToDocx = async () => {
     setLoading(true);
     try {
+      console.log("DOCX oluşturma başladı...");
       // Soruları DOCX formatında hazırla
       const doc = new Document({
         styles: {
@@ -29,7 +30,7 @@ const ExportToDocx = ({ konuBaslik, altKonular }) => {
       // Başlık paragrafı
       sections.push(
         new Paragraph({
-          text: konuBaslik,
+          text: konuBaslik || "Soru Bankası",
           heading: HeadingLevel.HEADING_1,
           alignment: AlignmentType.CENTER,
         })
@@ -39,159 +40,201 @@ const ExportToDocx = ({ konuBaslik, altKonular }) => {
       sections.push(new Paragraph(""));
       
       // Tüm alt konular için dön
-      Object.entries(altKonular).forEach(([altKonuId, altKonu]) => {
-        // Alt konu başlığı
-        sections.push(
-          new Paragraph({
-            text: altKonu.baslik,
-            heading: HeadingLevel.HEADING_2,
-            spacing: {
-              before: 400,
-              after: 200,
-            },
-          })
-        );
-        
-        // Alt konuya ait soruları ekle
-        if (altKonu.sorular) {
-          Object.entries(altKonu.sorular)
-            .sort((a, b) => {
-              const numA = a[1].soruNumarasi || 0;
-              const numB = b[1].soruNumarasi || 0;
-              return numA - numB;
+      if (altKonular && typeof altKonular === 'object') {
+        Object.entries(altKonular).forEach(([altKonuId, altKonu]) => {
+          if (!altKonu) return; // null veya undefined altKonu için atla
+          
+          // Alt konu başlığı
+          sections.push(
+            new Paragraph({
+              text: altKonu.baslik || "Alt Konu",
+              heading: HeadingLevel.HEADING_2,
+              spacing: {
+                before: 400,
+                after: 200,
+              },
             })
-            .forEach(([soruId, soru]) => {
-              // Soru numarası ve metni
-              const soruNumarasi = soru.soruNumarasi || 0;
-              sections.push(
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: `Soru #${soruNumarasi}: `,
-                      bold: true,
-                    }),
-                    new TextRun({
-                      text: soru.soruMetni || "",
-                    }),
-                  ],
-                  spacing: {
-                    before: 300,
-                    after: 120,
-                  },
-                })
-              );
+          );
+          
+          // Alt konuya ait soruları ekle
+          if (altKonu.sorular && typeof altKonu.sorular === 'object') {
+            const sortedSorular = Object.entries(altKonu.sorular)
+              .filter(([_, soru]) => soru !== null && soru !== undefined)
+              .sort((a, b) => {
+                const numA = a[1].soruNumarasi || 0;
+                const numB = b[1].soruNumarasi || 0;
+                return numA - numB;
+              });
               
-              // Şıkları ekle
-              if (Array.isArray(soru.cevaplar)) {
-                soru.cevaplar.forEach((cevap, cevapIndex) => {
-                  const isDogruCevap = cevap === soru.dogruCevap;
-                  const sik = String.fromCharCode(65 + cevapIndex);
-                  
-                  sections.push(
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `${sik}. `,
-                          bold: true,
-                        }),
-                        new TextRun({
-                          text: cevap,
-                          bold: isDogruCevap,
-                          color: isDogruCevap ? "008800" : "000000",
-                        }),
-                        isDogruCevap ? new TextRun({
-                          text: " ✓",
-                          bold: true,
-                          color: "008800",
-                        }) : new TextRun(""),
-                      ],
-                      indent: {
-                        left: 360, // 0.25 inç
-                      },
-                      spacing: {
-                        after: 80,
-                      },
-                    })
-                  );
-                });
-              }
-              
-              // Doğru cevap
-              const dogruCevapSik = soru.cevaplar && Array.isArray(soru.cevaplar) ? 
-                String.fromCharCode(65 + soru.cevaplar.indexOf(soru.dogruCevap)) : "";
-                
-              sections.push(
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: `Doğru Cevap: `,
-                      bold: true,
-                    }),
-                    new TextRun({
-                      text: `${soru.dogruCevap || ""} (${dogruCevapSik} şıkkı)`,
-                    }),
-                  ],
-                  spacing: {
-                    before: 160,
-                    after: 80,
-                  },
-                })
-              );
-              
-              // Açıklama
-              if (soru.aciklama) {
+            sortedSorular.forEach(([soruId, soru]) => {
+              try {
+                // Soru numarası ve metni
+                const soruNumarasi = soru.soruNumarasi || 0;
                 sections.push(
                   new Paragraph({
                     children: [
                       new TextRun({
-                        text: `Açıklama: `,
+                        text: `Soru #${soruNumarasi}: `,
                         bold: true,
-                        italics: true,
                       }),
                       new TextRun({
-                        text: soru.aciklama,
-                        italics: true,
+                        text: soru.soruMetni || "",
                       }),
                     ],
+                    spacing: {
+                      before: 300,
+                      after: 120,
+                    },
+                  })
+                );
+                
+                // Şıkları ekle
+                if (Array.isArray(soru.cevaplar)) {
+                  soru.cevaplar.forEach((cevap, cevapIndex) => {
+                    if (cevap === null || cevap === undefined) return;
+                    
+                    const isDogruCevap = cevap === soru.dogruCevap;
+                    const sik = String.fromCharCode(65 + cevapIndex);
+                    
+                    sections.push(
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: `${sik}. `,
+                            bold: true,
+                          }),
+                          new TextRun({
+                            text: cevap.toString(),
+                            bold: isDogruCevap,
+                            color: isDogruCevap ? "008800" : "000000",
+                          }),
+                          isDogruCevap ? new TextRun({
+                            text: " ✓",
+                            bold: true,
+                            color: "008800",
+                          }) : new TextRun(""),
+                        ],
+                        indent: {
+                          left: 360, // 0.25 inç
+                        },
+                        spacing: {
+                          after: 80,
+                        },
+                      })
+                    );
+                  });
+                }
+                
+                // Doğru cevap
+                if (soru.cevaplar && Array.isArray(soru.cevaplar)) {
+                  const dogruCevapIndex = soru.cevaplar.findIndex(c => c === soru.dogruCevap);
+                  const dogruCevapSik = dogruCevapIndex !== -1 ? 
+                    String.fromCharCode(65 + dogruCevapIndex) : "";
+                    
+                  sections.push(
+                    new Paragraph({
+                      children: [
+                        new TextRun({
+                          text: `Doğru Cevap: `,
+                          bold: true,
+                        }),
+                        new TextRun({
+                          text: `${soru.dogruCevap || ""} ${dogruCevapSik ? `(${dogruCevapSik} şıkkı)` : ""}`,
+                        }),
+                      ],
+                      spacing: {
+                        before: 160,
+                        after: 80,
+                      },
+                    })
+                  );
+                }
+                
+                // Açıklama
+                if (soru.aciklama) {
+                  sections.push(
+                    new Paragraph({
+                      children: [
+                        new TextRun({
+                          text: `Açıklama: `,
+                          bold: true,
+                          italics: true,
+                        }),
+                        new TextRun({
+                          text: soru.aciklama.toString(),
+                          italics: true,
+                        }),
+                      ],
+                      spacing: {
+                        after: 240,
+                      },
+                    })
+                  );
+                }
+                
+                // Ayırıcı çizgi
+                sections.push(
+                  new Paragraph({
+                    border: {
+                      bottom: {
+                        color: "999999",
+                        space: 1,
+                        style: BorderStyle.SINGLE,
+                        size: 6,
+                      },
+                    },
                     spacing: {
                       after: 240,
                     },
                   })
                 );
+              } catch (err) {
+                console.error("Soru işlenirken hata:", err, "Soru:", soru);
               }
-              
-              // Ayırıcı çizgi
-              sections.push(
-                new Paragraph({
-                  border: {
-                    bottom: {
-                      color: "999999",
-                      space: 1,
-                      style: BorderStyle.SINGLE,
-                      size: 6,
-                    },
-                  },
-                  spacing: {
-                    after: 240,
-                  },
-                })
-              );
             });
-        }
-      });
+          }
+        });
+      }
+      
+      console.log("Sections hazırlandı, dokümana ekleniyor...");
       
       // Sektörleri dokümana ekle
       doc.addSection({
         children: sections,
       });
       
+      console.log("Doküman oluşturuldu, buffer'a dönüştürülüyor...");
+      
       // DOCX dosyasını oluştur ve indir
       const buffer = await Packer.toBuffer(doc);
-      saveAs(new Blob([buffer]), `${konuBaslik}_Soru_Bankasi.docx`);
+      
+      console.log("Buffer oluşturuldu, dosya indiriliyor...");
+      
+      // Dosya adında türkçe karakterleri düzelt
+      const sanitizedKonuBaslik = konuBaslik
+        ? konuBaslik
+            .replace(/ç/g, 'c')
+            .replace(/Ç/g, 'C')
+            .replace(/ğ/g, 'g')
+            .replace(/Ğ/g, 'G')
+            .replace(/ı/g, 'i')
+            .replace(/İ/g, 'I')
+            .replace(/ö/g, 'o')
+            .replace(/Ö/g, 'O')
+            .replace(/ş/g, 's')
+            .replace(/Ş/g, 'S')
+            .replace(/ü/g, 'u')
+            .replace(/Ü/g, 'U')
+            .replace(/[^\w\s]/gi, '')
+        : "SoruBankasi";
+      
+      saveAs(new Blob([buffer]), `${sanitizedKonuBaslik}_Soru_Bankasi.docx`);
+      
+      console.log("Dosya indirme başarılı!");
       
     } catch (error) {
       console.error("DOCX oluşturma hatası:", error);
-      alert("DOCX oluşturulurken bir hata oluştu.");
+      alert("DOCX oluşturulurken bir hata oluştu. Hata detayı: " + error.message);
     } finally {
       setLoading(false);
     }
