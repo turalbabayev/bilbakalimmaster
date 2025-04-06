@@ -25,7 +25,10 @@ const Header = () => {
                         Ana Sayfa
                     </Link>
                     <Link to="/question" className="text-white hover:text-blue-600 font-bold">
-                            Sorular
+                        Sorular
+                    </Link>
+                    <Link to="/announcements" className="text-white hover:text-blue-600 font-bold">
+                        Duyurular
                     </Link>
                 </nav>
                 <button
