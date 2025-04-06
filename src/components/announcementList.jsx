@@ -97,7 +97,7 @@ const AnnouncementList = () => {
                             {duyuru.resim ? (
                                 <div className="h-48 bg-gray-200 dark:bg-gray-700 relative">
                                     <img 
-                                        src={duyuru.resim} 
+                                        src={`data:${duyuru.resimTuru || 'image/png'};base64,${duyuru.resim}`}
                                         alt={duyuru.baslik} 
                                         className="w-full h-full object-cover"
                                     />

@@ -40,7 +40,12 @@ const AddAnnouncement = ({ isOpen, onClose }) => {
             if (resimFile) {
                 const reader = new FileReader();
                 resimBase64 = await new Promise((resolve) => {
-                    reader.onloadend = () => resolve(reader.result);
+                    reader.onloadend = () => {
+                        // data:image/png;base64, gibi önek kısmını kaldır
+                        const fullBase64 = reader.result;
+                        const base64WithoutPrefix = fullBase64.split(',')[1];
+                        resolve(base64WithoutPrefix);
+                    };
                     reader.readAsDataURL(resimFile);
                 });
             }
@@ -50,6 +55,7 @@ const AddAnnouncement = ({ isOpen, onClose }) => {
                 baslik: duyuruAdi,
                 aciklama: duyuruAciklamasi,
                 resim: resimBase64,
+                resimTuru: resimFile ? resimFile.type : null, // Resim türünü de kaydet
                 tarih: new Date().toISOString(),
                 aktif: true
             };
