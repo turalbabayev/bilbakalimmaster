@@ -64,6 +64,16 @@ function SubbranchContent() {
         });
     };
 
+    // Soruları soru numarasına göre sıralama fonksiyonu
+    const sortedQuestions = (questions) => {
+        if (!questions) return [];
+        return Object.entries(questions).sort((a, b) => {
+            const numA = a[1].soruNumarasi || 999; // Numarası olmayan soruları en sona koy
+            const numB = b[1].soruNumarasi || 999;
+            return numA - numB; // Küçükten büyüğe sırala
+        });
+    };
+
     return (
         <Layout>
             <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
@@ -122,7 +132,7 @@ function SubbranchContent() {
                                         <div className="mt-6">
                                             {altDal.sorular ? (
                                                 <ul className="space-y-5">
-                                                    {Object.entries(altDal.sorular).map(([soruKey, soru]) => (
+                                                    {sortedQuestions(altDal.sorular).map(([soruKey, soru]) => (
                                                         <li key={soruKey} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg shadow-sm flex flex-col transition-all duration-200 hover:shadow-md">
                                                             <div className="flex justify-between items-start">
                                                                 <div className="flex-1 min-w-0">
