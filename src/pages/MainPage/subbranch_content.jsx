@@ -3,6 +3,7 @@ import Layout from "../../components/layout";
 import AddQuestionSubbranch from "../../components/addQuestionSubbranch";
 import DeleteQuestion from "../../components/deleteQuestion";
 import UpdateQuestion from "../../components/updateQuestion"; // Güncelleme bileşenini içe aktarın
+import ExportSubbranchToPdf from "../../components/ExportSubbranchToPdf";
 import { useParams } from "react-router-dom";
 import { database } from "../../firebase";
 import { ref, onValue } from "firebase/database";
@@ -16,6 +17,7 @@ function SubbranchContent() {
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false); // Güncelleme modal state
     const [selectedAltDal, setSelectedAltDal] = useState(null);
     const [selectedSoruRefPath, setSelectedSoruRefPath] = useState(""); // Güncellenecek sorunun referansı
+    const [konuBaslik, setKonuBaslik] = useState("");
 
     useEffect(() => {
         const altDalRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}`);
@@ -28,6 +30,17 @@ function SubbranchContent() {
         });
         return () => unsubscribe();
     }, [konuId, altKonuId]);
+
+    useEffect(() => {
+        const konuRef = ref(database, `konular/${konuId}`);
+        const unsubscribe = onValue(konuRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                setKonuBaslik(data.baslik || "");
+            }
+        });
+        return () => unsubscribe();
+    }, [konuId]);
 
     const toggleExpand = (altDalKey) => {
         setExpandedAltDal((prev) => (prev === altDalKey ? null : altDalKey));
@@ -57,6 +70,11 @@ function SubbranchContent() {
                 <div className="container mx-auto py-6 px-4">
                     <div className="flex justify-between items-center mb-6">
                         <h1 className="text-2xl font-bold text-gray-800">{altDalBaslik}</h1>
+                        <ExportSubbranchToPdf 
+                            konuBaslik={konuBaslik}
+                            altKonuBaslik={altDalBaslik}
+                            altDallar={altDallar}
+                        />
                     </div>
                     {Object.keys(altDallar).length > 0 ? (
                         <div className="space-y-6">

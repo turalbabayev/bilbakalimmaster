@@ -3,6 +3,7 @@ import Layout from "../../components/layout";
 import AddQuestion from "../../components/addQuestion";
 import DeleteQuestion from "../../components/deleteQuestion";
 import UpdateQuestion from "../../components/updateQuestion";
+import ExportToPdf from "../../components/ExportToPdf";
 import { useParams, useNavigate } from "react-router-dom";
 import { database } from "../../firebase";
 import { ref, onValue } from "firebase/database";
@@ -56,12 +57,15 @@ function QuestionContent() {
                 <div className="container mx-auto py-6 px-4">
                     <div className="flex items-center justify-between mb-6">
                         <h1 className="text-2xl font-bold text-gray-800 mb-6">{baslik}</h1>
-                        <button
-                            className="px-4 py-2 bg-blue-500 text-white rounded-md mb-6"
-                            onClick={() => setIsModalOpen(true)}
-                        >
-                            Soru Ekle
-                        </button>
+                        <div className="flex space-x-2">
+                            <ExportToPdf konuBaslik={baslik} altKonular={altKonular} />
+                            <button
+                                className="px-4 py-2 bg-blue-500 text-white rounded-md mb-6"
+                                onClick={() => setIsModalOpen(true)}
+                            >
+                                Soru Ekle
+                            </button>
+                        </div>
                     </div>
                     {Object.keys(altKonular).length > 0 ? (
                         <div className="space-y-6">
