@@ -4,6 +4,7 @@ import AddQuestion from "../../components/addQuestion";
 import DeleteQuestion from "../../components/deleteQuestion";
 import UpdateQuestion from "../../components/updateQuestion";
 import ExportToPdf from "../../components/ExportToPdf";
+import ExportToDocx from "../../components/ExportToDocx";
 import { useParams, useNavigate } from "react-router-dom";
 import { database } from "../../firebase";
 import { ref, onValue } from "firebase/database";
@@ -59,6 +60,7 @@ function QuestionContent() {
                         <h1 className="text-2xl font-bold text-gray-800 mb-6">{baslik}</h1>
                         <div className="flex space-x-2">
                             <ExportToPdf konuBaslik={baslik} altKonular={altKonular} />
+                            <ExportToDocx konuBaslik={baslik} altKonular={altKonular} />
                             <button
                                 className="px-4 py-2 bg-blue-500 text-white rounded-md mb-6"
                                 onClick={() => setIsModalOpen(true)}
