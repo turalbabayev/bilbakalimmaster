@@ -78,10 +78,11 @@ const ExportToDocx = ({ konuBaslik, altKonular }) => {
         ]
       });
       
-      console.log("Doküman oluşturuldu, buffer'a dönüştürülüyor...");
+      console.log("Doküman oluşturuldu, blob'a dönüştürülüyor...");
       
-      // DOCX dosyasını oluştur ve indir
-      const buffer = await Packer.toBuffer(doc);
+      // DOCX dosyasını oluştur ve indir - tarayıcıda çalışacak şekilde
+      // Blob kullanarak (NodeBuffer yerine)
+      const blob = await Packer.toBlob(doc);
       
       // Türkçe karakterleri temizle
       const sanitizedKonuBaslik = konuBaslik
@@ -96,7 +97,7 @@ const ExportToDocx = ({ konuBaslik, altKonular }) => {
         : "SoruBankasi";
       
       // Dosyayı indir
-      saveAs(new Blob([buffer]), `${sanitizedKonuBaslik}_Soru_Bankasi.docx`);
+      saveAs(blob, `${sanitizedKonuBaslik}_Soru_Bankasi.docx`);
       
     } catch (error) {
       console.error("DOCX oluşturma hatası:", error);

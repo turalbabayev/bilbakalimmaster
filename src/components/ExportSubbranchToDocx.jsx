@@ -79,10 +79,10 @@ const ExportSubbranchToDocx = ({ konuBaslik, altKonuBaslik, altDallar }) => {
         ]
       });
       
-      console.log("Doküman oluşturuldu, buffer'a dönüştürülüyor...");
+      console.log("Doküman oluşturuldu, blob'a dönüştürülüyor...");
       
-      // DOCX dosyasını oluştur ve indir
-      const buffer = await Packer.toBuffer(doc);
+      // Tarayıcıda Blob kullanarak DOCX oluştur
+      const blob = await Packer.toBlob(doc);
       
       // Türkçe karakterleri temizle
       const sanitizedKonuBaslik = (konuBaslik || "")
@@ -104,7 +104,7 @@ const ExportSubbranchToDocx = ({ konuBaslik, altKonuBaslik, altDallar }) => {
         .replace(/[^\w\s]/gi, '');
         
       // Dosyayı indir
-      saveAs(new Blob([buffer]), `${sanitizedKonuBaslik}_${sanitizedAltKonuBaslik}_Soru_Bankasi.docx`);
+      saveAs(blob, `${sanitizedKonuBaslik}_${sanitizedAltKonuBaslik}_Soru_Bankasi.docx`);
       
     } catch (error) {
       console.error("DOCX oluşturma hatası:", error);
