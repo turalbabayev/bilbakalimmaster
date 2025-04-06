@@ -93,6 +93,7 @@ function SubbranchContent() {
                                                             <div className="flex justify-between items-start">
                                                                 <div className="flex-1 min-w-0">
                                                                     <p className="text-lg font-medium text-gray-700 mb-2 break-words">
+                                                                        <span className="font-bold text-blue-700 mr-2">#{soru.soruNumarasi || "?"}</span>
                                                                         {soru.soruMetni || "Soru yok"}
                                                                     </p>
                                                                     <ul className="space-y-2">

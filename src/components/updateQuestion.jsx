@@ -12,6 +12,7 @@ const UpdateQuestion = ({ isOpen, onClose, soruRefPath, konuId, altKonuId }) => 
     const [selectedAltKonu, setSelectedAltKonu] = useState("");
     const [selectedAltDal, setSelectedAltDal] = useState("");
     const [isAltDal, setIsAltDal] = useState(false);
+    const [mevcutSoruNumarasi, setMevcutSoruNumarasi] = useState(null);
 
     useEffect(() => {
         // Mevcut sorunun verilerini yükle
@@ -28,6 +29,8 @@ const UpdateQuestion = ({ isOpen, onClose, soruRefPath, konuId, altKonuId }) => 
                             : ""
                     );
                     setAciklama(data.aciklama || "");
+                    // Soru numarasını saklayalım
+                    setMevcutSoruNumarasi(data.soruNumarasi || null);
                 }
             });
         }
@@ -69,6 +72,11 @@ const UpdateQuestion = ({ isOpen, onClose, soruRefPath, konuId, altKonuId }) => 
             liked: 0,
             unliked: 0
         };
+
+        // Mevcut soru numarası varsa, onu da ekleyelim
+        if (mevcutSoruNumarasi) {
+            updatedQuestion.soruNumarasi = mevcutSoruNumarasi;
+        }
 
         let newPath;
         const timestamp = Date.now();

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { database } from "../firebase";
-import { ref, push } from "firebase/database";
+import { ref, push, get } from "firebase/database";
 
 const AddQuestionSubbranch = ({
     isOpen,
@@ -14,39 +14,52 @@ const AddQuestionSubbranch = ({
     const [dogruCevap, setDogruCevap] = useState("");
     const [aciklama, setAciklama] = useState("");
 
-    const handleAddQuestion = () => {
+    const handleAddQuestion = async () => {
         if (!soruMetni || cevaplar.some((c) => !c) || !dogruCevap) {
             alert("Tüm alanları doldurmalısınız.");
             return;
         }
 
-        const newQuestion = {
-            soruMetni,
-            cevaplar,
-            dogruCevap: cevaplar[dogruCevap.charCodeAt(0) - 65],
-            aciklama,
-            liked: 0,
-            unliked: 0,
-            report: 0,
-        };
-
+        // Mevcut soruların sayısını alıp, yeni soru numarasını belirle
         const soruRef = ref(
             database,
             `konular/${konuId}/altkonular/${altKonuId}/altdallar/${selectedAltDal}/sorular`
         );
-        push(soruRef, newQuestion)
-            .then(() => {
-                alert("Soru başarıyla eklendi.");
-                onClose();
-                setSoruMetni("");
-                setCevaplar(["", "", "", "", ""]);
-                setDogruCevap("");
-                setAciklama("");
-            })
-            .catch((error) => {
-                console.error("Soru eklenirken bir hata oluştu: ", error);
-                alert("Soru eklenirken bir hata oluştu!");
-            });
+        
+        try {
+            const snapshot = await get(soruRef);
+            const sorular = snapshot.val() || {};
+            const soruSayisi = Object.keys(sorular).length;
+            const soruNumarasi = soruSayisi + 1;
+            
+            const newQuestion = {
+                soruMetni,
+                cevaplar,
+                dogruCevap: cevaplar[dogruCevap.charCodeAt(0) - 65],
+                aciklama,
+                liked: 0,
+                unliked: 0,
+                report: 0,
+                soruNumarasi: soruNumarasi, // Soru numarası eklendi
+            };
+
+            push(soruRef, newQuestion)
+                .then(() => {
+                    alert("Soru başarıyla eklendi.");
+                    onClose();
+                    setSoruMetni("");
+                    setCevaplar(["", "", "", "", ""]);
+                    setDogruCevap("");
+                    setAciklama("");
+                })
+                .catch((error) => {
+                    console.error("Soru eklenirken bir hata oluştu: ", error);
+                    alert("Soru eklenirken bir hata oluştu!");
+                });
+        } catch (error) {
+            console.error("Soru sayısı alınırken hata oluştu: ", error);
+            alert("Soru eklenirken bir hata oluştu!");
+        }
     };
 
     if (!isOpen) return null;

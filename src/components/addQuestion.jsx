@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { database, messaging } from "../firebase";
-import { ref, push } from "firebase/database";
+import { ref, push, get } from "firebase/database";
 
 const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [selectedAltKonu, setSelectedAltKonu] = useState("");
@@ -11,7 +11,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [liked, setLiked] = useState(0);
     const [unliked, setUnliked] = useState(0);
 
-    const handleAddQuestion = () => {
+    const handleAddQuestion = async () => {
         if (
             !selectedAltKonu ||
             !soruMetni ||
@@ -22,36 +22,50 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
             return;
         }
 
-        const newQuestion = {
-            soruMetni,
-            cevaplar,
-            dogruCevap: cevaplar[dogruCevap.charCodeAt(0) - 65],
-            aciklama,
-            liked: 0,
-            unliked: 0,
-            report: 0,
-        };
+        // Mevcut soruların sayısını alıp, yeni soru numarasını belirle
         const soruRef = ref(
             database,
             `konular/${currentKonuId}/altkonular/${selectedAltKonu}/sorular`
         );
-        push(soruRef, newQuestion)
-            .then(() => {
-                alert("Soru başarıyla eklendi.");
-                sendNotification("Yeni soru eklendi", `Soru: ${soruMetni}`);
-                onClose();
-                setSelectedAltKonu("");
-                setSoruMetni("");
-                setCevaplar(["", "", "", "", ""]);
-                setDogruCevap("");
-                setAciklama("");
-                setLiked(0);
-                setUnliked(0);
-            })
-            .catch((error) => {
-                console.error("Soru eklenirken bir hata oluştu:  ", error);
-                alert("Soru eklenirken bir hata oluştu!");
-            });
+        
+        try {
+            const snapshot = await get(soruRef);
+            const sorular = snapshot.val() || {};
+            const soruSayisi = Object.keys(sorular).length;
+            const soruNumarasi = soruSayisi + 1;
+            
+            const newQuestion = {
+                soruMetni,
+                cevaplar,
+                dogruCevap: cevaplar[dogruCevap.charCodeAt(0) - 65],
+                aciklama,
+                liked: 0,
+                unliked: 0,
+                report: 0,
+                soruNumarasi: soruNumarasi, // Soru numarası eklendi
+            };
+            
+            push(soruRef, newQuestion)
+                .then(() => {
+                    alert("Soru başarıyla eklendi.");
+                    sendNotification("Yeni soru eklendi", `Soru: ${soruMetni}`);
+                    onClose();
+                    setSelectedAltKonu("");
+                    setSoruMetni("");
+                    setCevaplar(["", "", "", "", ""]);
+                    setDogruCevap("");
+                    setAciklama("");
+                    setLiked(0);
+                    setUnliked(0);
+                })
+                .catch((error) => {
+                    console.error("Soru eklenirken bir hata oluştu:  ", error);
+                    alert("Soru eklenirken bir hata oluştu!");
+                });
+        } catch (error) {
+            console.error("Soru sayısı alınırken hata oluştu: ", error);
+            alert("Soru eklenirken bir hata oluştu!");
+        }
     };
   
     const sendNotification = async (title, body) => {

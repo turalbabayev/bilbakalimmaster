@@ -4,7 +4,7 @@
   "private": true,
   "dependencies": {
     "cra-template": "1.2.0",
-    "firebase": "^11.1.0",
+    "firebase": "^11.6.0",
     "mathjax": "^3.2.2",
     "mathjax-react": "^2.0.1",
     "react": "^18.3.1",
@@ -19,7 +19,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "number-questions": "node number-questions-cjs.js"
   },
   "eslintConfig": {
     "extends": [

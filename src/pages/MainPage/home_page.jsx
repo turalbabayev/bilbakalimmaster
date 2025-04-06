@@ -9,6 +9,7 @@ import DeleteSubtopics from "../../components/deleteSubtopics";
 import AddSubbranch from "../../components/addSubbranch";
 import DeleteSubbranch from "../../components/deleteSubbranch";
 import UpdateModal from "../../components/updateModal";
+import NumberQuestions from "../../components/numberQuestions";
 
 function HomePage() {
     const [konular, setKonular] = useState([]);
@@ -23,6 +24,7 @@ function HomePage() {
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [updatePath, setUpdatePath] = useState("");
     const [updateType, setUpdateType] = useState("");
+    const [isNumberQuestionsModalOpen, setIsNumberQuestionsModalOpen] = useState(false);
 
     useEffect(() => {
         const konularRef = ref(database, "konular");
@@ -104,6 +106,22 @@ function HomePage() {
                                     className="mb-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
                                 >
                                     Alt Dal Sil
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-center">
+                            <div className="space-x-4">
+                                <button
+                                    className="px-4 py-2 bg-blue-500 text-white rounded-md"
+                                    onClick={() => setIsTopicModalOpen(true)}
+                                >
+                                    Konu Ekle
+                                </button>
+                                <button
+                                    className="px-4 py-2 bg-green-500 text-white rounded-md ml-2"
+                                    onClick={() => setIsNumberQuestionsModalOpen(true)}
+                                >
+                                    Soruları Numaralandır
                                 </button>
                             </div>
                         </div>
@@ -221,6 +239,12 @@ function HomePage() {
                     closeModal={() => setIsUpdateModalOpen(false)}
                     updatePath={updatePath}
                     itemType={updateType}
+                />
+            )}
+            {isNumberQuestionsModalOpen && (
+                <NumberQuestions
+                    isOpen={isNumberQuestionsModalOpen}
+                    onClose={() => setIsNumberQuestionsModalOpen(false)}
                 />
             )}
         </Layout>
