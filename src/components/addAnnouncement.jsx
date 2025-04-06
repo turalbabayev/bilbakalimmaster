@@ -10,6 +10,16 @@ const AddAnnouncement = ({ isOpen, onClose }) => {
     const [resimFile, setResimFile] = useState(null);
     const [resimPreview, setResimPreview] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    // Etkinlik alanları
+    const [etkinlikKisaAciklama, setEtkinlikKisaAciklama] = useState("");
+    const [etkinlikUzunAciklama, setEtkinlikUzunAciklama] = useState("");
+    const [etkinlikUcreti, setEtkinlikUcreti] = useState("");
+    const [odemeSonrasiIcerik, setOdemeSonrasiIcerik] = useState("");
+    
+    // Bilgilendirme alanları
+    const [bilgilendirmeKisaAciklama, setBilgilendirmeKisaAciklama] = useState("");
+    const [targetSayfa] = useState("Deneme Sayfası");
 
     const handleResimSecimi = (e) => {
         if (e.target.files[0]) {
@@ -26,8 +36,17 @@ const AddAnnouncement = ({ isOpen, onClose }) => {
     };
 
     const handleDuyuruEkle = async () => {
-        if (!duyuruAdi || !duyuruAciklamasi) {
+        // Form doğrulama
+        if (duyuruTipi === "Duyuru" && (!duyuruAdi || !duyuruAciklamasi)) {
             alert("Lütfen duyuru adı ve açıklaması alanlarını doldurun.");
+            return;
+        } else if (duyuruTipi === "Etkinlik" && 
+            (!duyuruAdi || !etkinlikKisaAciklama || !etkinlikUzunAciklama || !etkinlikUcreti)) {
+            alert("Lütfen tüm etkinlik alanlarını doldurun.");
+            return;
+        } else if (duyuruTipi === "Bilgilendirme" && 
+            (!duyuruAdi || !bilgilendirmeKisaAciklama)) {
+            alert("Lütfen bilgilendirme adı ve kısa açıklama alanlarını doldurun.");
             return;
         }
 
@@ -50,15 +69,28 @@ const AddAnnouncement = ({ isOpen, onClose }) => {
                 });
             }
             
+            // Ortak alanlar
             const yeniDuyuru = {
                 tip: duyuruTipi,
                 baslik: duyuruAdi,
-                aciklama: duyuruAciklamasi,
                 resim: resimBase64,
-                resimTuru: resimFile ? resimFile.type : null, // Resim türünü de kaydet
+                resimTuru: resimFile ? resimFile.type : null,
                 tarih: new Date().toISOString(),
                 aktif: true
             };
+            
+            // Duyuru tipine göre özel alanlar
+            if (duyuruTipi === "Duyuru") {
+                yeniDuyuru.aciklama = duyuruAciklamasi;
+            } else if (duyuruTipi === "Etkinlik") {
+                yeniDuyuru.kisaAciklama = etkinlikKisaAciklama;
+                yeniDuyuru.uzunAciklama = etkinlikUzunAciklama;
+                yeniDuyuru.ucret = etkinlikUcreti;
+                yeniDuyuru.odemeSonrasiIcerik = odemeSonrasiIcerik;
+            } else if (duyuruTipi === "Bilgilendirme") {
+                yeniDuyuru.kisaAciklama = bilgilendirmeKisaAciklama;
+                yeniDuyuru.target = targetSayfa;
+            }
 
             // Firebase'e kaydet
             const duyurularRef = ref(database, "duyurular");
@@ -69,6 +101,11 @@ const AddAnnouncement = ({ isOpen, onClose }) => {
             setDuyuruTipi("Duyuru");
             setDuyuruAdi("");
             setDuyuruAciklamasi("");
+            setEtkinlikKisaAciklama("");
+            setEtkinlikUzunAciklama("");
+            setEtkinlikUcreti("");
+            setOdemeSonrasiIcerik("");
+            setBilgilendirmeKisaAciklama("");
             setResimFile(null);
             setResimPreview(null);
             onClose();
@@ -80,17 +117,172 @@ const AddAnnouncement = ({ isOpen, onClose }) => {
         }
     };
 
+    const renderFormFields = () => {
+        switch (duyuruTipi) {
+            case "Duyuru":
+                return (
+                    <>
+                        <div>
+                            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                                Duyuru Adı:
+                            </label>
+                            <input
+                                type="text"
+                                value={duyuruAdi}
+                                onChange={(e) => setDuyuruAdi(e.target.value)}
+                                placeholder="Duyuru başlığını girin"
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-all"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                                Duyuru Açıklaması:
+                            </label>
+                            <textarea
+                                value={duyuruAciklamasi}
+                                onChange={(e) => setDuyuruAciklamasi(e.target.value)}
+                                rows="4"
+                                placeholder="Duyuru açıklamasını girin"
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-all"
+                            />
+                        </div>
+                    </>
+                );
+            case "Etkinlik":
+                return (
+                    <>
+                        <div>
+                            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                                Etkinlik Adı:
+                            </label>
+                            <input
+                                type="text"
+                                value={duyuruAdi}
+                                onChange={(e) => setDuyuruAdi(e.target.value)}
+                                placeholder="Etkinlik adını girin"
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-all"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                                Etkinlik Kısa Açıklaması:
+                            </label>
+                            <textarea
+                                value={etkinlikKisaAciklama}
+                                onChange={(e) => setEtkinlikKisaAciklama(e.target.value)}
+                                rows="2"
+                                placeholder="Etkinliğin kısa açıklamasını girin"
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-all"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                                Etkinlik Uzun Açıklaması:
+                            </label>
+                            <textarea
+                                value={etkinlikUzunAciklama}
+                                onChange={(e) => setEtkinlikUzunAciklama(e.target.value)}
+                                rows="4"
+                                placeholder="Etkinliğin detaylı açıklamasını girin"
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-all"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                                Etkinlik Ücreti (TL):
+                            </label>
+                            <input
+                                type="number"
+                                value={etkinlikUcreti}
+                                onChange={(e) => setEtkinlikUcreti(e.target.value)}
+                                placeholder="Etkinlik ücretini girin"
+                                min="0"
+                                step="0.01"
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-all"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                                Ödeme Sonrası Gösterilecek İçerik:
+                            </label>
+                            <textarea
+                                value={odemeSonrasiIcerik}
+                                onChange={(e) => setOdemeSonrasiIcerik(e.target.value)}
+                                rows="4"
+                                placeholder="Ödeme yapıldıktan sonra kullanıcıya gösterilecek içeriği girin"
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-all"
+                            />
+                        </div>
+                    </>
+                );
+            case "Bilgilendirme":
+                return (
+                    <>
+                        <div>
+                            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                                Bilgilendirme Adı:
+                            </label>
+                            <input
+                                type="text"
+                                value={duyuruAdi}
+                                onChange={(e) => setDuyuruAdi(e.target.value)}
+                                placeholder="Bilgilendirme başlığını girin"
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-all"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                                Bilgilendirme Kısa Açıklaması:
+                            </label>
+                            <textarea
+                                value={bilgilendirmeKisaAciklama}
+                                onChange={(e) => setBilgilendirmeKisaAciklama(e.target.value)}
+                                rows="4"
+                                placeholder="Bilgilendirme açıklamasını girin"
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-all"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                                Hedef Sayfa (Uygulamada Yönlendirilecek Sayfa):
+                            </label>
+                            <input
+                                type="text"
+                                value={targetSayfa}
+                                disabled
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                            />
+                            <p className="text-xs text-gray-500 mt-1 italic">Bu alan değiştirilemez.</p>
+                        </div>
+                    </>
+                );
+            default:
+                return null;
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700">
-                <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white border-b pb-3 border-gray-200 dark:border-gray-700">Yeni Duyuru Ekle</h2>
+                <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white border-b pb-3 border-gray-200 dark:border-gray-700">
+                    {duyuruTipi === "Duyuru" ? "Yeni Duyuru Ekle" : 
+                     duyuruTipi === "Etkinlik" ? "Yeni Etkinlik Ekle" : 
+                     "Yeni Bilgilendirme Ekle"}
+                </h2>
                 
                 <div className="space-y-5">
                     <div>
                         <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                            Duyuru Tipi:
+                            Tip Seçin:
                         </label>
                         <select 
                             value={duyuruTipi}
@@ -103,35 +295,13 @@ const AddAnnouncement = ({ isOpen, onClose }) => {
                         </select>
                     </div>
                     
-                    <div>
-                        <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                            Duyuru Adı:
-                        </label>
-                        <input
-                            type="text"
-                            value={duyuruAdi}
-                            onChange={(e) => setDuyuruAdi(e.target.value)}
-                            placeholder="Duyuru başlığını girin"
-                            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-all"
-                        />
-                    </div>
+                    {renderFormFields()}
                     
                     <div>
                         <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                            Duyuru Açıklaması:
-                        </label>
-                        <textarea
-                            value={duyuruAciklamasi}
-                            onChange={(e) => setDuyuruAciklamasi(e.target.value)}
-                            rows="4"
-                            placeholder="Duyuru açıklamasını girin"
-                            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-all"
-                        />
-                    </div>
-                    
-                    <div>
-                        <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                            Arkaplan Resmi:
+                            {duyuruTipi === "Duyuru" ? "Duyuru Resmi" : 
+                             duyuruTipi === "Etkinlik" ? "Etkinlik Resmi" : 
+                             "Bilgilendirme Resmi"}:
                         </label>
                         <input
                             type="file"
@@ -177,7 +347,7 @@ const AddAnnouncement = ({ isOpen, onClose }) => {
                                 Ekleniyor...
                             </>
                         ) : (
-                            "Duyuru Ekle"
+                            `${duyuruTipi} Ekle`
                         )}
                     </button>
                 </div>

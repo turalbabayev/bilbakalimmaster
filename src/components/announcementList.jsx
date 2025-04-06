@@ -124,9 +124,47 @@ const AnnouncementList = () => {
                                     </span>
                                 </div>
                                 
-                                <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3">
-                                    {duyuru.aciklama}
-                                </p>
+                                {/* Duyuru tipi: Duyuru */}
+                                {duyuru.tip === "Duyuru" && (
+                                    <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3">
+                                        {duyuru.aciklama}
+                                    </p>
+                                )}
+                                
+                                {/* Duyuru tipi: Etkinlik */}
+                                {duyuru.tip === "Etkinlik" && (
+                                    <>
+                                        <p className="text-gray-600 dark:text-gray-300 mb-2 line-clamp-2">
+                                            <span className="font-semibold">Kısa Açıklama:</span> {duyuru.kisaAciklama}
+                                        </p>
+                                        <p className="text-gray-600 dark:text-gray-300 mb-2 line-clamp-2">
+                                            <span className="font-semibold">Uzun Açıklama:</span> {duyuru.uzunAciklama}
+                                        </p>
+                                        <p className="text-emerald-600 dark:text-emerald-400 mb-3 font-semibold">
+                                            Ücret: {duyuru.ucret} TL
+                                        </p>
+                                        <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-lg mb-3">
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Ödeme Sonrası İçerik:</p>
+                                            <p className="text-gray-600 dark:text-gray-300 text-sm line-clamp-1">
+                                                {duyuru.odemeSonrasiIcerik || "Belirtilmemiş"}
+                                            </p>
+                                        </div>
+                                    </>
+                                )}
+                                
+                                {/* Duyuru tipi: Bilgilendirme */}
+                                {duyuru.tip === "Bilgilendirme" && (
+                                    <>
+                                        <p className="text-gray-600 dark:text-gray-300 mb-2 line-clamp-3">
+                                            {duyuru.kisaAciklama}
+                                        </p>
+                                        <div className="bg-blue-50 dark:bg-blue-900 p-2 rounded-lg mb-3">
+                                            <p className="text-sm text-blue-700 dark:text-blue-300">
+                                                <span className="font-semibold">Hedef Sayfa:</span> {duyuru.target}
+                                            </p>
+                                        </div>
+                                    </>
+                                )}
                                 
                                 <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                                     {formatDate(duyuru.tarih)}
