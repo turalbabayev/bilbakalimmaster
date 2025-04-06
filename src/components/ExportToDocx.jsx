@@ -45,11 +45,19 @@ const ExportToDocx = ({ konuBaslik, altKonular }) => {
           
           // Her soru için basit bir paragraf ekle
           if (altKonu.sorular && typeof altKonu.sorular === 'object') {
-            Object.entries(altKonu.sorular).forEach(([soruId, soru]) => {
+            // Soruları numaralarına göre sırala
+            const sortedSorular = Object.entries(altKonu.sorular).sort((a, b) => {
+              const numA = a[1].soruNumarasi || 0;
+              const numB = b[1].soruNumarasi || 0;
+              return numA - numB;
+            });
+            
+            sortedSorular.forEach(([soruId, soru], index) => {
               if (!soru) return;
               
-              // Soru metni
-              children.push(new Paragraph(`Soru: ${soru.soruMetni || ""}`));
+              // Soru numarası ve metni
+              const soruNumarasi = soru.soruNumarasi || index + 1;
+              children.push(new Paragraph(`Soru #${soruNumarasi}: ${soru.soruMetni || ""}`));
               
               // Şıklar
               if (Array.isArray(soru.cevaplar)) {
@@ -64,7 +72,10 @@ const ExportToDocx = ({ konuBaslik, altKonular }) => {
               if (includeAnswers) {
                 // Doğru cevap
                 if (soru.dogruCevap) {
-                  children.push(new Paragraph(`Doğru Cevap: ${soru.dogruCevap}`));
+                  const dogruCevapSik = soru.cevaplar && Array.isArray(soru.cevaplar) && soru.cevaplar.indexOf(soru.dogruCevap) !== -1 ? 
+                    String.fromCharCode(65 + soru.cevaplar.indexOf(soru.dogruCevap)) : "";
+                  
+                  children.push(new Paragraph(`Doğru Cevap: ${soru.dogruCevap} ${dogruCevapSik ? `(${dogruCevapSik} şıkkı)` : ""}`));
                 }
                 
                 // Açıklama
@@ -127,11 +138,15 @@ const ExportToDocx = ({ konuBaslik, altKonular }) => {
   };
   
   return (
-    <div className="flex space-x-2">
+    <div className="flex flex-col sm:flex-row gap-2">
       <button
         onClick={() => exportToDocx(true)}
         disabled={loading}
-        className={`px-4 py-2 ${loading ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-md flex items-center`}
+        className={`px-4 py-2 ${
+          loading 
+            ? 'bg-gray-400 dark:bg-gray-600' 
+            : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600'
+        } text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center`}
       >
         {loading ? (
           <>
@@ -154,7 +169,11 @@ const ExportToDocx = ({ konuBaslik, altKonular }) => {
       <button
         onClick={() => exportToDocx(false)}
         disabled={loadingSimple}
-        className={`px-4 py-2 ${loadingSimple ? 'bg-gray-400' : 'bg-green-500 hover:bg-green-600'} text-white rounded-md flex items-center`}
+        className={`px-4 py-2 ${
+          loadingSimple 
+            ? 'bg-gray-400 dark:bg-gray-600' 
+            : 'bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600'
+        } text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center`}
       >
         {loadingSimple ? (
           <>

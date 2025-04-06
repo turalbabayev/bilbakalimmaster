@@ -47,11 +47,19 @@ const ExportSubbranchToDocx = ({ konuBaslik, altKonuBaslik, altDallar }) => {
           
           // Her soru için basit bir paragraf ekle
           if (altDal.sorular && typeof altDal.sorular === 'object') {
-            Object.entries(altDal.sorular).forEach(([soruId, soru]) => {
+            // Soruları numaralarına göre sırala
+            const sortedSorular = Object.entries(altDal.sorular).sort((a, b) => {
+              const numA = a[1].soruNumarasi || 0;
+              const numB = b[1].soruNumarasi || 0;
+              return numA - numB;
+            });
+            
+            sortedSorular.forEach(([soruId, soru], index) => {
               if (!soru) return;
               
-              // Soru metni
-              children.push(new Paragraph(`Soru: ${soru.soruMetni || ""}`));
+              // Soru numarası ve metni
+              const soruNumarasi = soru.soruNumarasi || index + 1;
+              children.push(new Paragraph(`Soru #${soruNumarasi}: ${soru.soruMetni || ""}`));
               
               // Şıklar
               if (Array.isArray(soru.cevaplar)) {
@@ -66,7 +74,10 @@ const ExportSubbranchToDocx = ({ konuBaslik, altKonuBaslik, altDallar }) => {
               if (includeAnswers) {
                 // Doğru cevap
                 if (soru.dogruCevap) {
-                  children.push(new Paragraph(`Doğru Cevap: ${soru.dogruCevap}`));
+                  const dogruCevapSik = soru.cevaplar && Array.isArray(soru.cevaplar) && soru.cevaplar.indexOf(soru.dogruCevap) !== -1 ? 
+                    String.fromCharCode(65 + soru.cevaplar.indexOf(soru.dogruCevap)) : "";
+                  
+                  children.push(new Paragraph(`Doğru Cevap: ${soru.dogruCevap} ${dogruCevapSik ? `(${dogruCevapSik} şıkkı)` : ""}`));
                 }
                 
                 // Açıklama
