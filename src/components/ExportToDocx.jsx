@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
+import { Document, Packer, Paragraph } from "docx";
 import { saveAs } from "file-saver";
 
 const ExportToDocx = ({ konuBaslik, altKonular }) => {
@@ -11,14 +11,12 @@ const ExportToDocx = ({ konuBaslik, altKonular }) => {
       console.log("DOCX oluşturma başladı...", {konuBaslik, altKonular});
       
       // Temel bir doküman oluştur (minimum yapılandırma)
-      const doc = new Document();
       const children = [];
       
       // Başlık ekle
       children.push(
         new Paragraph({
           text: konuBaslik || "Soru Bankası",
-          heading: HeadingLevel.HEADING_1,
         })
       );
       
@@ -34,7 +32,6 @@ const ExportToDocx = ({ konuBaslik, altKonular }) => {
           children.push(
             new Paragraph({
               text: altKonu.baslik || "Alt Konu",
-              heading: HeadingLevel.HEADING_2,
             })
           );
           
@@ -72,9 +69,13 @@ const ExportToDocx = ({ konuBaslik, altKonular }) => {
         });
       }
       
-      // Dokümana bölüm ekle
-      doc.addSection({
-        children: children
+      // Doküman oluştur
+      const doc = new Document({
+        sections: [
+          {
+            children: children
+          }
+        ]
       });
       
       console.log("Doküman oluşturuldu, buffer'a dönüştürülüyor...");

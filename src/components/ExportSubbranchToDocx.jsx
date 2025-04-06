@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Document, Packer, Paragraph, HeadingLevel } from "docx";
+import { Document, Packer, Paragraph } from "docx";
 import { saveAs } from "file-saver";
 
 const ExportSubbranchToDocx = ({ konuBaslik, altKonuBaslik, altDallar }) => {
@@ -10,8 +10,7 @@ const ExportSubbranchToDocx = ({ konuBaslik, altKonuBaslik, altDallar }) => {
     try {
       console.log("Alt dal DOCX oluşturma başladı...", {konuBaslik, altKonuBaslik, altDallar});
       
-      // Temel bir doküman oluştur (minimum yapılandırma)
-      const doc = new Document();
+      // Doküman için paragrafları hazırla
       const children = [];
       
       // Başlık ekle
@@ -19,7 +18,6 @@ const ExportSubbranchToDocx = ({ konuBaslik, altKonuBaslik, altDallar }) => {
       children.push(
         new Paragraph({
           text: baslik,
-          heading: HeadingLevel.HEADING_1,
         })
       );
       
@@ -35,7 +33,6 @@ const ExportSubbranchToDocx = ({ konuBaslik, altKonuBaslik, altDallar }) => {
           children.push(
             new Paragraph({
               text: altDal.baslik || "Alt Dal",
-              heading: HeadingLevel.HEADING_2,
             })
           );
           
@@ -73,9 +70,13 @@ const ExportSubbranchToDocx = ({ konuBaslik, altKonuBaslik, altDallar }) => {
         });
       }
       
-      // Dokümana bölüm ekle
-      doc.addSection({
-        children: children
+      // Dokümanı oluştur
+      const doc = new Document({
+        sections: [
+          {
+            children: children
+          }
+        ]
       });
       
       console.log("Doküman oluşturuldu, buffer'a dönüştürülüyor...");
