@@ -1,0 +1,75 @@
+{
+    "konular": [
+      {
+        "id": 1,
+        "baslik": "Bankacılık",
+        "altKonular": [
+          "Bankacılık tarihi",
+          "Bankaların sınıflandırılması",
+          "Finansal piyasalar",
+          "Nakit değerler"
+        ]
+      },
+      {
+        "id": 2,
+        "baslik": "Ekonomi",
+        "altKonular": [
+          "Makroekonomi",
+          "Mikroekonomi",
+          "Ekonomik sistemler",
+          "Ekonomik göstergeler"
+        ]
+      },
+      {
+        "id": 3,
+        "baslik": "Hukuk",
+        "altKonular": {
+          "1": "Anayasa hukuku",
+          "2": "Ceza hukuku",
+          "3": "Medeni hukuk",
+          "4": "Ticaret hukuku"
+        }
+      },
+      {
+        "id": 4,
+        "baslik": "Krediler",
+        "altKonular": [
+          "Tüketici kredileri",
+          "Konut kredileri",
+          "Taşıt kredileri",
+          "Kredi başvuru süreçleri"
+        ]
+      },
+      {
+        "id": 5,
+        "baslik": "Muhasebe",
+        "altKonular": [
+          "Muhasebe temel kavramları",
+          "Bilanço",
+          "Gelir tablosu",
+          "Muhasebe standartları"
+        ]
+      },
+      {
+        "id": 6,
+        "baslik": "Genel kültür",
+        "altKonular": [
+          "Tarih",
+          "Coğrafya",
+          "Sanat",
+          "Bilim"
+        ]
+      },
+      {
+        "id": 7,
+        "baslik": "Önemli terimler",
+        "altKonular": [
+          "Finansal terimler",
+          "Hukuki terimler",
+          "Ekonomik terimler",
+          "Muhasebe terimleri"
+        ]
+      }
+    ]
+  }
+  
