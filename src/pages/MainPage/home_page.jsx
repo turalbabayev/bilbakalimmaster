@@ -20,11 +20,10 @@ function HomePage() {
     const [isSubbranchModalOpen, setIsSubbranchModalOpen] = useState(false);
     const [isDeleteSubbranchModalOpen, setIsDeleteSubbranchModalOpen] = useState(false);
     const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
-    const [isDeleteTopicModalOpen, setIsDeleteTopicModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [updatePath, setUpdatePath] = useState("");
     const [updateType, setUpdateType] = useState("");
-    const [isNumberQuestionsModalOpen, setIsNumberQuestionsModalOpen] = useState(false);
+    const [isDeleteTopicModalOpen, setIsDeleteTopicModalOpen] = useState(false);
 
     useEffect(() => {
         const konularRef = ref(database, "konular");
@@ -116,12 +115,6 @@ function HomePage() {
                                     onClick={() => setIsTopicModalOpen(true)}
                                 >
                                     Konu Ekle
-                                </button>
-                                <button
-                                    className="px-4 py-2 bg-green-500 text-white rounded-md ml-2"
-                                    onClick={() => setIsNumberQuestionsModalOpen(true)}
-                                >
-                                    Soruları Numaralandır
                                 </button>
                             </div>
                         </div>
@@ -239,12 +232,6 @@ function HomePage() {
                     closeModal={() => setIsUpdateModalOpen(false)}
                     updatePath={updatePath}
                     itemType={updateType}
-                />
-            )}
-            {isNumberQuestionsModalOpen && (
-                <NumberQuestions
-                    isOpen={isNumberQuestionsModalOpen}
-                    onClose={() => setIsNumberQuestionsModalOpen(false)}
                 />
             )}
         </Layout>
