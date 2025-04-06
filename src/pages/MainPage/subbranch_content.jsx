@@ -108,6 +108,11 @@ function SubbranchContent() {
                                                                     </ul>
                                                                     <p className="text-sm font-bold text-green-600 mt-2">
                                                                         Doğru Cevap: {soru.dogruCevap || "Belirtilmemiş"}
+                                                                        {soru.dogruCevap && soru.cevaplar && Array.isArray(soru.cevaplar) && (
+                                                                            <span className="ml-2 bg-green-100 px-2 py-1 rounded-full">
+                                                                                ({String.fromCharCode(65 + soru.cevaplar.indexOf(soru.dogruCevap))} şıkkı)
+                                                                            </span>
+                                                                        )}
                                                                     </p>
                                                                     <p className="text-lg font-bold text-gray-700 mt-2 break-words">
                                                                         Açıklama: {soru.aciklama || "Belirtilmemiş"}
