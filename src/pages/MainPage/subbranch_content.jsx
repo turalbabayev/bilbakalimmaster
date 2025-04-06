@@ -3,7 +3,6 @@ import Layout from "../../components/layout";
 import AddQuestionSubbranch from "../../components/addQuestionSubbranch";
 import DeleteQuestion from "../../components/deleteQuestion";
 import UpdateQuestion from "../../components/updateQuestion"; // Güncelleme bileşenini içe aktarın
-import ExportSubbranchToPdf from "../../components/ExportSubbranchToPdf";
 import ExportSubbranchToDocx from "../../components/ExportSubbranchToDocx";
 import { useParams } from "react-router-dom";
 import { database } from "../../firebase";
@@ -72,11 +71,6 @@ function SubbranchContent() {
                     <div className="flex justify-between items-center mb-6">
                         <h1 className="text-2xl font-bold text-gray-800">{altDalBaslik}</h1>
                         <div className="flex">
-                            <ExportSubbranchToPdf 
-                                konuBaslik={konuBaslik}
-                                altKonuBaslik={altDalBaslik}
-                                altDallar={altDallar}
-                            />
                             <ExportSubbranchToDocx
                                 konuBaslik={konuBaslik}
                                 altKonuBaslik={altDalBaslik}
