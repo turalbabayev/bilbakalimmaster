@@ -80,12 +80,18 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
             const newPath = `konular/${konuId}/altkonular/${selectedAltKonu}/sorular/${timestamp}`;
             console.log("Yeni yol:", newPath);
             
+            // Doğru cevabın indeksini bul
+            const dogruCevapIndex = cevaplar.findIndex(cevap => cevap === dogruCevap);
+            if (dogruCevapIndex === -1) {
+                throw new Error("Doğru cevap bulunamadı!");
+            }
+            
             // Yeni konuma soruyu ekle
             const newSoruRef = ref(database, newPath);
             const updatedSoru = {
                 soruMetni: soru.soruMetni,
                 cevaplar: cevaplar,
-                dogruCevap: cevaplar[dogruCevap.charCodeAt(0) - 65],
+                dogruCevap: cevaplar[dogruCevapIndex],
                 aciklama: soru.aciklama,
                 report: soru.report || 0,
                 liked: soru.liked || 0,
