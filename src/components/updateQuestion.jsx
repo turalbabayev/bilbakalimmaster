@@ -39,9 +39,8 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                console.log("Soru yükleme işlemi başladı:", { konuId, altKonuId, soruId });
+                console.log("Modal açıldı, veri yükleme başlıyor:", { konuId, altKonuId, soruId, isOpen });
                 
-                // Gerekli parametreleri kontrol et
                 if (!konuId || !altKonuId || !soruId) {
                     console.error("Eksik parametreler:", { konuId, altKonuId, soruId });
                     alert("Soru güncelleme için gerekli parametreler eksik!");
@@ -50,87 +49,145 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                     return;
                 }
                 
-                // Alt konuları yükle
+                // Önce veri tabanı referanslarını oluştur
                 const konularRef = ref(database, `konular/${konuId}`);
-                const konularSnapshot = await get(konularRef);
-                if (konularSnapshot.exists()) {
-                    setAltKonular(konularSnapshot.val().altkonular || {});
-                } else {
+                const soruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/sorular/${soruId}`);
+                
+                // Promise.all ile tüm verileri paralel olarak yükle
+                const [konularSnapshot, soruSnapshot] = await Promise.all([
+                    get(konularRef),
+                    get(soruRef)
+                ]);
+                
+                // Konu kontrolü
+                if (!konularSnapshot.exists()) {
                     console.error("Konu bulunamadı:", konuId);
                     alert("Belirtilen konu bulunamadı! Modal kapatılacak.");
                     setLoading(false);
                     onClose();
                     return;
                 }
-
-                // Mevcut soruyu yükle
-                const soruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/sorular/${soruId}`);
-                const soruSnapshot = await get(soruRef);
                 
-                if (soruSnapshot.exists()) {
-                    const data = soruSnapshot.val();
-                    console.log("Soru verisi yüklendi:", data);
-                    setSoru(data);
-                    setCevaplar(data.cevaplar || ["", "", "", "", ""]);
-                    
-                    // Alt konu seçimini mevcut alt konu ile güncelle
-                    setSelectedAltKonu(altKonuId);
-                    
-                    // Doğru cevap şıkkını belirle (A, B, C, D, E vs.)
-                    if (data.dogruCevap) {
-                        // Eğer dogruCevap zaten bir harf ise (A, B, C, D, E), direkt kullan
-                        if (/^[A-E]$/.test(data.dogruCevap)) {
-                            setDogruCevap(data.dogruCevap);
-                        } 
-                        // Eski sistemden gelen veri yapısı (cevabın kendisi)
-                        else {
-                            // Cevaplar içerisinde doğru cevabı ara
-                            const index = data.cevaplar.findIndex(cevap => cevap === data.dogruCevap);
-                            if (index !== -1) {
-                                // Bulunan index'e göre harf belirle (A, B, C, D, E)
-                                setDogruCevap(String.fromCharCode(65 + index));
-                            } else {
-                                setDogruCevap("");
-                            }
-                        }
-                    } else {
-                        setDogruCevap("");
-                    }
-                    
-                    setMevcutSoruNumarasi(data.soruNumarasi || null);
-                    setLoading(false);
-                } else {
-                    // Soru bulunamadıysa hata durumu
-                    console.error("Güncellenecek soru bulunamadı! Parametre bilgileri:", { konuId, altKonuId, soruId });
+                // Alt konular varsa yükle
+                const altKonularData = konularSnapshot.val().altkonular || {};
+                setAltKonular(altKonularData);
+                
+                // Soru kontrolü
+                if (!soruSnapshot.exists()) {
+                    console.error("Soru bulunamadı:", { konuId, altKonuId, soruId });
                     alert("Güncellenecek soru bulunamadı! Modal kapatılacak.");
                     setLoading(false);
                     onClose();
                     return;
                 }
+                
+                // Soru verilerini yükle
+                const soruData = soruSnapshot.val();
+                console.log("Soru verisi başarıyla yüklendi:", soruData);
+                
+                // Soru temel verilerini doğrula
+                if (!soruData) {
+                    console.error("Soru verisi boş:", { konuId, altKonuId, soruId });
+                    alert("Soru verileri okunamadı! Modal kapatılacak.");
+                    setLoading(false);
+                    onClose();
+                    return;
+                }
+                
+                // State'leri güvenli bir şekilde güncelle
+                setSoru(soruData);
+                
+                // Cevapları güvenli bir şekilde ayarla (undefined veya eksik değerler olabilir)
+                const cevaplarData = Array.isArray(soruData.cevaplar) ? 
+                    soruData.cevaplar : 
+                    ["", "", "", "", ""];
+                    
+                // Array uzunluğunu 5'e tamamla (eksik elementler varsa)
+                const normalizedCevaplar = [...cevaplarData];
+                while (normalizedCevaplar.length < 5) {
+                    normalizedCevaplar.push("");
+                }
+                
+                setCevaplar(normalizedCevaplar);
+                
+                // Alt konu seçimini güncelle
+                setSelectedAltKonu(altKonuId);
+                
+                // Doğru cevap şıkkını güvenli bir şekilde belirle
+                if (soruData.dogruCevap) {
+                    // Eğer dogruCevap zaten bir harf ise (A, B, C, D, E), direkt kullan
+                    if (/^[A-E]$/.test(soruData.dogruCevap)) {
+                        setDogruCevap(soruData.dogruCevap);
+                        console.log("Doğru cevap harfi bulundu:", soruData.dogruCevap);
+                    } 
+                    // Eski sistemden gelen veri yapısı (cevabın kendisi)
+                    else if (Array.isArray(soruData.cevaplar)) {
+                        // Cevaplar içerisinde doğru cevabı ara
+                        const index = soruData.cevaplar.findIndex(cevap => 
+                            cevap === soruData.dogruCevap && cevap !== "" && cevap !== null && cevap !== undefined
+                        );
+                        
+                        if (index !== -1) {
+                            // Bulunan index'e göre harf belirle (A, B, C, D, E)
+                            const dogruCevapHarfi = String.fromCharCode(65 + index);
+                            setDogruCevap(dogruCevapHarfi);
+                            console.log("Doğru cevap hesaplandı:", dogruCevapHarfi, "index:", index);
+                        } else {
+                            console.warn("Doğru cevap array içinde bulunamadı, varsayılan 'A' ayarlanıyor");
+                            setDogruCevap("A");
+                        }
+                    } else {
+                        console.warn("Doğru cevap için geçerli bir değer bulunamadı, varsayılan 'A' ayarlanıyor");
+                        setDogruCevap("A");
+                    }
+                } else {
+                    console.warn("dogruCevap alanı eksik, varsayılan 'A' ayarlanıyor");
+                    setDogruCevap("A");
+                }
+                
+                // Soru numarasını ayarla (null olabilir)
+                setMevcutSoruNumarasi(soruData.soruNumarasi || null);
+                
+                // Yükleme tamamlandı
+                setLoading(false);
+                console.log("Veri yükleme işlemi başarıyla tamamlandı");
+                
             } catch (error) {
-                console.error("Veri yüklenirken hata oluştu:", error);
+                console.error("Veri yüklenirken kritik bir hata oluştu:", error);
                 console.error("Hata sırasındaki parametreler:", { konuId, altKonuId, soruId });
                 alert("Veri yüklenirken bir hata oluştu! Modal kapatılacak.");
+                
+                // Hatadan sonra state'i temizle
+                setSoru(null);
+                setCevaplar(["", "", "", "", ""]);
+                setDogruCevap("");
+                setSelectedAltKonu("");
+                setMevcutSoruNumarasi(null);
+                
+                // Loading'i kapat ve modal'ı kapat
                 setLoading(false);
-                onClose();
+                setTimeout(() => {
+                    onClose();
+                }, 100);
             }
         };
 
         if (isOpen) {
-            setLoading(true); // Yeni soru yüklenirken loading durumunu aktif et
-            fetchData();
-        } else {
-            // Modal kapandığında tüm form verilerini sıfırla
+            // State'i sıfırla ve loading'i başlat
             setSoru(null);
             setCevaplar(["", "", "", "", ""]);
             setDogruCevap("");
             setSelectedAltKonu("");
             setMevcutSoruNumarasi(null);
-            setLoading(false);
+            setLoading(true);
+            
+            // Veri yükleme işlemini başlat
+            fetchData();
         }
         
-        // Modal kapatıldığında cleanup işlemi
+        // Cleanup fonksiyonu
         return () => {
+            // Modal kapandığında state'i temizle
             if (!isOpen) {
                 setSoru(null);
                 setCevaplar(["", "", "", "", ""]);
@@ -138,6 +195,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                 setSelectedAltKonu("");
                 setMevcutSoruNumarasi(null);
                 setLoading(false);
+                console.log("Modal kapandı, state temizlendi");
             }
         };
     }, [isOpen, konuId, altKonuId, soruId, onClose]);
@@ -296,6 +354,55 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                             <div className="w-12 h-12 border-4 border-t-blue-500 border-gray-200 rounded-full animate-spin"></div>
                             <p className="text-lg text-gray-700 dark:text-gray-300">Soru yükleniyor...</p>
                         </div>
+                    </div>
+
+                    <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex justify-end">
+                        <button
+                            onClick={() => {
+                                setLoading(false);
+                                onClose();
+                            }}
+                            className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 font-medium"
+                        >
+                            İptal
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Soru verisi yüklenmedi veya hatalı
+    if (!soru) {
+        return (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-11/12 max-w-5xl max-h-[calc(100vh-40px)] overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col">
+                    <div className="p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+                        <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center">
+                            Hata
+                        </h2>
+                    </div>
+                    
+                    <div className="p-8 flex-1 flex items-center justify-center">
+                        <div className="flex flex-col items-center space-y-4 text-center">
+                            <div className="w-16 h-16 flex items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <p className="text-lg text-gray-700 dark:text-gray-300">
+                                Soru verisi yüklenemedi. Lütfen sayfayı yenileyip tekrar deneyin.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex justify-center">
+                        <button
+                            onClick={onClose}
+                            className="px-6 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 font-medium"
+                        >
+                            Kapat
+                        </button>
                     </div>
                 </div>
             </div>
