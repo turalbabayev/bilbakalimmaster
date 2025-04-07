@@ -28,37 +28,50 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
 
     const parseQuestion = (text) => {
         try {
+            console.log("Ayrıştırılacak soru metni:", text.substring(0, 100) + "...");
+            
             // Soruyu parçalara ayır
             const lines = text.split('\n').filter(line => line.trim().length > 0);
             
-            if (lines.length < 7) { // En az soru metni + 5 şık + doğru cevap olmalı
+            if (lines.length < 4) { // En az soru işareti + soru metni + şıklar + doğru cevap
                 console.warn("Satır sayısı yetersiz:", lines.length, lines);
                 return null;
             }
             
-            // Soru metnini bul (✅ ve benzeri işaretleri temizle)
-            let soruIndex = -1;
-            for (let i = 0; i < lines.length; i++) {
-                if (lines[i].includes("✅") && lines[i].includes("Soru")) {
-                    soruIndex = i;
+            // Soru metnini bul
+            let soruMetni = "";
+            let i = 0;
+            
+            // Tik işaretini içeren satırı bul ve ilerle
+            const tikPattern = /(✅|🟢|\u2705)\s*\d+\.\s*Soru/;
+            while (i < lines.length) {
+                if (lines[i].match(tikPattern)) {
+                    i++; // Soru başlık satırını atla, bir sonraki satırdan başla
                     break;
                 }
+                i++;
             }
             
-            if (soruIndex === -1) {
-                console.warn("Soru başlangıcı bulunamadı");
-                return null;
+            if (i >= lines.length) {
+                // Başlık formatı farklı olabilir, en baştan başlayarak soru metnini almayı dene
+                i = 1; // İlk satırı (muhtemelen tikli soru numarası) atla
             }
             
-            // Soru metni, soru numarası ifadesini temizleyerek al
-            let soruMetni = "";
-            let i = soruIndex + 1;
+            // Soru metnini al (şıklar başlayana kadar)
+            const sikPattern = /^([A-E])\)\s*(.+)$/;
             while (i < lines.length) {
                 const line = lines[i].trim();
-                // Eğer şık satırına geldiyse çık
-                if (line.match(/^[A-E]\)/) || line.match(/^[A-E]\s*\)/)) {
+                
+                // Eğer şık satırına geldiysek çık
+                if (line.match(sikPattern)) {
                     break;
                 }
+                
+                // Eğer başka bir tikli satır geldiysek çık
+                if (line.match(/(✅|🟢|\u2705)/)) {
+                    break;
+                }
+                
                 soruMetni += (soruMetni ? "\n" : "") + line;
                 i++;
             }
@@ -71,26 +84,31 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
             
             // Şıkları al (A, B, C, D, E)
             const cevaplar = ["", "", "", "", ""];
-            const sikPattern = /^([A-E])\)\s*(.+)$/;
-            const sikPattern2 = /^([A-E])\s*\)\s*(.+)$/;
             
             let sikFound = false;
             
-            // Soru metninden sonraki satırdan itibaren şıkları ara
-            for (let j = 0; j < 5; j++) {
-                if (i < lines.length) {
-                    let match = lines[i].match(sikPattern) || lines[i].match(sikPattern2);
-                    if (match) {
-                        sikFound = true;
-                        // Şık sırasını belirle (A=0, B=1, C=2, D=3, E=4)
-                        const sikIndex = match[1].charCodeAt(0) - 65;
-                        // Şık içeriğini al
-                        const sikIcerik = match[2].trim();
-                        
-                        // Doğru indekse yerleştir
-                        cevaplar[sikIndex] = sikIcerik;
-                    }
+            // Şıkları bul
+            for (let j = 0; j < 5 && i < lines.length; j++) {
+                const line = lines[i].trim();
+                const match = line.match(sikPattern);
+                
+                if (match) {
+                    sikFound = true;
+                    // Şık sırasını belirle (A=0, B=1, C=2, D=3, E=4)
+                    const sikIndex = match[1].charCodeAt(0) - 65;
+                    // Şık içeriğini al
+                    const sikIcerik = match[2].trim();
+                    
+                    // Doğru indekse yerleştir
+                    cevaplar[sikIndex] = sikIcerik;
                     i++;
+                } else if (line.match(/(✅|🟢|\u2705)\s*Doğru Cevap:/)) {
+                    // Şıklardan sonra doğru cevap satırına geldik
+                    break;
+                } else {
+                    // Tanınmayan satır veya başka bir bölüm, ilerle
+                    i++;
+                    j--; // Şık sayısını artırma
                 }
             }
             
@@ -104,34 +122,36 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
             let aciklama = "";
             
             // Kalan satırlardan doğru cevabı ve açıklamayı bul
-            for (; i < lines.length; i++) {
+            const dogruCevapPattern = /(✅|🟢|\u2705)\s*Doğru Cevap:\s*([A-E])\)/;
+            const aciklamaPattern = /Açıklama:/i;
+            
+            while (i < lines.length) {
                 const line = lines[i].trim();
                 
-                if (line.includes("Doğru Cevap:") || line.includes("✅ Doğru Cevap:")) {
-                    // A) 72 formatından sadece A'yı al
-                    const dogruCevapMatch = line.match(/Doğru Cevap:\s*([A-E])\)/);
-                    if (dogruCevapMatch && dogruCevapMatch[1]) {
-                        dogruCevap = dogruCevapMatch[1];
-                    } else {
-                        // Doğru cevabı bulamazsa tam formatı yazdır
-                        console.warn("Doğru cevap formatı algılanamadı:", line);
-                    }
-                } else if (line.includes("Açıklama:")) {
-                    // Açıklama satırını bulduk, sonraki satırları da ekle
+                const dogruCevapMatch = line.match(dogruCevapPattern);
+                if (dogruCevapMatch) {
+                    // Doğru cevap satırını bulduk, şık harfini al
+                    dogruCevap = dogruCevapMatch[2];
+                    i++;
+                } else if (line.match(aciklamaPattern)) {
+                    // Açıklama satırını bulduk, bu satırdan itibaren sonuna kadar al
                     aciklama = line.replace(/^Açıklama:\s*/i, "").trim();
                     i++;
                     
-                    // Bir sonraki soruya kadar veya boş satırları atla
+                    // Bir sonraki soruya kadar veya yeni yeşil tik işareti görene kadar
                     while (i < lines.length) {
                         const nextLine = lines[i].trim();
-                        // Eğer yeni bir soru başlıyorsa veya boş satır varsa çık
-                        if (nextLine.includes("✅") || nextLine === "") {
+                        // Eğer yeni bir soru başlıyorsa veya çizgi varsa çık
+                        if (nextLine.match(/(✅|🟢|\u2705)/) || nextLine.match(/^[-_]+$/)) {
                             break;
                         }
                         aciklama += "\n" + nextLine;
                         i++;
                     }
                     break;
+                } else {
+                    // Bu satırda tanınan öğe yok, ilerle
+                    i++;
                 }
             }
             
@@ -141,7 +161,6 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                 console.warn("Doğru cevap bulunamadı, varsayılan A kullanılıyor");
             }
             
-            // Debug için tüm değerleri logla
             console.log("Ayrıştırma sonucu:", {
                 soruMetni,
                 cevaplar,
@@ -199,15 +218,36 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                     // Dokümandaki her bir soruyu oluştur
                     console.log("İçe aktarılan metin:", text);
                     
-                    // Metni soruları belirten "✅ X. Soru" formatına göre böl
-                    const questionRegex = /(✅\s*\d+\.\s*Soru.*?)(?=✅\s*\d+\.\s*Soru|$)/gs;
+                    // Yeşil tik işareti Unicode'da U+2705 olarak geçiyor, metinde ✅ olarak görünebilir
+                    // Hem ✅ hem de 🟢 sembollerini destekle
+                    const greenCheckmark = "(✅|🟢|\\u2705)";
+                    
+                    // Metni soruları belirten formata göre böl
+                    const questionRegex = new RegExp(`${greenCheckmark}\\s*(\\d+\\.\\s*Soru.*?)(?=${greenCheckmark}|$)`, "gs");
                     const matches = Array.from(text.matchAll(questionRegex));
                     
                     if (matches.length === 0) {
-                        throw new Error("Dokümanda uygun formatta soru bulunamadı. Her soru '✅ X. Soru' formatında başlamalıdır.");
+                        console.log("Soru bulunamadı, alternatif formatı deniyorum");
+                        
+                        // Alternatif format: Çizgi ile ayrılan bölümler
+                        const alternativeRegex = new RegExp(`${greenCheckmark}[^${greenCheckmark}]+?(?=\\n[-_]{5,}\\s*\\n|$)`, "gs");
+                        let alternativeMatches = Array.from(text.matchAll(alternativeRegex));
+                        
+                        if (alternativeMatches.length === 0) {
+                            // Başka bir alternatif: Sadece yeşil tik işaretine göre ayır
+                            const simpleRegex = new RegExp(`(${greenCheckmark}[^${greenCheckmark}]+?)(?=${greenCheckmark}|$)`, "gs");
+                            alternativeMatches = Array.from(text.matchAll(simpleRegex));
+                        }
+                        
+                        if (alternativeMatches.length === 0) {
+                            throw new Error("Dokümanda uygun formatta soru bulunamadı. Her soru yeşil tik (✅) işaretiyle başlamalıdır.");
+                        }
+                        
+                        console.log(`Alternatif formatta ${alternativeMatches.length} adet soru bulundu.`);
+                        matches.push(...alternativeMatches);
                     }
                     
-                    console.log(`${matches.length} adet soru bulundu.`);
+                    console.log(`Toplam ${matches.length} adet soru bulundu.`);
                     
                     // Soruları ayrıştır
                     const questions = [];
@@ -360,19 +400,35 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                                 </div>
                             </div>
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                DOCX dosyanızdaki her soru "✅ X. Soru" formatında başlamalıdır. Örnek format:
+                                DOCX dosyanızdaki sorular tam olarak şu formatta olmalıdır:
                             </p>
                             <div className="mt-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
-                                ✅ 1. Soru<br/>
-                                Soru metni burada<br/>
-                                A) Şık 1<br/>
-                                B) Şık 2<br/>
-                                C) Şık 3<br/>
-                                D) Şık 4<br/>
-                                E) Şık 5<br/>
-                                ✅ Doğru Cevap: A) Şık içeriği<br/>
+                                ✅ 2. Soru<br/>
+                                Bir otomobil, bir mesafenin ilk yarısını saatte 60 km hızla, ikinci yarısını<br/>
+                                ise saatte 90 km hızla gitmiştir. Ortalama hızı saatte kaç km olur?<br/>
+                                A) 72<br/>
+                                B) 74<br/>
+                                C) 75<br/>
+                                D) 76<br/>
+                                E) 78<br/>
+                                ✅ Doğru Cevap: A) 72<br/>
                                 Açıklama:<br/>
-                                Açıklama metni burada
+                                Ortalama hız = 2ab / (a + b)<br/>
+                                = 2×60×90 / (60 + 90) = 10800 / 150 = 72 km/s<br/>
+                                <br/>
+                                -------------------------------<br/>
+                                <br/>
+                                ✅ 3. Soru<br/>
+                                Bir işçi, bir işi 18 günde, diğer işçi aynı işi 12 günde bitiriyor.<br/>
+                                Bu iki işçi birlikte çalışırsa iş kaç günde tamamlanır?<br/>
+                                A) 6<br/>
+                                B) 7.2<br/>
+                                C) 7.5<br/>
+                                D) 8<br/>
+                                E) 8.5<br/>
+                                ✅ Doğru Cevap: D) 8<br/>
+                                Açıklama:<br/>
+                                Ortak iş süresi = (18 × 12) / (18 + 12) = 216 / 30 = 7.2 gün
                             </div>
                         </div>
 
