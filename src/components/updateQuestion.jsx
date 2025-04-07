@@ -5,11 +5,10 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
 const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
-    const [soruMetni, setSoruMetni] = useState("");
+    const [soru, setSoru] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [cevaplar, setCevaplar] = useState(["", "", "", "", ""]);
     const [dogruCevap, setDogruCevap] = useState("");
-    const [aciklama, setAciklama] = useState("");
-    const [loading, setLoading] = useState(true);
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -21,10 +20,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
             [{ 'list': 'ordered'}, { 'list': 'bullet' }],
             [{ 'align': [] }],
             ['clean']
-        ],
-        clipboard: {
-            matchVisual: false,
-        }
+        ]
     };
 
     const formats = [
@@ -43,10 +39,9 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                 const snapshot = await get(soruRef);
                 if (snapshot.exists()) {
                     const data = snapshot.val();
-                    setSoruMetni(data.soruMetni || "");
+                    setSoru(data);
                     setCevaplar(data.cevaplar || ["", "", "", "", ""]);
                     setDogruCevap(data.dogruCevap || "");
-                    setAciklama(data.aciklama || "");
                     setLoading(false);
                 }
             } catch (error) {
@@ -61,21 +56,14 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     }, [isOpen, konuId, altKonuId, soruId]);
 
     const handleUpdate = async () => {
-        if (!soruMetni || cevaplar.some(cevap => !cevap) || !dogruCevap) {
-            alert("Lütfen tüm alanları doldurun!");
-            return;
-        }
+        if (!soru) return;
 
         try {
             const soruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/sorular/${soruId}`);
             await set(soruRef, {
-                soruMetni,
+                ...soru,
                 cevaplar,
                 dogruCevap: cevaplar[dogruCevap.charCodeAt(0) - 65],
-                aciklama,
-                report: 0,
-                liked: 0,
-                unliked: 0
             });
             alert("Soru başarıyla güncellendi.");
             onClose();
@@ -100,8 +88,8 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                             <div className="mt-1">
                                 <ReactQuill 
                                     theme="snow"
-                                    value={soruMetni}
-                                    onChange={setSoruMetni}
+                                    value={soru.soruMetni}
+                                    onChange={(value) => setSoru({ ...soru, soruMetni: value })}
                                     modules={modules}
                                     formats={formats}
                                     className="bg-white"
@@ -150,8 +138,8 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                             <div className="mt-1">
                                 <ReactQuill
                                     theme="snow"
-                                    value={aciklama}
-                                    onChange={setAciklama}
+                                    value={soru.aciklama}
+                                    onChange={(value) => setSoru({ ...soru, aciklama: value })}
                                     modules={modules}
                                     formats={formats}
                                     className="bg-white"
