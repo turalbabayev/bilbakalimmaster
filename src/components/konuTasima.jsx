@@ -104,7 +104,14 @@ const KonuTasima = ({ closeModal }) => {
                 if (konuData.altdallar) {
                     for (const [altDalKey, altDalData] of Object.entries(konuData.altdallar)) {
                         const altDalRef = ref(database, `konular/${newKonuId}/altkonular/${newAltKonuId}/altdallar/${altDalKey}`);
-                        await set(altDalRef, altDalData);
+                        
+                        // Alt dalın temel verilerini kopyala
+                        const altDalCopy = {
+                            baslik: altDalData.baslik,
+                            sorular: {}
+                        };
+                        
+                        await set(altDalRef, altDalCopy);
 
                         // Alt dalın sorularını kopyala
                         if (altDalData.sorular) {
