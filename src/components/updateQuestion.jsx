@@ -88,23 +88,29 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     };
 
     const handleUpdate = async () => {
-        if (!soru) return;
+        if (!soru) {
+            console.error("Güncellenecek soru bulunamadı!");
+            alert("Güncellenecek soru bulunamadı!");
+            return;
+        }
 
         try {
+            console.log("=== Güncelleme Başlangıç ===");
             console.log("Güncellenecek soru:", soru);
             console.log("Cevaplar:", cevaplar);
             console.log("Doğru cevap:", dogruCevap);
             console.log("Seçili alt konu:", selectedAltKonu);
 
+            // Doğru cevap kontrolü
+            const dogruCevapIndex = cevaplar.findIndex(cevap => cevap === dogruCevap);
+            if (dogruCevapIndex === -1) {
+                console.error("Doğru cevap bulunamadı! Cevaplar:", cevaplar, "Seçilen cevap:", dogruCevap);
+                throw new Error("Doğru cevap bulunamadı!");
+            }
+
             const timestamp = Date.now();
             const newPath = `konular/${konuId}/altkonular/${selectedAltKonu}/sorular/${timestamp}`;
             console.log("Yeni yol:", newPath);
-            
-            // Doğru cevabın indeksini bul
-            const dogruCevapIndex = cevaplar.findIndex(cevap => cevap === dogruCevap);
-            if (dogruCevapIndex === -1) {
-                throw new Error("Doğru cevap bulunamadı!");
-            }
             
             // Yeni konuma soruyu ekle
             const newSoruRef = ref(database, newPath);
@@ -117,21 +123,39 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                 liked: soru.liked || 0,
                 unliked: soru.unliked || 0,
                 soruNumarasi: mevcutSoruNumarasi,
-                soruResmi: soru.soruResmi || null // Resim alanını ekle
+                soruResmi: soru.soruResmi || null
             };
             console.log("Güncellenecek veri:", updatedSoru);
 
+            console.log("Yeni soru ekleniyor...");
             await set(newSoruRef, updatedSoru);
+            console.log("Yeni soru başarıyla eklendi");
 
             // Eski soruyu sil
             const oldSoruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/sorular/${soruId}`);
+            console.log("Eski soru siliniyor...");
             await remove(oldSoruRef);
+            console.log("Eski soru başarıyla silindi");
 
+            console.log("=== Güncelleme Başarılı ===");
             alert("Soru başarıyla güncellendi ve taşındı.");
             onClose();
         } catch (error) {
-            console.error("Soru güncellenirken hata oluştu:", error);
-            alert("Soru güncellenirken bir hata oluştu!");
+            console.error("=== Güncelleme Hatası ===");
+            console.error("Hata detayı:", error);
+            console.error("Hata mesajı:", error.message);
+            console.error("Hata yığını:", error.stack);
+            console.error("Güncelleme sırasındaki durum:", {
+                soru,
+                cevaplar,
+                dogruCevap,
+                selectedAltKonu,
+                konuId,
+                altKonuId,
+                soruId
+            });
+            console.error("=== Güncelleme Hatası Sonu ===");
+            alert(`Soru güncellenirken bir hata oluştu! Hata: ${error.message}`);
         }
     };
 
