@@ -243,21 +243,33 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
             return;
         }
 
+        // Güncellenecek soru için bir kopyasını sakla (loading durumunda state sıfırlanabiliyor)
+        const guncellenecekSoru = {...soru};
+        const guncellenecekCevaplar = [...cevaplar];
+        const guncellenecekDogruCevap = dogruCevap;
+        const guncellenecekAltKonu = selectedAltKonu;
+        const suAnkiKonuId = konuId;
+        const suAnkiAltKonuId = altKonuId;
+        const suAnkiSoruId = soruId;
+        
+        setLoading(true);
+        
         try {
             console.log("=== Güncelleme Başlangıç ===");
-            console.log("Güncellenecek soru:", soru);
-            console.log("Cevaplar:", cevaplar);
-            console.log("Doğru cevap şıkkı:", dogruCevap);
-            console.log("Seçili alt konu:", selectedAltKonu);
+            console.log("Güncellenecek soru:", guncellenecekSoru);
+            console.log("Cevaplar:", guncellenecekCevaplar);
+            console.log("Doğru cevap şıkkı:", guncellenecekDogruCevap);
+            console.log("Seçili alt konu:", guncellenecekAltKonu);
 
             // Doğru cevap kontrolü
-            if (!dogruCevap) {
+            if (!guncellenecekDogruCevap) {
                 console.error("Doğru cevap seçilmemiş!");
+                setLoading(false);
                 throw new Error("Lütfen doğru cevabı seçin!");
             }
 
             // Önce yeni konumdaki soruların numaralarını kontrol et
-            const yeniKonumSorularRef = ref(database, `konular/${konuId}/altkonular/${selectedAltKonu}/sorular`);
+            const yeniKonumSorularRef = ref(database, `konular/${suAnkiKonuId}/altkonular/${guncellenecekAltKonu}/sorular`);
             const yeniKonumSnapshot = await get(yeniKonumSorularRef);
             const yeniKonumSorular = yeniKonumSnapshot.val() || {};
             
@@ -267,27 +279,27 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
             
             // Mevcut soru numarası yoksa veya başka bir alt konuya taşınıyorsa, yeni numara ata
             let kullanilacakSoruNumarasi = mevcutSoruNumarasi;
-            if (!kullanilacakSoruNumarasi || altKonuId !== selectedAltKonu) {
+            if (!kullanilacakSoruNumarasi || suAnkiAltKonuId !== guncellenecekAltKonu) {
                 kullanilacakSoruNumarasi = maksimumSoruNumarasi + 1;
                 console.log("Yeni soru numarası atandı:", kullanilacakSoruNumarasi);
             }
 
             const timestamp = Date.now();
-            const newPath = `konular/${konuId}/altkonular/${selectedAltKonu}/sorular/${soruId}_${timestamp}`;
+            const newPath = `konular/${suAnkiKonuId}/altkonular/${guncellenecekAltKonu}/sorular/${suAnkiSoruId}_${timestamp}`;
             console.log("Yeni yol:", newPath);
             
             // Yeni konuma soruyu ekle
             const newSoruRef = ref(database, newPath);
             const updatedSoru = {
-                soruMetni: soru.soruMetni,
-                cevaplar: cevaplar,
-                dogruCevap: dogruCevap, // Artık doğru cevap şıkkı olarak saklanıyor
-                aciklama: soru.aciklama,
-                report: soru.report || 0,
-                liked: soru.liked || 0,
-                unliked: soru.unliked || 0,
+                soruMetni: guncellenecekSoru.soruMetni,
+                cevaplar: guncellenecekCevaplar,
+                dogruCevap: guncellenecekDogruCevap, // Artık doğru cevap şıkkı olarak saklanıyor
+                aciklama: guncellenecekSoru.aciklama,
+                report: guncellenecekSoru.report || 0,
+                liked: guncellenecekSoru.liked || 0,
+                unliked: guncellenecekSoru.unliked || 0,
                 soruNumarasi: kullanilacakSoruNumarasi,
-                soruResmi: soru.soruResmi || null
+                soruResmi: guncellenecekSoru.soruResmi || null
             };
             console.log("Güncellenecek veri:", updatedSoru);
 
@@ -296,23 +308,23 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
             console.log("Yeni soru başarıyla eklendi");
 
             // Eski soruyu sil
-            const oldSoruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/sorular/${soruId}`);
+            const oldSoruRef = ref(database, `konular/${suAnkiKonuId}/altkonular/${suAnkiAltKonuId}/sorular/${suAnkiSoruId}`);
             console.log("Eski soru siliniyor...");
             await remove(oldSoruRef);
             console.log("Eski soru başarıyla silindi");
 
             console.log("=== Güncelleme Başarılı ===");
             
-            // Kullanıcıya bilgi ver
-            alert("Soru başarıyla güncellendi" + (altKonuId !== selectedAltKonu ? " ve taşındı" : "") + ".");
-            
-            // İşlem tamamlandığında tüm form verilerini sıfırla
+            // Tüm işlemler başarılı olduktan sonra state'i sıfırla
             setSoru(null);
             setCevaplar(["", "", "", "", ""]);
             setDogruCevap("");
             setSelectedAltKonu("");
             setMevcutSoruNumarasi(null);
+            
+            // Kullanıcıya bilgi ver
             setLoading(false);
+            alert("Soru başarıyla güncellendi" + (suAnkiAltKonuId !== guncellenecekAltKonu ? " ve taşındı" : "") + ".");
             
             // En son modalı gecikmeli kapat (kullanıcının alert'i görmesi için)
             setTimeout(() => {
@@ -324,15 +336,18 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
             console.error("Hata mesajı:", error.message);
             console.error("Hata yığını:", error.stack);
             console.error("Güncelleme sırasındaki durum:", {
-                soru,
-                cevaplar,
-                dogruCevap,
-                selectedAltKonu,
-                konuId,
-                altKonuId,
-                soruId
+                guncellenecekSoru,
+                guncellenecekCevaplar,
+                guncellenecekDogruCevap,
+                guncellenecekAltKonu,
+                suAnkiKonuId,
+                suAnkiAltKonuId,
+                suAnkiSoruId
             });
             console.error("=== Güncelleme Hatası Sonu ===");
+            
+            // Hata durumunda da loading'i kapat
+            setLoading(false);
             alert(`Soru güncellenirken bir hata oluştu! Hata: ${error.message}`);
         }
     };
