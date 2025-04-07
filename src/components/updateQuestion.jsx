@@ -10,7 +10,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     const [cevaplar, setCevaplar] = useState(["", "", "", "", ""]);
     const [dogruCevap, setDogruCevap] = useState("");
     const [altKonular, setAltKonular] = useState({});
-    const [selectedAltKonu, setSelectedAltKonu] = useState(altKonuId);
+    const [selectedAltKonu, setSelectedAltKonu] = useState(altKonuId || "");
     const [mevcutSoruNumarasi, setMevcutSoruNumarasi] = useState(null);
     const [resimYukleniyor, setResimYukleniyor] = useState(false);
 
@@ -54,6 +54,9 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                     setSoru(data);
                     setCevaplar(data.cevaplar || ["", "", "", "", ""]);
                     
+                    // Alt konu seçimini mevcut alt konu ile güncelle
+                    setSelectedAltKonu(altKonuId);
+                    
                     // Doğru cevap şıkkını belirle (A, B, C, D, E vs.)
                     if (data.dogruCevap) {
                         // Eğer dogruCevap zaten bir harf ise (A, B, C, D, E), direkt kullan
@@ -85,7 +88,15 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
         };
 
         if (isOpen) {
+            setLoading(true); // Yeni soru yüklenirken loading durumunu aktif et
             fetchData();
+        } else {
+            // Modal kapandığında tüm form verilerini sıfırla
+            setSoru(null);
+            setCevaplar(["", "", "", "", ""]);
+            setDogruCevap("");
+            setSelectedAltKonu("");
+            setMevcutSoruNumarasi(null);
         }
     }, [isOpen, konuId, altKonuId, soruId]);
 
@@ -192,6 +203,14 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
 
             console.log("=== Güncelleme Başarılı ===");
             alert("Soru başarıyla güncellendi" + (altKonuId !== selectedAltKonu ? " ve taşındı" : "") + ".");
+            
+            // İşlem tamamlandığında tüm form verilerini sıfırla
+            setSoru(null);
+            setCevaplar(["", "", "", "", ""]);
+            setDogruCevap("");
+            setSelectedAltKonu("");
+            setMevcutSoruNumarasi(null);
+            
             onClose();
         } catch (error) {
             console.error("=== Güncelleme Hatası ===");
