@@ -91,9 +91,7 @@ function SubbranchContent() {
                         {Object.entries(altDallar).map(([key, altDal]) => (
                             <div
                                 key={key}
-                                className={`bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-all duration-200 ${
-                                    selectedAltDal === key ? "ring-2 ring-blue-500" : ""
-                                }`}
+                                className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-all duration-200"
                             >
                                 <div className="p-6">
                                     <div className="flex justify-between items-start mb-4">
