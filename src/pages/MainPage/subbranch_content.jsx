@@ -111,12 +111,7 @@ function SubbranchContent() {
                                                 </svg>
                                                 <span>Soru Ekle</span>
                                             </button>
-                                        </div>
-                                    </div>
-
-                                    {altDal.sorular ? (
-                                        <div className="space-y-4">
-                                            <div className="flex justify-end mb-2">
+                                            {altDal.sorular && Object.keys(altDal.sorular).length > 0 && (
                                                 <button
                                                     onClick={() => {
                                                         setSelectedAltDal(key);
@@ -129,7 +124,12 @@ function SubbranchContent() {
                                                     </svg>
                                                     <span>Toplu Sil</span>
                                                 </button>
-                                            </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {altDal.sorular ? (
+                                        <div className="space-y-4">
                                             {sortedQuestions(altDal.sorular).map(([soruKey, soru]) => (
                                                 <div key={soruKey} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                                                     <div className="flex justify-between items-start">
