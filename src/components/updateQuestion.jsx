@@ -53,7 +53,28 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                     const data = soruSnapshot.val();
                     setSoru(data);
                     setCevaplar(data.cevaplar || ["", "", "", "", ""]);
-                    setDogruCevap(data.dogruCevap || "");
+                    
+                    // Doğru cevap şıkkını belirle (A, B, C, D, E vs.)
+                    if (data.dogruCevap) {
+                        // Eğer dogruCevap zaten bir harf ise (A, B, C, D, E), direkt kullan
+                        if (/^[A-E]$/.test(data.dogruCevap)) {
+                            setDogruCevap(data.dogruCevap);
+                        } 
+                        // Eski sistemden gelen veri yapısı (cevabın kendisi)
+                        else {
+                            // Cevaplar içerisinde doğru cevabı ara
+                            const index = data.cevaplar.findIndex(cevap => cevap === data.dogruCevap);
+                            if (index !== -1) {
+                                // Bulunan index'e göre harf belirle (A, B, C, D, E)
+                                setDogruCevap(String.fromCharCode(65 + index));
+                            } else {
+                                setDogruCevap("");
+                            }
+                        }
+                    } else {
+                        setDogruCevap("");
+                    }
+                    
                     setMevcutSoruNumarasi(data.soruNumarasi || null);
                     setLoading(false);
                 }

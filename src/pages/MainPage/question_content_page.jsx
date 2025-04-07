@@ -161,12 +161,32 @@ function QuestionContent() {
                                                                         {/* Doğru cevap göstergesi */}
                                                                         <div className="mt-3 mb-1">
                                                                             <p className="text-sm font-medium text-green-600 dark:text-green-400">
-                                                                                Doğru Cevap: {soru.dogruCevap || "Belirtilmemiş"} 
-                                                                                {soru.dogruCevap && soru.cevaplar && Array.isArray(soru.cevaplar) && (
-                                                                                    <span className="ml-2 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
-                                                                                        ({String.fromCharCode(65 + soru.cevaplar.indexOf(soru.dogruCevap))} şıkkı)
+                                                                                Doğru Cevap: 
+                                                                                {soru.dogruCevap ? (
+                                                                                    <span>
+                                                                                        {/^[A-E]$/.test(soru.dogruCevap) ? (
+                                                                                            <>
+                                                                                                {soru.dogruCevap} Şıkkı 
+                                                                                                {soru.cevaplar && Array.isArray(soru.cevaplar) && soru.cevaplar[soru.dogruCevap.charCodeAt(0) - 65] && (
+                                                                                                    <span className="ml-2 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
+                                                                                                        ({soru.cevaplar[soru.dogruCevap.charCodeAt(0) - 65]})
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </>
+                                                                                        ) : (
+                                                                                            <>
+                                                                                                {soru.cevaplar && Array.isArray(soru.cevaplar) && (
+                                                                                                    <>
+                                                                                                        {String.fromCharCode(65 + soru.cevaplar.indexOf(soru.dogruCevap))} Şıkkı
+                                                                                                        <span className="ml-2 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
+                                                                                                            ({soru.dogruCevap})
+                                                                                                        </span>
+                                                                                                    </>
+                                                                                                )}
+                                                                                            </>
+                                                                                        )}
                                                                                     </span>
-                                                                                )}
+                                                                                ) : "Belirtilmemiş"}
                                                                             </p>
                                                                         </div>
                                                                         {soru.aciklama && (
