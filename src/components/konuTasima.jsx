@@ -79,9 +79,6 @@ const KonuTasima = ({ closeModal }) => {
 
                 addLog(`'${secilenKonu.baslik}' konusu taşınıyor...`);
                 
-                // Alt konu olarak ekle
-                const newAltKonuRef = push(altkonularRef);
-                
                 // Mevcut konunun verilerini al (alt konular dahil)
                 const konuRef = ref(database, `konular/${konuId}`);
                 const konuSnapshot = await get(konuRef);
@@ -93,21 +90,38 @@ const KonuTasima = ({ closeModal }) => {
                 }
 
                 // Alt konu olarak ekle
+                const newAltKonuRef = push(altkonularRef);
+                const newAltKonuId = newAltKonuRef.key;
+
+                // Alt konunun tüm verilerini kopyala
                 await set(newAltKonuRef, {
                     baslik: konuData.baslik,
                     altkonular: konuData.altkonular || {},
-                    altdallar: konuData.altdallar || {}
+                    altdallar: konuData.altdallar || {},
+                    sorular: konuData.sorular || {}
                 });
 
-                addLog(`'${secilenKonu.baslik}' konusu başarıyla taşındı.`);
+                // Alt konuları ve soruları kopyala
+                if (konuData.altkonular) {
+                    for (const [altKonuKey, altKonuData] of Object.entries(konuData.altkonular)) {
+                        const altKonuRef = ref(database, `konular/${newKonuId}/altkonular/${newAltKonuId}/altkonular/${altKonuKey}`);
+                        await set(altKonuRef, altKonuData);
+                    }
+                }
+
+                if (konuData.sorular) {
+                    for (const [soruKey, soruData] of Object.entries(konuData.sorular)) {
+                        const soruRef = ref(database, `konular/${newKonuId}/altkonular/${newAltKonuId}/sorular/${soruKey}`);
+                        await set(soruRef, soruData);
+                    }
+                }
+
+                addLog(`'${secilenKonu.baslik}' konusu ve tüm alt konuları/soruları başarıyla taşındı.`);
             }
 
             // İşlemi tamamla
             setIsCompleted(true);
             addLog("İşlem başarıyla tamamlandı.");
-
-            // Taşınan konuları silme adımını atlıyoruz
-            // Önce tüm konuların doğru taşındığından emin olmalısınız
             
             alert("Konular başarıyla taşındı. Eski konuları silmek için ana sayfadaki 'Konu Sil' butonunu kullanabilirsiniz.");
 
