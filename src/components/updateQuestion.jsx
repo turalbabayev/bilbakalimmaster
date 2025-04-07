@@ -150,14 +150,14 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                                     onChange={(value) => setSoru({ ...soru, soruMetni: value })}
                                     modules={modules}
                                     formats={formats}
-                                    className="bg-white"
+                                    className="bg-white mb-4"
                                     style={{ height: '100px' }}
                                 />
                             </div>
                         </label>
                     </div>
                     
-                    <div className="mb-2 mt-4">
+                    <div className="mb-2">
                         <label className="block mb-1">Cevaplar:</label>
                         {cevaplar.map((cevap, index) => (
                             <div key={index} className="mb-3">

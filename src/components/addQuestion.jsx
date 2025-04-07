@@ -175,14 +175,14 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                     onChange={setSoruMetni}
                                     modules={modules}
                                     formats={formats}
-                                    className="bg-white"
+                                    className="bg-white mb-4"
                                     style={{ height: '100px' }}
                                 />
                             </div>
                         </label>
                     </div>
                     
-                    <div className="mb-2 mt-4">
+                    <div className="mb-2">
                         <label className="block mb-1">Cevaplar:</label>
                         {cevaplar.map((cevap, index) => (
                             <div key={index} className="mb-3">
