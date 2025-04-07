@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { database } from "../firebase";
-import { ref, remove } from "firebase/database";
+import { ref, remove, get, update } from "firebase/database";
 
 const DeleteQuestion = ({ soruRef, onDelete }) => {
     const [isDeleting, setIsDeleting] = useState(false);
@@ -9,8 +9,49 @@ const DeleteQuestion = ({ soruRef, onDelete }) => {
         if (window.confirm("Bu soruyu silmek istediğinize emin misiniz?")) {
             setIsDeleting(true);
             try {
+                // Silinecek sorunun verilerini al
+                const soruSnapshot = await get(ref(database, soruRef));
+                const silinecekSoru = soruSnapshot.val();
+                const silinecekSoruNumarasi = silinecekSoru?.soruNumarasi;
+
+                if (!silinecekSoruNumarasi) {
+                    // Soru numarası yoksa sadece sil
+                    await remove(ref(database, soruRef));
+                    alert("Bu soru başarıyla silindi.");
+                    onDelete();
+                    return;
+                }
+
+                // Sorunun bulunduğu koleksiyonu belirle (ana yolu)
+                const pathParts = soruRef.split('/');
+                const soruId = pathParts.pop(); // Son elemanı (soru ID) çıkar
+                const sorularYolu = pathParts.join('/'); // Sorular koleksiyonunun yolu
+
+                // Tüm soruları al
+                const sorularSnapshot = await get(ref(database, sorularYolu));
+                const sorular = sorularSnapshot.val() || {};
+
+                // Soruyu sil
                 await remove(ref(database, soruRef));
-                alert("Bu soru başarıyla silindi.");
+                
+                // Diğer soruların numaralarını güncelle
+                const updates = {};
+                Object.entries(sorular).forEach(([key, soru]) => {
+                    // Silinecek ID'yi atla
+                    if (key === soruId) return;
+                    
+                    // Sadece silinen sorudan yüksek numaralı soruları güncelle
+                    if (soru.soruNumarasi > silinecekSoruNumarasi) {
+                        updates[`${sorularYolu}/${key}/soruNumarasi`] = soru.soruNumarasi - 1;
+                    }
+                });
+
+                // Numaraları güncelle (eğer güncellenecek soru varsa)
+                if (Object.keys(updates).length > 0) {
+                    await update(ref(database), updates);
+                }
+
+                alert("Bu soru başarıyla silindi ve numaralar yeniden düzenlendi.");
                 onDelete();
             } catch (error) {
                 console.error("Soru silinirken bir hata oluştu:", error);
