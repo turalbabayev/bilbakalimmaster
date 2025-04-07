@@ -151,7 +151,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                                     modules={modules}
                                     formats={formats}
                                     className="bg-white"
-                                    style={{ height: '200px' }}
+                                    style={{ height: '120px' }}
                                 />
                             </div>
                         </label>
@@ -201,7 +201,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                                     modules={modules}
                                     formats={formats}
                                     className="bg-white"
-                                    style={{ height: '200px' }}
+                                    style={{ height: '120px' }}
                                 />
                             </div>
                         </label>
