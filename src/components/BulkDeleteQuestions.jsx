@@ -14,7 +14,12 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
             
             setLoading(true);
             try {
-                const soruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/sorular`);
+                // Alt dal ID'si yoksa, doğrudan alt konu altındaki sorulara bakalım
+                const soruPath = altDalId 
+                    ? `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/sorular`
+                    : `konular/${konuId}/altkonular/${altKonuId}/sorular`;
+                
+                const soruRef = ref(database, soruPath);
                 const snapshot = await get(soruRef);
                 
                 if (snapshot.exists()) {
@@ -75,9 +80,14 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
         
         setLoading(true);
         try {
+            // Alt dal ID'si yoksa, doğrudan alt konu altındaki sorulara bakalım
+            const soruBasePath = altDalId 
+                ? `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/sorular`
+                : `konular/${konuId}/altkonular/${altKonuId}/sorular`;
+                
             // Her bir soruyu sırayla sil
             for (const soruId of seciliIDs) {
-                const soruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/sorular/${soruId}`);
+                const soruRef = ref(database, `${soruBasePath}/${soruId}`);
                 await remove(soruRef);
             }
             
