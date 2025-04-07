@@ -71,20 +71,30 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
         if (!soru) return;
 
         try {
+            console.log("Güncellenecek soru:", soru);
+            console.log("Cevaplar:", cevaplar);
+            console.log("Doğru cevap:", dogruCevap);
+            console.log("Seçili alt konu:", selectedAltKonu);
+
             const timestamp = Date.now();
             const newPath = `konular/${konuId}/altkonular/${selectedAltKonu}/sorular/${timestamp}`;
+            console.log("Yeni yol:", newPath);
             
             // Yeni konuma soruyu ekle
             const newSoruRef = ref(database, newPath);
-            await set(newSoruRef, {
-                ...soru,
-                cevaplar,
+            const updatedSoru = {
+                soruMetni: soru.soruMetni,
+                cevaplar: cevaplar,
                 dogruCevap: cevaplar[dogruCevap.charCodeAt(0) - 65],
+                aciklama: soru.aciklama,
                 report: soru.report || 0,
                 liked: soru.liked || 0,
                 unliked: soru.unliked || 0,
                 soruNumarasi: mevcutSoruNumarasi
-            });
+            };
+            console.log("Güncellenecek veri:", updatedSoru);
+
+            await set(newSoruRef, updatedSoru);
 
             // Eski soruyu sil
             const oldSoruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/sorular/${soruId}`);
