@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import Layout from "../../components/layout";
 import AddQuestionSubbranch from "../../components/addQuestionSubbranch";
 import DeleteQuestion from "../../components/deleteQuestion";
-import UpdateQuestion from "../../components/updateQuestion"; // Güncelleme bileşenini içe aktarın
+import UpdateQuestion from "../../components/updateQuestion";
+import ChangeQuestionOrder from "../../components/changeQuestionOrder";
 import ExportSubbranchToDocx from "../../components/ExportSubbranchToDocx";
 import { useParams } from "react-router-dom";
 import { database } from "../../firebase";
@@ -14,9 +15,10 @@ function SubbranchContent() {
     const [altDallar, setAltDallar] = useState([]);
     const [expandedAltDal, setExpandedAltDal] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false); // Güncelleme modal state
+    const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+    const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
     const [selectedAltDal, setSelectedAltDal] = useState(null);
-    const [selectedSoruRefPath, setSelectedSoruRefPath] = useState(""); // Güncellenecek sorunun referansı
+    const [selectedSoruRefPath, setSelectedSoruRefPath] = useState("");
     const [konuBaslik, setKonuBaslik] = useState("");
 
     useEffect(() => {
@@ -54,6 +56,11 @@ function SubbranchContent() {
     const openUpdateModal = (soruRefPath) => {
         setSelectedSoruRefPath(soruRefPath);
         setIsUpdateModalOpen(true);
+    };
+    
+    const openOrderModal = (soruRefPath) => {
+        setSelectedSoruRefPath(soruRefPath);
+        setIsOrderModalOpen(true);
     };
 
     const refreshQuestions = () => {
@@ -176,6 +183,19 @@ function SubbranchContent() {
                                                                             Güncelle
                                                                         </div>
                                                                     </button>
+                                                                    <button
+                                                                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+                                                                        onClick={() =>
+                                                                            openOrderModal(`konular/${konuId}/altkonular/${altKonuId}/altdallar/${key}/sorular/${soruKey}`)
+                                                                        }
+                                                                    >
+                                                                        <div className="flex items-center">
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                                                                <path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8zM12 15a1 1 0 100-2H6.414l1.293-1.293a1 1 0 10-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L6.414 15H12z" />
+                                                                            </svg>
+                                                                            Takas Et
+                                                                        </div>
+                                                                    </button>
                                                                     <DeleteQuestion
                                                                         soruRef={`konular/${konuId}/altkonular/${altKonuId}/altdallar/${key}/sorular/${soruKey}`}
                                                                         onDelete={refreshQuestions}
@@ -221,6 +241,19 @@ function SubbranchContent() {
                     soruRefPath={selectedSoruRefPath}
                     konuId={konuId}
                     altKonuId={altKonuId}
+                />
+            )}
+            {isOrderModalOpen && (
+                <ChangeQuestionOrder
+                    isOpen={isOrderModalOpen}
+                    onClose={() => {
+                        setIsOrderModalOpen(false);
+                        refreshQuestions();
+                    }}
+                    soruRefPath={selectedSoruRefPath}
+                    konuId={konuId}
+                    altKonuId={altKonuId}
+                    altDalId={selectedAltDal}
                 />
             )}
         </Layout>

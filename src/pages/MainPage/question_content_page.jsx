@@ -3,6 +3,7 @@ import Layout from "../../components/layout";
 import AddQuestion from "../../components/addQuestion";
 import DeleteQuestion from "../../components/deleteQuestion";
 import UpdateQuestion from "../../components/updateQuestion";
+import ChangeQuestionOrder from "../../components/changeQuestionOrder";
 import ExportToDocx from "../../components/ExportToDocx";
 import { useParams, useNavigate } from "react-router-dom";
 import { database } from "../../firebase";
@@ -14,6 +15,7 @@ function QuestionContent() {
     const [baslik, setBaslik] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false); // Güncelleme modali için state
+    const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
     const [selectedSoruRef, setSelectedSoruRef] = useState(null)
     const [expandedAltKonu, setExpandedAltKonu] = useState(null); // Açık olan alt konuyu takip eder
     const navigate = useNavigate();
@@ -49,6 +51,11 @@ function QuestionContent() {
     const handleUpdateClick = (soruRef) => {
         setSelectedSoruRef(soruRef);
         setIsUpdateModalOpen(true);
+    };
+
+    const handleChangeOrderClick = (soruRef) => {
+        setSelectedSoruRef(soruRef);
+        setIsOrderModalOpen(true);
     };
 
     // Soruları soru numarasına göre sıralama fonksiyonu
@@ -156,6 +163,17 @@ function QuestionContent() {
                                                                         Güncelle
                                                                     </div>
                                                                 </button>
+                                                                <button
+                                                                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+                                                                    onClick={() => handleChangeOrderClick(`konular/${id}/altkonular/${key}/sorular/${soruKey}`)}
+                                                                >
+                                                                    <div className="flex items-center">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                                                            <path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8zM12 15a1 1 0 100-2H6.414l1.293-1.293a1 1 0 10-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L6.414 15H12z" />
+                                                                        </svg>
+                                                                        Takas Et
+                                                                    </div>
+                                                                </button>
                                                                 <DeleteQuestion
                                                                     soruRef={`konular/${id}/altkonular/${key}/sorular/${soruKey}`}
                                                                     onDelete={refreshQuestions}
@@ -194,6 +212,17 @@ function QuestionContent() {
                 <UpdateQuestion
                     isOpen={isUpdateModalOpen}
                     onClose={() => setIsUpdateModalOpen(false)}
+                    soruRefPath={selectedSoruRef}
+                    konuId={id}
+                />
+            )}
+            {isOrderModalOpen && (
+                <ChangeQuestionOrder
+                    isOpen={isOrderModalOpen}
+                    onClose={() => {
+                        setIsOrderModalOpen(false);
+                        refreshQuestions();
+                    }}
                     soruRefPath={selectedSoruRef}
                     konuId={id}
                 />
