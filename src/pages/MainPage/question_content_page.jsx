@@ -121,7 +121,7 @@ function QuestionContent() {
                                     {expandedAltKonu === key && (
                                         <ul className="space-y-5 mt-6">
                                             {altKonu.sorular ? (
-                                                sortedQuestions(altKonu.sorular).map(([soruKey, soru]) => (
+                                                sortedQuestions(altKonu.sorular).map(([soruKey, soru], index) => (
                                                     <li key={soruKey} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg shadow-sm flex flex-col transition-all duration-200 hover:shadow-md">
                                                         <div className="flex justify-between items-start">
                                                             <div className="flex-1 min-w-0">
