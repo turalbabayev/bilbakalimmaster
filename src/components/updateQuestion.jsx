@@ -126,6 +126,12 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
             return;
         }
 
+        // Alt konu seçimi kontrolü ekle
+        if (!selectedAltKonu) {
+            alert("Lütfen bir alt konu seçin!");
+            return;
+        }
+
         try {
             console.log("=== Güncelleme Başlangıç ===");
             console.log("Güncellenecek soru:", soru);
@@ -139,8 +145,24 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                 throw new Error("Lütfen doğru cevabı seçin!");
             }
 
+            // Önce yeni konumdaki soruların numaralarını kontrol et
+            const yeniKonumSorularRef = ref(database, `konular/${konuId}/altkonular/${selectedAltKonu}/sorular`);
+            const yeniKonumSnapshot = await get(yeniKonumSorularRef);
+            const yeniKonumSorular = yeniKonumSnapshot.val() || {};
+            
+            // Mevcut soru numaralarını ve maksimum soru numarasını bul
+            const mevcutSoruNumaralari = Object.values(yeniKonumSorular).map(s => s.soruNumarasi || 0);
+            const maksimumSoruNumarasi = mevcutSoruNumaralari.length > 0 ? Math.max(...mevcutSoruNumaralari) : 0;
+            
+            // Mevcut soru numarası yoksa veya başka bir alt konuya taşınıyorsa, yeni numara ata
+            let kullanilacakSoruNumarasi = mevcutSoruNumarasi;
+            if (!kullanilacakSoruNumarasi || altKonuId !== selectedAltKonu) {
+                kullanilacakSoruNumarasi = maksimumSoruNumarasi + 1;
+                console.log("Yeni soru numarası atandı:", kullanilacakSoruNumarasi);
+            }
+
             const timestamp = Date.now();
-            const newPath = `konular/${konuId}/altkonular/${selectedAltKonu}/sorular/${timestamp}`;
+            const newPath = `konular/${konuId}/altkonular/${selectedAltKonu}/sorular/${soruId}_${timestamp}`;
             console.log("Yeni yol:", newPath);
             
             // Yeni konuma soruyu ekle
@@ -153,7 +175,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                 report: soru.report || 0,
                 liked: soru.liked || 0,
                 unliked: soru.unliked || 0,
-                soruNumarasi: mevcutSoruNumarasi,
+                soruNumarasi: kullanilacakSoruNumarasi,
                 soruResmi: soru.soruResmi || null
             };
             console.log("Güncellenecek veri:", updatedSoru);
@@ -169,7 +191,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
             console.log("Eski soru başarıyla silindi");
 
             console.log("=== Güncelleme Başarılı ===");
-            alert("Soru başarıyla güncellendi ve taşındı.");
+            alert("Soru başarıyla güncellendi" + (altKonuId !== selectedAltKonu ? " ve taşındı" : "") + ".");
             onClose();
         } catch (error) {
             console.error("=== Güncelleme Hatası ===");
@@ -210,7 +232,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                             <select
                                 value={selectedAltKonu}
                                 onChange={(e) => setSelectedAltKonu(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                className={`w-full px-4 py-3 rounded-xl border-2 ${!selectedAltKonu ? 'border-red-400 dark:border-red-600' : 'border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200`}
                             >
                                 <option value="">Alt konu seçin</option>
                                 {Object.entries(altKonular).map(([key, altKonu]) => (
@@ -219,6 +241,11 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                                     </option>
                                 ))}
                             </select>
+                            {!selectedAltKonu && (
+                                <p className="mt-2 text-sm text-red-500 dark:text-red-400">
+                                    Lütfen bir alt konu seçin. Bu alanın doldurulması zorunludur.
+                                </p>
+                            )}
                         </div>
 
                         <div>
