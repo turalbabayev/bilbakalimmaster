@@ -13,11 +13,46 @@ const UpdateQuestion = ({ isOpen, onClose, soruRefPath, konuId, altKonuId }) => 
     const [selectedAltDal, setSelectedAltDal] = useState("");
     const [isAltDal, setIsAltDal] = useState(false);
     const [mevcutSoruNumarasi, setMevcutSoruNumarasi] = useState(null);
+    const [mevcutYol, setMevcutYol] = useState(null);
 
     useEffect(() => {
         // Mevcut sorunun verilerini yükle
         if (soruRefPath) {
             const soruRef = ref(database, soruRefPath);
+            
+            // Soru yolunu parçalara ayırarak mevcut alt konu veya alt dalı belirle
+            const pathParts = soruRefPath.split('/');
+            console.log("Soru yolu parçaları:", pathParts);
+            
+            // Mevcut yolu belirle
+            try {
+                // konular/konuId/altkonular/altKonuId/sorular/soruId şeklindeyse
+                if (pathParts.includes("sorular") && !pathParts.includes("altdallar")) {
+                    const altKonuIndex = pathParts.indexOf("altkonular") + 1;
+                    if (altKonuIndex > 0 && altKonuIndex < pathParts.length) {
+                        const mevcutAltKonuId = pathParts[altKonuIndex];
+                        setSelectedAltKonu(mevcutAltKonuId);
+                        console.log("Mevcut alt konu ID:", mevcutAltKonuId);
+                        setIsAltDal(false);
+                    }
+                }
+                
+                // konular/konuId/altkonular/altKonuId/altdallar/altDalId/sorular/soruId şeklindeyse
+                if (pathParts.includes("altdallar")) {
+                    const altDalIndex = pathParts.indexOf("altdallar") + 1;
+                    if (altDalIndex > 0 && altDalIndex < pathParts.length) {
+                        const mevcutAltDalId = pathParts[altDalIndex];
+                        setSelectedAltDal(mevcutAltDalId);
+                        console.log("Mevcut alt dal ID:", mevcutAltDalId);
+                        setIsAltDal(true);
+                    }
+                }
+                
+                setMevcutYol(soruRefPath);
+            } catch (error) {
+                console.error("Soru yolu ayrıştırılırken hata:", error);
+            }
+            
             onValue(soruRef, (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
@@ -80,6 +115,11 @@ const UpdateQuestion = ({ isOpen, onClose, soruRefPath, konuId, altKonuId }) => 
 
         let newPath;
         const timestamp = Date.now();
+
+        // Eğer konum değişmediyse, aynı yere kaydet (soruId'yi değiştir)
+        const mevcutKonumKullaniyor = 
+            (isAltDal && selectedAltDal === mevcutYol?.split('/').find(part => part.includes("altdallar/") && !part.includes("sorular"))) ||
+            (!isAltDal && selectedAltKonu === mevcutYol?.split('/').find(part => part.includes("altkonular/") && !part.includes("altdallar")));
 
         if (isAltDal) {
             if (!selectedAltDal) {
