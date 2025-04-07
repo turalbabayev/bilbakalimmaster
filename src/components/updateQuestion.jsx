@@ -12,6 +12,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     const [altKonular, setAltKonular] = useState({});
     const [selectedAltKonu, setSelectedAltKonu] = useState(altKonuId);
     const [mevcutSoruNumarasi, setMevcutSoruNumarasi] = useState(null);
+    const [resimYukleniyor, setResimYukleniyor] = useState(false);
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -67,6 +68,25 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
         }
     }, [isOpen, konuId, altKonuId, soruId]);
 
+    const handleResimYukle = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setResimYukleniyor(true);
+        try {
+            // Resmi base64'e çevir
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setSoru({ ...soru, soruResmi: reader.result });
+                setResimYukleniyor(false);
+            };
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error("Resim yüklenirken hata oluştu:", error);
+            setResimYukleniyor(false);
+        }
+    };
+
     const handleUpdate = async () => {
         if (!soru) return;
 
@@ -96,7 +116,8 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                 report: soru.report || 0,
                 liked: soru.liked || 0,
                 unliked: soru.unliked || 0,
-                soruNumarasi: mevcutSoruNumarasi
+                soruNumarasi: mevcutSoruNumarasi,
+                soruResmi: soru.soruResmi || null // Resim alanını ekle
             };
             console.log("Güncellenecek veri:", updatedSoru);
 
@@ -204,6 +225,28 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                                     style={{ height: '120px' }}
                                 />
                             </div>
+                        </label>
+                    </div>
+                    
+                    <div className="mb-4">
+                        <label className="block mb-2">
+                            Soru Resmi (Opsiyonel):
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleResimYukle}
+                                className="w-full border rounded-md p-2 mt-1"
+                            />
+                            {resimYukleniyor && <p className="text-sm text-gray-500">Resim yükleniyor...</p>}
+                            {soru?.soruResmi && (
+                                <div className="mt-2">
+                                    <img 
+                                        src={soru.soruResmi} 
+                                        alt="Soru resmi" 
+                                        className="max-w-full h-auto rounded-md"
+                                    />
+                                </div>
+                            )}
                         </label>
                     </div>
                 </div>

@@ -12,6 +12,8 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [aciklama, setAciklama] = useState("");
     const [liked, setLiked] = useState(0);
     const [unliked, setUnliked] = useState(0);
+    const [soruResmi, setSoruResmi] = useState(null);
+    const [resimYukleniyor, setResimYukleniyor] = useState(false);
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -37,6 +39,25 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
         'list', 'bullet',
         'align'
     ];
+
+    const handleResimYukle = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setResimYukleniyor(true);
+        try {
+            // Resmi base64'e çevir
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setSoruResmi(reader.result);
+                setResimYukleniyor(false);
+            };
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error("Resim yüklenirken hata oluştu:", error);
+            setResimYukleniyor(false);
+        }
+    };
 
     const handleAddQuestion = async () => {
         if (
@@ -69,7 +90,8 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                 liked: 0,
                 unliked: 0,
                 report: 0,
-                soruNumarasi: soruNumarasi, // Soru numarası eklendi
+                soruNumarasi: soruNumarasi,
+                soruResmi: soruResmi || null // Resim alanını ekle
             };
             
             push(soruRef, newQuestion)
@@ -84,6 +106,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                     setAciklama("");
                     setLiked(0);
                     setUnliked(0);
+                    setSoruResmi(null);
                 })
                 .catch((error) => {
                     console.error("Soru eklenirken bir hata oluştu:  ", error);
@@ -233,6 +256,28 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                     style={{ height: '120px' }}
                                 />
                             </div>
+                        </label>
+                    </div>
+                    
+                    <div className="mb-4">
+                        <label className="block mb-2">
+                            Soru Resmi (Opsiyonel):
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleResimYukle}
+                                className="w-full border rounded-md p-2 mt-1"
+                            />
+                            {resimYukleniyor && <p className="text-sm text-gray-500">Resim yükleniyor...</p>}
+                            {soruResmi && (
+                                <div className="mt-2">
+                                    <img 
+                                        src={soruResmi} 
+                                        alt="Soru resmi" 
+                                        className="max-w-full h-auto rounded-md"
+                                    />
+                                </div>
+                            )}
                         </label>
                     </div>
                 </div>
