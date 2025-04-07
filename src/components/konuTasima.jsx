@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { database } from "../firebase";
-import { ref, get, set, push, remove } from "firebase/database";
+import { ref, get, set, push } from "firebase/database";
 
 const KonuTasima = ({ closeModal }) => {
     const [konular, setKonular] = useState([]);
@@ -87,16 +87,29 @@ const KonuTasima = ({ closeModal }) => {
                     continue;
                 }
 
-                // Yeni alt konu oluştur
-                const yeniAltKonuId = push(ref(database, `konular/${newKonuId}/altkonular`)).key;
-                yeniKonuYapisi.altkonular[yeniAltKonuId] = {
-                    baslik: konuData.baslik,
-                    altdallar: {}
-                };
+                // Alt konuları ve alt dalları kontrol et
+                if (!konuData.altkonular) {
+                    addLog(`UYARI: '${secilenKonu.baslik}' konusunda alt konu bulunamadı!`);
+                    continue;
+                }
 
-                // Alt dalları ve soruları kopyala
-                if (konuData.altdallar) {
-                    for (const [altDalKey, altDalData] of Object.entries(konuData.altdallar)) {
+                // Her alt konu için
+                for (const [altKonuKey, altKonuData] of Object.entries(konuData.altkonular)) {
+                    // Yeni alt konu oluştur
+                    const yeniAltKonuId = push(ref(database, `konular/${newKonuId}/altkonular`)).key;
+                    yeniKonuYapisi.altkonular[yeniAltKonuId] = {
+                        baslik: altKonuData.baslik,
+                        altdallar: {}
+                    };
+
+                    // Alt dalları kontrol et
+                    if (!altKonuData.altdallar) {
+                        addLog(`UYARI: '${altKonuData.baslik}' alt konusunda alt dal bulunamadı!`);
+                        continue;
+                    }
+
+                    // Her alt dal için
+                    for (const [altDalKey, altDalData] of Object.entries(altKonuData.altdallar)) {
                         // Yeni alt dal oluştur
                         const yeniAltDalId = push(ref(database, `konular/${newKonuId}/altkonular/${yeniAltKonuId}/altdallar`)).key;
                         yeniKonuYapisi.altkonular[yeniAltKonuId].altdallar[yeniAltDalId] = {
@@ -104,11 +117,13 @@ const KonuTasima = ({ closeModal }) => {
                             sorular: {}
                         };
 
-                        // Soruları kopyala
+                        // Soruları kontrol et ve kopyala
                         if (altDalData.sorular) {
+                            addLog(`'${altDalData.baslik}' alt dalındaki sorular kopyalanıyor...`);
                             for (const [soruKey, soruData] of Object.entries(altDalData.sorular)) {
-                                yeniKonuYapisi.altkonular[yeniAltKonuId].altdallar[yeniAltDalId].sorular[soruKey] = {
-                                    ...soruData,
+                                const yeniSoruId = push(ref(database, `konular/${newKonuId}/altkonular/${yeniAltKonuId}/altdallar/${yeniAltDalId}/sorular`)).key;
+                                yeniKonuYapisi.altkonular[yeniAltKonuId].altdallar[yeniAltDalId].sorular[yeniSoruId] = {
+                                    soruMetni: soruData.soruMetni || "",
                                     soruNumarasi: soruData.soruNumarasi || 0,
                                     cevaplar: soruData.cevaplar || [],
                                     dogruCevap: soruData.dogruCevap || "",
@@ -118,6 +133,8 @@ const KonuTasima = ({ closeModal }) => {
                                     unliked: soruData.unliked || 0
                                 };
                             }
+                        } else {
+                            addLog(`UYARI: '${altDalData.baslik}' alt dalında soru bulunamadı!`);
                         }
                     }
                 }
