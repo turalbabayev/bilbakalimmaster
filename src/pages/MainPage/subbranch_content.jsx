@@ -5,6 +5,7 @@ import DeleteQuestion from "../../components/deleteQuestion";
 import UpdateQuestion from "../../components/updateQuestion";
 import ChangeQuestionOrder from "../../components/changeQuestionOrder";
 import ExportSubbranchToDocx from "../../components/ExportSubbranchToDocx";
+import BulkDeleteQuestions from "../../components/BulkDeleteQuestions";
 import { useParams } from "react-router-dom";
 import { database } from "../../firebase";
 import { ref, onValue, get, set, remove } from "firebase/database";
@@ -16,6 +17,7 @@ function SubbranchContent() {
     const [altDallar, setAltDallar] = useState({});
     const [sorular, setSorular] = useState({});
     const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
+    const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -114,6 +116,20 @@ function SubbranchContent() {
 
                                     {altDal.sorular ? (
                                         <div className="space-y-4">
+                                            <div className="flex justify-end mb-2">
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedAltDal(key);
+                                                        setIsBulkDeleteOpen(true);
+                                                    }}
+                                                    className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg shadow-sm transition-all"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                    </svg>
+                                                    <span>Toplu Sil</span>
+                                                </button>
+                                            </div>
                                             {sortedQuestions(altDal.sorular).map(([soruKey, soru]) => (
                                                 <div key={soruKey} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                                                     <div className="flex justify-between items-start">
@@ -168,6 +184,19 @@ function SubbranchContent() {
                         onClose={() => {
                             setIsAddQuestionOpen(false);
                             refreshQuestions();
+                        }}
+                        konuId={konuId}
+                        altKonuId={altKonuId}
+                        altDalId={selectedAltDal}
+                    />
+                )}
+                
+                {isBulkDeleteOpen && selectedAltDal && (
+                    <BulkDeleteQuestions
+                        isOpen={isBulkDeleteOpen}
+                        onClose={(refreshNeeded) => {
+                            setIsBulkDeleteOpen(false);
+                            if (refreshNeeded) refreshQuestions();
                         }}
                         konuId={konuId}
                         altKonuId={altKonuId}
