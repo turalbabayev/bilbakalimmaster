@@ -97,26 +97,26 @@ const KonuTasima = ({ closeModal }) => {
                 await set(newAltKonuRef, {
                     baslik: konuData.baslik,
                     altkonular: konuData.altkonular || {},
-                    altdallar: konuData.altdallar || {},
-                    sorular: konuData.sorular || {}
+                    altdallar: konuData.altdallar || {}
                 });
 
-                // Alt konuları ve soruları kopyala
-                if (konuData.altkonular) {
-                    for (const [altKonuKey, altKonuData] of Object.entries(konuData.altkonular)) {
-                        const altKonuRef = ref(database, `konular/${newKonuId}/altkonular/${newAltKonuId}/altkonular/${altKonuKey}`);
-                        await set(altKonuRef, altKonuData);
+                // Alt dalları ve soruları kopyala
+                if (konuData.altdallar) {
+                    for (const [altDalKey, altDalData] of Object.entries(konuData.altdallar)) {
+                        const altDalRef = ref(database, `konular/${newKonuId}/altkonular/${newAltKonuId}/altdallar/${altDalKey}`);
+                        await set(altDalRef, altDalData);
+
+                        // Alt dalın sorularını kopyala
+                        if (altDalData.sorular) {
+                            for (const [soruKey, soruData] of Object.entries(altDalData.sorular)) {
+                                const soruRef = ref(database, `konular/${newKonuId}/altkonular/${newAltKonuId}/altdallar/${altDalKey}/sorular/${soruKey}`);
+                                await set(soruRef, soruData);
+                            }
+                        }
                     }
                 }
 
-                if (konuData.sorular) {
-                    for (const [soruKey, soruData] of Object.entries(konuData.sorular)) {
-                        const soruRef = ref(database, `konular/${newKonuId}/altkonular/${newAltKonuId}/sorular/${soruKey}`);
-                        await set(soruRef, soruData);
-                    }
-                }
-
-                addLog(`'${secilenKonu.baslik}' konusu ve tüm alt konuları/soruları başarıyla taşındı.`);
+                addLog(`'${secilenKonu.baslik}' konusu ve tüm alt dalları/soruları başarıyla taşındı.`);
             }
 
             // İşlemi tamamla
