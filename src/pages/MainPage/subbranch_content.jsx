@@ -102,7 +102,10 @@ function SubbranchContent() {
                                         </h2>
                                         <div className="flex space-x-2">
                                             <button
-                                                onClick={() => setIsCopyQuestionsOpen(true)}
+                                                onClick={() => {
+                                                    setSelectedAltDal(key);
+                                                    setIsCopyQuestionsOpen(true);
+                                                }}
                                                 className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg shadow-sm transition-all"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
