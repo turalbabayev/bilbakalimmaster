@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { database } from "../firebase";
-import { ref, get, set } from "firebase/database";
+import { ref, get, set, remove } from "firebase/database";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
@@ -9,6 +9,9 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     const [loading, setLoading] = useState(true);
     const [cevaplar, setCevaplar] = useState(["", "", "", "", ""]);
     const [dogruCevap, setDogruCevap] = useState("");
+    const [altKonular, setAltKonular] = useState({});
+    const [selectedAltKonu, setSelectedAltKonu] = useState(altKonuId);
+    const [mevcutSoruNumarasi, setMevcutSoruNumarasi] = useState(null);
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -33,25 +36,34 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     ];
 
     useEffect(() => {
-        const fetchSoru = async () => {
+        const fetchData = async () => {
             try {
+                // Alt konuları yükle
+                const konularRef = ref(database, `konular/${konuId}`);
+                const konularSnapshot = await get(konularRef);
+                if (konularSnapshot.exists()) {
+                    setAltKonular(konularSnapshot.val().altkonular || {});
+                }
+
+                // Mevcut soruyu yükle
                 const soruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/sorular/${soruId}`);
-                const snapshot = await get(soruRef);
-                if (snapshot.exists()) {
-                    const data = snapshot.val();
+                const soruSnapshot = await get(soruRef);
+                if (soruSnapshot.exists()) {
+                    const data = soruSnapshot.val();
                     setSoru(data);
                     setCevaplar(data.cevaplar || ["", "", "", "", ""]);
                     setDogruCevap(data.dogruCevap || "");
+                    setMevcutSoruNumarasi(data.soruNumarasi || null);
                     setLoading(false);
                 }
             } catch (error) {
-                console.error("Soru yüklenirken hata oluştu:", error);
+                console.error("Veri yüklenirken hata oluştu:", error);
                 setLoading(false);
             }
         };
 
         if (isOpen) {
-            fetchSoru();
+            fetchData();
         }
     }, [isOpen, konuId, altKonuId, soruId]);
 
@@ -59,17 +71,26 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
         if (!soru) return;
 
         try {
-            const soruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/sorular/${soruId}`);
-            const updatedSoru = {
+            const timestamp = Date.now();
+            const newPath = `konular/${konuId}/altkonular/${selectedAltKonu}/sorular/${timestamp}`;
+            
+            // Yeni konuma soruyu ekle
+            const newSoruRef = ref(database, newPath);
+            await set(newSoruRef, {
                 ...soru,
                 cevaplar,
                 dogruCevap: cevaplar[dogruCevap.charCodeAt(0) - 65],
                 report: soru.report || 0,
                 liked: soru.liked || 0,
-                unliked: soru.unliked || 0
-            };
-            await set(soruRef, updatedSoru);
-            alert("Soru başarıyla güncellendi.");
+                unliked: soru.unliked || 0,
+                soruNumarasi: mevcutSoruNumarasi
+            });
+
+            // Eski soruyu sil
+            const oldSoruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/sorular/${soruId}`);
+            await remove(oldSoruRef);
+
+            alert("Soru başarıyla güncellendi ve taşındı.");
             onClose();
         } catch (error) {
             console.error("Soru güncellenirken hata oluştu:", error);
@@ -85,6 +106,23 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                 <h2 className="text-xl font-bold mb-4 flex items-center justify-center">
                     Soruyu Güncelle
                 </h2>
+                <div className="mb-4">
+                    <label className="block mb-2">
+                        Soru Konumu:
+                        <select
+                            value={selectedAltKonu}
+                            onChange={(e) => setSelectedAltKonu(e.target.value)}
+                            className="w-full border rounded-md p-2 mt-1"
+                        >
+                            <option value="">Alt Konu Seçin</option>
+                            {Object.entries(altKonular).map(([key, konu]) => (
+                                <option key={key} value={key}>
+                                    {konu.baslik}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                </div>
                 <div className="overflow-y-auto max-h-[80vh] px-2">
                     <div className="mb-4">
                         <label className="block mb-2">
