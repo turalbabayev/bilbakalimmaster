@@ -39,18 +39,37 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
+                console.log("Soru yükleme işlemi başladı:", { konuId, altKonuId, soruId });
+                
+                // Gerekli parametreleri kontrol et
+                if (!konuId || !altKonuId || !soruId) {
+                    console.error("Eksik parametreler:", { konuId, altKonuId, soruId });
+                    alert("Soru güncelleme için gerekli parametreler eksik!");
+                    setLoading(false);
+                    onClose();
+                    return;
+                }
+                
                 // Alt konuları yükle
                 const konularRef = ref(database, `konular/${konuId}`);
                 const konularSnapshot = await get(konularRef);
                 if (konularSnapshot.exists()) {
                     setAltKonular(konularSnapshot.val().altkonular || {});
+                } else {
+                    console.error("Konu bulunamadı:", konuId);
+                    alert("Belirtilen konu bulunamadı! Modal kapatılacak.");
+                    setLoading(false);
+                    onClose();
+                    return;
                 }
 
                 // Mevcut soruyu yükle
                 const soruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/sorular/${soruId}`);
                 const soruSnapshot = await get(soruRef);
+                
                 if (soruSnapshot.exists()) {
                     const data = soruSnapshot.val();
+                    console.log("Soru verisi yüklendi:", data);
                     setSoru(data);
                     setCevaplar(data.cevaplar || ["", "", "", "", ""]);
                     
@@ -79,29 +98,27 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                     }
                     
                     setMevcutSoruNumarasi(data.soruNumarasi || null);
+                    setLoading(false);
                 } else {
                     // Soru bulunamadıysa hata durumu
-                    console.error("Güncellenecek soru bulunamadı!");
+                    console.error("Güncellenecek soru bulunamadı! Parametre bilgileri:", { konuId, altKonuId, soruId });
                     alert("Güncellenecek soru bulunamadı! Modal kapatılacak.");
+                    setLoading(false);
                     onClose();
+                    return;
                 }
             } catch (error) {
                 console.error("Veri yüklenirken hata oluştu:", error);
+                console.error("Hata sırasındaki parametreler:", { konuId, altKonuId, soruId });
                 alert("Veri yüklenirken bir hata oluştu! Modal kapatılacak.");
-                onClose();
-            } finally {
                 setLoading(false);
+                onClose();
             }
         };
 
-        if (isOpen && konuId && altKonuId && soruId) {
+        if (isOpen) {
             setLoading(true); // Yeni soru yüklenirken loading durumunu aktif et
             fetchData();
-        } else if (isOpen) {
-            // Gerekli parametreler eksikse modalı kapat
-            console.error("Eksik parametreler:", { konuId, altKonuId, soruId });
-            alert("Soru güncelleme için gerekli parametreler eksik!");
-            onClose();
         } else {
             // Modal kapandığında tüm form verilerini sıfırla
             setSoru(null);
@@ -109,7 +126,20 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
             setDogruCevap("");
             setSelectedAltKonu("");
             setMevcutSoruNumarasi(null);
+            setLoading(false);
         }
+        
+        // Modal kapatıldığında cleanup işlemi
+        return () => {
+            if (!isOpen) {
+                setSoru(null);
+                setCevaplar(["", "", "", "", ""]);
+                setDogruCevap("");
+                setSelectedAltKonu("");
+                setMevcutSoruNumarasi(null);
+                setLoading(false);
+            }
+        };
     }, [isOpen, konuId, altKonuId, soruId, onClose]);
 
     const handleResimYukle = async (e) => {
@@ -226,8 +256,10 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
             setMevcutSoruNumarasi(null);
             setLoading(false);
             
-            // En son modalı kapat
-            onClose();
+            // En son modalı gecikmeli kapat (kullanıcının alert'i görmesi için)
+            setTimeout(() => {
+                onClose();
+            }, 300);
         } catch (error) {
             console.error("=== Güncelleme Hatası ===");
             console.error("Hata detayı:", error);
