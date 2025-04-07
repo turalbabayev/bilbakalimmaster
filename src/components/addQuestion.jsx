@@ -44,6 +44,13 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
         const file = e.target.files[0];
         if (!file) return;
 
+        // Resim boyutu kontrolü (5MB)
+        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+        if (file.size > MAX_FILE_SIZE) {
+            alert("Resim boyutu çok büyük! Lütfen 5MB'dan küçük bir resim seçin.");
+            return;
+        }
+
         setResimYukleniyor(true);
         try {
             // Resmi base64'e çevir
