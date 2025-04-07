@@ -230,8 +230,9 @@ function QuestionContent() {
                 <UpdateQuestion
                     isOpen={isUpdateModalOpen}
                     onClose={() => setIsUpdateModalOpen(false)}
-                    soruRefPath={selectedSoruRef}
                     konuId={id}
+                    altKonuId={selectedSoruRef?.split('/')[3]}
+                    soruId={selectedSoruRef?.split('/')[5]}
                 />
             )}
             {isOrderModalOpen && (
