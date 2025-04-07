@@ -129,8 +129,17 @@ function QuestionContent() {
                                                                     <div className="flex flex-col space-y-1">
                                                                         <h3 className="text-lg font-semibold mb-2">
                                                                             {index + 1}. Soru: 
-                                                                            <div dangerouslySetInnerHTML={{ __html: soru.soruMetni }} />
                                                                         </h3>
+                                                                        {soru.soruResmi && (
+                                                                            <div className="mb-4">
+                                                                                <img 
+                                                                                    src={soru.soruResmi} 
+                                                                                    alt="Soru resmi" 
+                                                                                    className="max-w-full h-auto rounded-lg shadow-md"
+                                                                                />
+                                                                            </div>
+                                                                        )}
+                                                                        <div dangerouslySetInnerHTML={{ __html: soru.soruMetni }} />
                                                                         <div className="ml-4 space-y-1">
                                                                             {soru.cevaplar &&
                                                                                 soru.cevaplar.map((cevap, cevapIndex) => (
