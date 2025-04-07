@@ -94,6 +94,10 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
         }
     };
 
+    const handleResimSil = () => {
+        setSoru({ ...soru, soruResmi: null });
+    };
+
     const handleUpdate = async () => {
         if (!soru) {
             console.error("Güncellenecek soru bulunamadı!");
@@ -262,19 +266,29 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                     <div className="mb-4">
                         <label className="block mb-2">
                             Soru Resmi (Opsiyonel):
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleResimYukle}
-                                className="w-full border rounded-md p-2 mt-1"
-                            />
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleResimYukle}
+                                    className="w-full border rounded-md p-2 mt-1"
+                                />
+                                {soru?.soruResmi && (
+                                    <button
+                                        onClick={handleResimSil}
+                                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md mt-1"
+                                    >
+                                        Resmi Sil
+                                    </button>
+                                )}
+                            </div>
                             {resimYukleniyor && <p className="text-sm text-gray-500">Resim yükleniyor...</p>}
                             {soru?.soruResmi && (
                                 <div className="mt-2">
                                     <img 
                                         src={soru.soruResmi} 
                                         alt="Soru resmi" 
-                                        className="max-w-full h-auto rounded-md"
+                                        className="max-w-full h-auto rounded-lg shadow-md"
                                     />
                                 </div>
                             )}
