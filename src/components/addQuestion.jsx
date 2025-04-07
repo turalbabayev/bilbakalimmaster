@@ -66,6 +66,10 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
         }
     };
 
+    const handleResimSil = () => {
+        setSoruResmi(null);
+    };
+
     const handleAddQuestion = async () => {
         if (
             !selectedAltKonu ||
