@@ -184,138 +184,132 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                 </div>
                 
                 <div className="p-8 overflow-y-auto flex-1">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {/* Sol Kolon */}
-                        <div className="space-y-8">
-                            <div>
-                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
-                                    Alt Konu Seçin
-                                </label>
-                                <select
-                                    value={selectedAltKonu}
-                                    onChange={(e) => setSelectedAltKonu(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                                >
-                                    <option value="">Alt konu seçin</option>
-                                    {Object.entries(altKonular).map(([key, altKonu]) => (
-                                        <option key={key} value={key}>
-                                            {altKonu.baslik}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                    <div className="space-y-8">
+                        <div>
+                            <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                Alt Konu Seçin
+                            </label>
+                            <select
+                                value={selectedAltKonu}
+                                onChange={(e) => setSelectedAltKonu(e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                            >
+                                <option value="">Alt konu seçin</option>
+                                {Object.entries(altKonular).map(([key, altKonu]) => (
+                                    <option key={key} value={key}>
+                                        {altKonu.baslik}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
 
-                            <div>
-                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
-                                    Soru Metni
-                                </label>
-                                <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                    <ReactQuill 
-                                        theme="snow"
-                                        value={soruMetni}
-                                        onChange={setSoruMetni}
-                                        modules={modules}
-                                        formats={formats}
-                                        className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                                        style={{ height: '200px' }}
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
-                                    Açıklama
-                                </label>
-                                <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                    <ReactQuill
-                                        theme="snow"
-                                        value={aciklama}
-                                        onChange={setAciklama}
-                                        modules={modules}
-                                        formats={formats}
-                                        className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                                        style={{ height: '200px' }}
-                                    />
-                                </div>
+                        <div>
+                            <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                Soru Metni
+                            </label>
+                            <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
+                                <ReactQuill 
+                                    theme="snow"
+                                    value={soruMetni}
+                                    onChange={setSoruMetni}
+                                    modules={modules}
+                                    formats={formats}
+                                    className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                    style={{ height: '200px' }}
+                                />
                             </div>
                         </div>
 
-                        {/* Sağ Kolon */}
-                        <div className="space-y-8">
-                            <div>
-                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
-                                    Cevaplar
-                                </label>
-                                <div className="space-y-4">
-                                    {cevaplar.map((cevap, index) => (
-                                        <div key={index} className="flex items-center gap-4 group">
-                                            <div 
-                                                className={`w-10 h-10 flex items-center justify-center rounded-xl font-semibold text-lg transition-all duration-200
-                                                    ${dogruCevap === String.fromCharCode(65 + index) 
-                                                        ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 ring-2 ring-green-500'
-                                                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30'}`}
-                                                onClick={() => setDogruCevap(String.fromCharCode(65 + index))}
-                                                style={{ cursor: 'pointer' }}
-                                            >
-                                                {String.fromCharCode(65 + index)}
-                                            </div>
-                                            <textarea
-                                                value={cevap}
-                                                onChange={(e) => {
-                                                    const newCevaplar = [...cevaplar];
-                                                    newCevaplar[index] = e.target.value;
-                                                    setCevaplar(newCevaplar);
-                                                }}
-                                                placeholder={`${String.fromCharCode(65 + index)} şıkkının cevabı`}
-                                                className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                                                rows="2"
-                                            />
+                        <div>
+                            <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                Cevaplar
+                            </label>
+                            <div className="space-y-4">
+                                {cevaplar.map((cevap, index) => (
+                                    <div key={index} className="flex items-center gap-4 group">
+                                        <div 
+                                            className={`w-10 h-10 flex items-center justify-center rounded-xl font-semibold text-lg transition-all duration-200
+                                                ${dogruCevap === String.fromCharCode(65 + index) 
+                                                    ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 ring-2 ring-green-500'
+                                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30'}`}
+                                            onClick={() => setDogruCevap(String.fromCharCode(65 + index))}
+                                            style={{ cursor: 'pointer' }}
+                                        >
+                                            {String.fromCharCode(65 + index)}
                                         </div>
-                                    ))}
-                                </div>
-                                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                    Doğru cevabı seçmek için şık harfine tıklayın
-                                </p>
-                            </div>
-
-                            <div>
-                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
-                                    Soru Resmi (Opsiyonel)
-                                </label>
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className="relative flex-1">
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={handleResimYukle}
-                                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40"
-                                            />
-                                        </div>
-                                        {soruResmi && (
-                                            <button
-                                                onClick={handleResimSil}
-                                                className="px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all duration-200 font-medium"
-                                            >
-                                                Resmi Sil
-                                            </button>
-                                        )}
+                                        <textarea
+                                            value={cevap}
+                                            onChange={(e) => {
+                                                const newCevaplar = [...cevaplar];
+                                                newCevaplar[index] = e.target.value;
+                                                setCevaplar(newCevaplar);
+                                            }}
+                                            placeholder={`${String.fromCharCode(65 + index)} şıkkının cevabı`}
+                                            className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                            rows="2"
+                                        />
                                     </div>
-                                    {resimYukleniyor && (
-                                        <div className="text-sm text-blue-600 dark:text-blue-400 animate-pulse">
-                                            Resim yükleniyor...
-                                        </div>
-                                    )}
+                                ))}
+                            </div>
+                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                Doğru cevabı seçmek için şık harfine tıklayın
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                Açıklama
+                            </label>
+                            <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
+                                <ReactQuill
+                                    theme="snow"
+                                    value={aciklama}
+                                    onChange={setAciklama}
+                                    modules={modules}
+                                    formats={formats}
+                                    className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                    style={{ height: '200px' }}
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                Soru Resmi (Opsiyonel)
+                            </label>
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="relative flex-1">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleResimYukle}
+                                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40"
+                                        />
+                                    </div>
                                     {soruResmi && (
-                                        <div className="mt-4 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                            <img 
-                                                src={soruResmi} 
-                                                alt="Soru resmi" 
-                                                className="w-full h-auto"
-                                            />
-                                        </div>
+                                        <button
+                                            onClick={handleResimSil}
+                                            className="px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all duration-200 font-medium"
+                                        >
+                                            Resmi Sil
+                                        </button>
                                     )}
                                 </div>
+                                {resimYukleniyor && (
+                                    <div className="text-sm text-blue-600 dark:text-blue-400 animate-pulse">
+                                        Resim yükleniyor...
+                                    </div>
+                                )}
+                                {soruResmi && (
+                                    <div className="mt-4 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
+                                        <img 
+                                            src={soruResmi} 
+                                            alt="Soru resmi" 
+                                            className="w-full h-auto"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
