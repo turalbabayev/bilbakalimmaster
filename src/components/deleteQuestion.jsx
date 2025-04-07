@@ -11,8 +11,17 @@ const DeleteQuestion = ({ soruRef, onDelete }) => {
             try {
                 // Silinecek sorunun verilerini al
                 const soruSnapshot = await get(ref(database, soruRef));
+                if (!soruSnapshot.exists()) {
+                    alert("Soru bulunamadı!");
+                    setIsDeleting(false);
+                    return;
+                }
+                
                 const silinecekSoru = soruSnapshot.val();
                 const silinecekSoruNumarasi = silinecekSoru?.soruNumarasi;
+                
+                console.log("Silinecek soru:", soruRef);
+                console.log("Silinecek soru numarası:", silinecekSoruNumarasi);
 
                 if (!silinecekSoruNumarasi) {
                     // Soru numarası yoksa sadece sil
@@ -26,36 +35,68 @@ const DeleteQuestion = ({ soruRef, onDelete }) => {
                 const pathParts = soruRef.split('/');
                 const soruId = pathParts.pop(); // Son elemanı (soru ID) çıkar
                 const sorularYolu = pathParts.join('/'); // Sorular koleksiyonunun yolu
+                
+                console.log("Sorular yolu:", sorularYolu);
 
                 // Tüm soruları al
                 const sorularSnapshot = await get(ref(database, sorularYolu));
+                if (!sorularSnapshot.exists()) {
+                    console.log("Sorular koleksiyonu bulunamadı");
+                    await remove(ref(database, soruRef));
+                    alert("Bu soru başarıyla silindi.");
+                    onDelete();
+                    return;
+                }
+                
                 const sorular = sorularSnapshot.val() || {};
+                console.log("Mevcut sorular:", Object.keys(sorular).length);
 
                 // Soruyu sil
                 await remove(ref(database, soruRef));
+                console.log("Soru silindi:", soruRef);
                 
                 // Diğer soruların numaralarını güncelle
                 const updates = {};
+                let güncellenenSoruSayisi = 0;
+                
                 Object.entries(sorular).forEach(([key, soru]) => {
                     // Silinecek ID'yi atla
-                    if (key === soruId) return;
+                    if (key === soruId) {
+                        console.log("Silinen soru atlandı:", key);
+                        return;
+                    }
+                    
+                    // Soru numarası kontrolü
+                    if (!soru.soruNumarasi && soru.soruNumarasi !== 0) {
+                        console.log("Soru numarası olmayan soru:", key);
+                        return;
+                    }
                     
                     // Sadece silinen sorudan yüksek numaralı soruları güncelle
                     if (soru.soruNumarasi > silinecekSoruNumarasi) {
-                        updates[`${sorularYolu}/${key}/soruNumarasi`] = soru.soruNumarasi - 1;
+                        const yeniNumara = soru.soruNumarasi - 1;
+                        updates[`${sorularYolu}/${key}/soruNumarasi`] = yeniNumara;
+                        console.log(`Soru ${key} numarası güncelleniyor: ${soru.soruNumarasi} -> ${yeniNumara}`);
+                        güncellenenSoruSayisi++;
                     }
                 });
+
+                console.log("Güncellenecek soru sayısı:", güncellenenSoruSayisi);
+                console.log("Updates nesnesi:", updates);
 
                 // Numaraları güncelle (eğer güncellenecek soru varsa)
                 if (Object.keys(updates).length > 0) {
                     await update(ref(database), updates);
+                    console.log("Sorular güncellendi");
+                } else {
+                    console.log("Güncellenecek soru bulunamadı");
                 }
 
                 alert("Bu soru başarıyla silindi ve numaralar yeniden düzenlendi.");
                 onDelete();
             } catch (error) {
                 console.error("Soru silinirken bir hata oluştu:", error);
-                alert("Soru silinirken bir hata oluştu!");
+                alert("Soru silinirken bir hata oluştu: " + error.message);
             } finally {
                 setIsDeleting(false);
             }
