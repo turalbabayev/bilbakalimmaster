@@ -9,8 +9,6 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     const [loading, setLoading] = useState(true);
     const [cevaplar, setCevaplar] = useState(["", "", "", "", ""]);
     const [dogruCevap, setDogruCevap] = useState("");
-    const [konuBaslik, setKonuBaslik] = useState("");
-    const [altKonuBaslik, setAltKonuBaslik] = useState("");
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -37,32 +35,17 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     useEffect(() => {
         const fetchSoru = async () => {
             try {
-                // Konu başlığını al
-                const konuRef = ref(database, `konular/${konuId}`);
-                const konuSnapshot = await get(konuRef);
-                if (konuSnapshot.exists()) {
-                    setKonuBaslik(konuSnapshot.val().baslik || "");
-                }
-
-                // Alt konu başlığını al
-                const altKonuRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}`);
-                const altKonuSnapshot = await get(altKonuRef);
-                if (altKonuSnapshot.exists()) {
-                    setAltKonuBaslik(altKonuSnapshot.val().baslik || "");
-                }
-
-                // Soruyu al
                 const soruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/sorular/${soruId}`);
-                const soruSnapshot = await get(soruRef);
-                if (soruSnapshot.exists()) {
-                    const data = soruSnapshot.val();
+                const snapshot = await get(soruRef);
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
                     setSoru(data);
                     setCevaplar(data.cevaplar || ["", "", "", "", ""]);
                     setDogruCevap(data.dogruCevap || "");
                     setLoading(false);
                 }
             } catch (error) {
-                console.error("Veri yüklenirken hata oluştu:", error);
+                console.error("Soru yüklenirken hata oluştu:", error);
                 setLoading(false);
             }
         };
@@ -77,11 +60,15 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
 
         try {
             const soruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/sorular/${soruId}`);
-            await set(soruRef, {
+            const updatedSoru = {
                 ...soru,
                 cevaplar,
                 dogruCevap: cevaplar[dogruCevap.charCodeAt(0) - 65],
-            });
+                report: soru.report || 0,
+                liked: soru.liked || 0,
+                unliked: soru.unliked || 0
+            };
+            await set(soruRef, updatedSoru);
             alert("Soru başarıyla güncellendi.");
             onClose();
         } catch (error) {
@@ -98,14 +85,6 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                 <h2 className="text-xl font-bold mb-4 flex items-center justify-center">
                     Soruyu Güncelle
                 </h2>
-                <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                    <p className="text-gray-700">
-                        <span className="font-semibold">Konu:</span> {konuBaslik}
-                    </p>
-                    <p className="text-gray-700">
-                        <span className="font-semibold">Alt Konu:</span> {altKonuBaslik}
-                    </p>
-                </div>
                 <div className="overflow-y-auto max-h-[80vh] px-2">
                     <div className="mb-4">
                         <label className="block mb-2">
