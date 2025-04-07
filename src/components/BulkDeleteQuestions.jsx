@@ -140,7 +140,7 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
                             
                             {Object.keys(sorular).length > 0 ? (
                                 <div className="space-y-4">
-                                    {Object.entries(sorular).map(([soruId, soru]) => (
+                                    {Object.entries(sorular).map(([soruId, soru], index) => (
                                         <div key={soruId} className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 flex items-start">
                                             <input 
                                                 type="checkbox" 
@@ -150,9 +150,21 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
                                                 className="mt-1 w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                                             />
                                             <div className="ml-3 flex-1">
-                                                <label htmlFor={`soru-${soruId}`} className="block text-base font-medium text-gray-900 dark:text-white mb-2">
-                                                    <div dangerouslySetInnerHTML={{ __html: soru.soruMetni }} />
-                                                </label>
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <label htmlFor={`soru-${soruId}`} className="text-base font-medium text-gray-900 dark:text-white">
+                                                        <span className="inline-flex items-center justify-center bg-blue-600 text-white font-semibold rounded-full w-6 h-6 mr-2 text-sm">
+                                                            {index + 1}
+                                                        </span>
+                                                        {soru.baslik && <span className="font-semibold mr-2">{soru.baslik}</span>}
+                                                        <span className="text-xs text-gray-500 dark:text-gray-400">ID: {soruId}</span>
+                                                    </label>
+                                                    {soru.siraNo && (
+                                                        <span className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs px-2 py-1 rounded-md">
+                                                            Sıra: {soru.siraNo}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="mb-2" dangerouslySetInnerHTML={{ __html: soru.soruMetni }} />
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                                                     {soru.cevaplar?.map((cevap, index) => (
                                                         <div 
