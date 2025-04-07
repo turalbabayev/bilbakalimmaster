@@ -171,135 +171,147 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg w-3/4 p-6 max-h-[90vh] overflow-y-auto">
-                <h2 className="text-xl font-bold mb-4 flex items-center justify-center">
-                    Soru Ekle
-                </h2>
-                <div className="overflow-y-auto max-h-[80vh] px-2">
-                    <div className="mb-4">
-                        <label className="block mb-2">
-                            Alt Konu Seçin:
-                            <select
-                                value={selectedAltKonu}
-                                onChange={(e) => setSelectedAltKonu(e.target.value)}
-                                className="w-full border rounded-md p-2 mt-1"
-                            >
-                                <option value="">Alt konu seçin</option>
-                                {Object.entries(altKonular).map(([key, altKonu]) => (
-                                    <option key={key} value={key}>
-                                        {altKonu.baslik}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                    </div>
-                    
-                    <div className="mb-2">
-                        <label className="block mb-1">
-                            Soru Metni:
-                            <div className="mt-1">
-                                <ReactQuill 
-                                    theme="snow"
-                                    value={soruMetni}
-                                    onChange={setSoruMetni}
-                                    modules={modules}
-                                    formats={formats}
-                                    className="bg-white mb-4"
-                                    style={{ height: '100px' }}
-                                />
-                            </div>
-                        </label>
-                    </div>
-                    
-                    <div className="mb-2">
-                        <label className="block mb-1">Cevaplar:</label>
-                        {cevaplar.map((cevap, index) => (
-                            <div key={index} className="mb-3">
-                                <label className="block mb-1">{`Cevap ${String.fromCharCode(65 + index)}`}</label>
-                                <textarea
-                                    value={cevap}
-                                    onChange={(e) => {
-                                        const newCevaplar = [...cevaplar];
-                                        newCevaplar[index] = e.target.value.replace(/□/g, "");
-                                        setCevaplar(newCevaplar);
-                                    }}
-                                    placeholder={`Cevap ${String.fromCharCode(65 + index)}`}
-                                    className="w-full border rounded-md p-2 mt-1 mb-1"
-                                    rows="2"
-                                    maxLength={500}
-                                />
-                            </div>
-                        ))}
-                    </div>
-                    
-                    <div className="mb-4">
-                        <label className="block mb-2">
-                            Doğru Cevap:
-                            <input
-                                value={dogruCevap}
-                                onChange={(e) => {
-                                    setDogruCevap(
-                                        e.target.value.toUpperCase().replace(/□/g, "")
-                                    );
-                                }}
-                                placeholder="Doğru cevap (A, B, C, D, E)"
-                                className="w-full border rounded-md p-2 mt-1"
-                            />
-                        </label>
-                    </div>
-                    
-                    <div className="mb-4">
-                        <label className="block mb-2">
-                            Açıklama:
-                            <div className="mt-1">
-                                <ReactQuill
-                                    theme="snow"
-                                    value={aciklama}
-                                    onChange={setAciklama}
-                                    modules={modules}
-                                    formats={formats}
-                                    className="bg-white"
-                                    style={{ height: '120px' }}
-                                />
-                            </div>
-                        </label>
-                    </div>
-                    
-                    <div className="mb-4">
-                        <label className="block mb-2">
-                            Soru Resmi (Opsiyonel):
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleResimYukle}
-                                className="w-full border rounded-md p-2 mt-1"
-                            />
-                            {resimYukleniyor && <p className="text-sm text-gray-500">Resim yükleniyor...</p>}
-                            {soruResmi && (
-                                <div className="mt-2">
-                                    <img 
-                                        src={soruResmi} 
-                                        alt="Soru resmi" 
-                                        className="max-w-full h-auto rounded-md"
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-11/12 max-w-4xl max-h-[90vh] overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white text-center">
+                        Yeni Soru Ekle
+                    </h2>
+                </div>
+                
+                <div className="p-6 overflow-y-auto max-h-[70vh]">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Sol Kolon */}
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Soru Metni
+                                </label>
+                                <div className="bg-white dark:bg-gray-700 rounded-lg">
+                                    <ReactQuill 
+                                        theme="snow"
+                                        value={soruMetni}
+                                        onChange={setSoruMetni}
+                                        modules={modules}
+                                        formats={formats}
+                                        className="bg-white dark:bg-gray-700"
+                                        style={{ height: '150px' }}
                                     />
                                 </div>
-                            )}
-                        </label>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Açıklama
+                                </label>
+                                <div className="bg-white dark:bg-gray-700 rounded-lg">
+                                    <ReactQuill
+                                        theme="snow"
+                                        value={aciklama}
+                                        onChange={setAciklama}
+                                        modules={modules}
+                                        formats={formats}
+                                        className="bg-white dark:bg-gray-700"
+                                        style={{ height: '150px' }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Sağ Kolon */}
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Cevaplar
+                                </label>
+                                <div className="space-y-3">
+                                    {cevaplar.map((cevap, index) => (
+                                        <div key={index} className="flex items-center space-x-3">
+                                            <span className="w-8 h-8 flex items-center justify-center bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 rounded-full font-medium">
+                                                {String.fromCharCode(65 + index)}
+                                            </span>
+                                            <textarea
+                                                value={cevap}
+                                                onChange={(e) => {
+                                                    const newCevaplar = [...cevaplar];
+                                                    newCevaplar[index] = e.target.value;
+                                                    setCevaplar(newCevaplar);
+                                                }}
+                                                placeholder={`Cevap ${String.fromCharCode(65 + index)}`}
+                                                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                rows="2"
+                                                maxLength={500}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Doğru Cevap
+                                </label>
+                                <input
+                                    value={dogruCevap}
+                                    onChange={(e) => setDogruCevap(e.target.value.toUpperCase())}
+                                    placeholder="Doğru cevap (A, B, C, D, E)"
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Soru Resmi (Opsiyonel)
+                                </label>
+                                <div className="space-y-3">
+                                    <div className="flex items-center space-x-3">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleResimYukle}
+                                            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        />
+                                        {soruResmi && (
+                                            <button
+                                                onClick={handleResimSil}
+                                                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors duration-200"
+                                            >
+                                                Resmi Sil
+                                            </button>
+                                        )}
+                                    </div>
+                                    {resimYukleniyor && (
+                                        <div className="text-sm text-indigo-600 dark:text-indigo-400">
+                                            Resim yükleniyor...
+                                        </div>
+                                    )}
+                                    {soruResmi && (
+                                        <div className="mt-2">
+                                            <img 
+                                                src={soruResmi} 
+                                                alt="Soru resmi" 
+                                                className="w-full h-auto rounded-lg shadow-md"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div className="flex justify-end space-x-4 mt-16">
+
+                <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-4">
                     <button
-                        className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
-                        onClick={handleAddQuestion}
+                        onClick={onClose}
+                        className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors duration-200"
                     >
-                        Ekle
+                        İptal
                     </button>
                     <button
-                        className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
-                        onClick={onClose}
+                        onClick={handleAddQuestion}
+                        className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors duration-200"
                     >
-                        Kapat
+                        Soru Ekle
                     </button>
                 </div>
             </div>
