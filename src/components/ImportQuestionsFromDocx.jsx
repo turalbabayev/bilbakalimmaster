@@ -38,24 +38,13 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                 return null;
             }
             
+            // İlk satırda genellikle yeşil tik ve Soru numarası olacak - atla
             // Soru metnini bul
             let soruMetni = "";
             let i = 0;
             
-            // Tik işaretini içeren satırı bul ve ilerle
-            const tikPattern = /(✅|🟢|\u2705)\s*\d+\.\s*Soru/;
-            while (i < lines.length) {
-                if (lines[i].match(tikPattern)) {
-                    i++; // Soru başlık satırını atla, bir sonraki satırdan başla
-                    break;
-                }
-                i++;
-            }
-            
-            if (i >= lines.length) {
-                // Başlık formatı farklı olabilir, en baştan başlayarak soru metnini almayı dene
-                i = 1; // İlk satırı (muhtemelen tikli soru numarası) atla
-            }
+            // İlk satırı atla, bu genelde soru başlığı olur
+            i = 1;
             
             // Soru metnini al (şıklar başlayana kadar)
             const sikPattern = /^([A-E])\)\s*(.+)$/;
@@ -67,8 +56,8 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                     break;
                 }
                 
-                // Eğer başka bir tikli satır geldiysek çık
-                if (line.match(/(✅|🟢|\u2705)/)) {
+                // Eğer doğru cevap satırına geldiysek çık
+                if (line.match(/(✅|🟢|\u2705|Doğru Cevap)/i)) {
                     break;
                 }
                 
@@ -100,9 +89,11 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                     const sikIcerik = match[2].trim();
                     
                     // Doğru indekse yerleştir
-                    cevaplar[sikIndex] = sikIcerik;
+                    if (sikIndex >= 0 && sikIndex < 5) {
+                        cevaplar[sikIndex] = sikIcerik;
+                    }
                     i++;
-                } else if (line.match(/(✅|🟢|\u2705)\s*Doğru Cevap:/)) {
+                } else if (line.match(/(✅|🟢|\u2705|Doğru Cevap)/i)) {
                     // Şıklardan sonra doğru cevap satırına geldik
                     break;
                 } else {
@@ -121,37 +112,42 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
             let dogruCevap = "";
             let aciklama = "";
             
-            // Kalan satırlardan doğru cevabı ve açıklamayı bul
-            const dogruCevapPattern = /(✅|🟢|\u2705)\s*Doğru Cevap:\s*([A-E])\)/;
-            const aciklamaPattern = /Açıklama:/i;
+            // Doğru cevap satırını bul
+            let dogruCevapSatiri = "";
+            for (let j = i; j < lines.length; j++) {
+                if (lines[j].match(/(✅|🟢|\u2705|Doğru Cevap)/i)) {
+                    dogruCevapSatiri = lines[j];
+                    i = j + 1; // Bir sonraki satırdan devam et
+                    break;
+                }
+            }
             
-            while (i < lines.length) {
+            // Doğru cevap şıkkını bul
+            if (dogruCevapSatiri) {
+                // "Doğru Cevap: A)" formatından A'yı çıkar
+                const dogruCevapMatch = dogruCevapSatiri.match(/([A-E])\)/);
+                if (dogruCevapMatch && dogruCevapMatch[1]) {
+                    dogruCevap = dogruCevapMatch[1];
+                } else {
+                    console.warn("Doğru cevap şıkkı algılanamadı:", dogruCevapSatiri);
+                }
+            }
+            
+            // Açıklama bölümünü bul
+            for (; i < lines.length; i++) {
                 const line = lines[i].trim();
                 
-                const dogruCevapMatch = line.match(dogruCevapPattern);
-                if (dogruCevapMatch) {
-                    // Doğru cevap satırını bulduk, şık harfini al
-                    dogruCevap = dogruCevapMatch[2];
-                    i++;
-                } else if (line.match(aciklamaPattern)) {
+                if (line.match(/Açıklama:/i)) {
                     // Açıklama satırını bulduk, bu satırdan itibaren sonuna kadar al
                     aciklama = line.replace(/^Açıklama:\s*/i, "").trim();
                     i++;
                     
-                    // Bir sonraki soruya kadar veya yeni yeşil tik işareti görene kadar
+                    // Sonraki satırları da açıklamaya ekle
                     while (i < lines.length) {
-                        const nextLine = lines[i].trim();
-                        // Eğer yeni bir soru başlıyorsa veya çizgi varsa çık
-                        if (nextLine.match(/(✅|🟢|\u2705)/) || nextLine.match(/^[-_]+$/)) {
-                            break;
-                        }
-                        aciklama += "\n" + nextLine;
+                        aciklama += "\n" + lines[i].trim();
                         i++;
                     }
                     break;
-                } else {
-                    // Bu satırda tanınan öğe yok, ilerle
-                    i++;
                 }
             }
             
@@ -220,120 +216,133 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                     
                     // Yeşil tik işareti Unicode'da U+2705 olarak geçiyor, metinde ✅ olarak görünebilir
                     // Hem ✅ hem de 🟢 sembollerini destekle
-                    const greenCheckmark = "(✅|🟢|\\u2705)";
+                    const greenCheckmark = "(✅|🟢|\\u2705|\\u{2705})";
                     
-                    // Metni soruları belirten formata göre böl
-                    const questionRegex = new RegExp(`${greenCheckmark}\\s*(\\d+\\.\\s*Soru.*?)(?=${greenCheckmark}|$)`, "gs");
-                    const matches = Array.from(text.matchAll(questionRegex));
-                    
-                    if (matches.length === 0) {
-                        console.log("Soru bulunamadı, alternatif formatı deniyorum");
+                    try {
+                        // Soruları birbirinden ayır
+                        const questions = [];
+                        const errors = [];
                         
-                        // Alternatif format: Çizgi ile ayrılan bölümler
-                        const alternativeRegex = new RegExp(`${greenCheckmark}[^${greenCheckmark}]+?(?=\\n[-_]{5,}\\s*\\n|$)`, "gs");
-                        let alternativeMatches = Array.from(text.matchAll(alternativeRegex));
+                        // Yazı tipi, Word'den içe aktarma sırasında değişebilir
+                        // Önce metin içindeki tüm yeşil tik işaretlerini bul
+                        const checkmarks = text.match(new RegExp(greenCheckmark, "gu")) || [];
                         
-                        if (alternativeMatches.length === 0) {
-                            // Başka bir alternatif: Sadece yeşil tik işaretine göre ayır
-                            const simpleRegex = new RegExp(`(${greenCheckmark}[^${greenCheckmark}]+?)(?=${greenCheckmark}|$)`, "gs");
-                            alternativeMatches = Array.from(text.matchAll(simpleRegex));
+                        if (checkmarks.length === 0) {
+                            console.warn("Metin içinde hiç yeşil tik işareti bulunamadı");
+                            throw new Error("Dokümanda yeşil tik (✅) işareti bulunamadı. Soruların yeşil tik işaretiyle başladığından emin olun.");
                         }
                         
-                        if (alternativeMatches.length === 0) {
-                            throw new Error("Dokümanda uygun formatta soru bulunamadı. Her soru yeşil tik (✅) işaretiyle başlamalıdır.");
+                        console.log(`Metin içinde ${checkmarks.length} adet tik işareti bulundu`);
+                        
+                        // Metni parçalara ayır
+                        // Her tik işaretinin konumunu bul
+                        const tikPositions = [];
+                        const checkmarkRegex = new RegExp(greenCheckmark, "gu");
+                        let match;
+                        while ((match = checkmarkRegex.exec(text)) !== null) {
+                            tikPositions.push(match.index);
                         }
                         
-                        console.log(`Alternatif formatta ${alternativeMatches.length} adet soru bulundu.`);
-                        matches.push(...alternativeMatches);
-                    }
-                    
-                    console.log(`Toplam ${matches.length} adet soru bulundu.`);
-                    
-                    // Soruları ayrıştır
-                    const questions = [];
-                    const errors = [];
-                    
-                    for (let i = 0; i < matches.length; i++) {
-                        const questionText = matches[i][1].trim();
-                        console.log(`Soru #${i + 1} ayrıştırılıyor:`, questionText.substring(0, 100) + "...");
+                        // Son konumdan sonrasını da ekle
+                        tikPositions.push(text.length);
                         
-                        const question = parseQuestion(questionText);
-                        
-                        if (question) {
-                            questions.push(question);
-                        } else {
-                            errors.push(`Soru #${i + 1}: Ayrıştırma hatası`);
-                        }
-                        
-                        // İlerleme durumunu güncelle
-                        setImportProgress(Math.floor((i + 1) / matches.length * 50));
-                    }
-                    
-                    setParseErrors(errors);
-                    
-                    if (questions.length === 0) {
-                        throw new Error("Ayrıştırılabilir soru bulunamadı.");
-                    }
-                    
-                    // Firebase'e soruları ekle
-                    const soruRef = ref(
-                        database,
-                        `konular/${currentKonuId}/altkonular/${selectedAltKonu}/sorular`
-                    );
-                    
-                    // Mevcut soru sayısını al
-                    const snapshot = await get(soruRef);
-                    const sorular = snapshot.val() || {};
-                    const mevcutSoruSayisi = Object.keys(sorular).length;
-                    
-                    // Başarıyla eklenen soru sayısı
-                    let basariliEklenen = 0;
-                    let hataOlusan = 0;
-                    
-                    // Her soruyu veritabanına ekle
-                    for (let i = 0; i < questions.length; i++) {
-                        const question = questions[i];
-                        
-                        try {
-                            const newQuestion = {
-                                soruMetni: question.soruMetni,
-                                cevaplar: question.cevaplar,
-                                dogruCevap: question.dogruCevap,
-                                aciklama: question.aciklama,
-                                liked: 0,
-                                unliked: 0,
-                                report: 0,
-                                soruNumarasi: mevcutSoruSayisi + i + 1
-                            };
+                        // Her iki tik işareti arasındaki metni bir soru olarak al
+                        for (let i = 0; i < tikPositions.length - 1; i++) {
+                            const start = tikPositions[i];
+                            const end = tikPositions[i + 1];
+                            const questionText = text.substring(start, end);
                             
-                            await push(soruRef, newQuestion);
-                            basariliEklenen++;
-                        } catch (error) {
-                            console.error(`Soru #${i + 1} eklenirken hata:`, error);
-                            hataOlusan++;
+                            // Sorular arasındaki ayraçları ve boşlukları temizle
+                            const cleanedText = questionText
+                                .replace(/[-_]{3,}/g, "") // Çizgileri temizle
+                                .trim();
+                            
+                            if (cleanedText.length > 0) {
+                                console.log(`Soru #${i + 1} metni: ${cleanedText.substring(0, 50)}...`);
+                                const parsedQuestion = parseQuestion(cleanedText);
+                                
+                                if (parsedQuestion) {
+                                    questions.push(parsedQuestion);
+                                } else {
+                                    console.warn(`Soru #${i + 1} ayrıştırılamadı`);
+                                    errors.push(`Soru #${i + 1}: Ayrıştırma hatası`);
+                                }
+                            }
+                            
+                            // İlerleme durumunu güncelle
+                            setImportProgress(Math.floor((i + 1) / (tikPositions.length - 1) * 50));
                         }
                         
-                        // İlerleme durumunu güncelle (50-100 arası)
-                        setImportProgress(50 + Math.floor((i + 1) / questions.length * 50));
-                    }
-                    
-                    // Özet bilgisi oluştur
-                    setImportSummary({
-                        toplamBulunan: matches.length,
-                        basariliAyrıstırılan: questions.length,
-                        basariliEklenen,
-                        hataOlusan
-                    });
-                    
-                    if (basariliEklenen > 0) {
-                        alert(`${basariliEklenen} soru başarıyla eklendi.`);
-                    } else {
-                        alert("Hiçbir soru eklenemedi.");
+                        setParseErrors(errors);
+                        
+                        if (questions.length === 0) {
+                            throw new Error("Ayrıştırılabilir soru bulunamadı. DOCX dosyasının tam olarak beklenen formatta olduğundan emin olun.");
+                        }
+                        
+                        // Firebase'e soruları ekle
+                        const soruRef = ref(
+                            database,
+                            `konular/${currentKonuId}/altkonular/${selectedAltKonu}/sorular`
+                        );
+                        
+                        // Mevcut soru sayısını al
+                        const snapshot = await get(soruRef);
+                        const sorular = snapshot.val() || {};
+                        const mevcutSoruSayisi = Object.keys(sorular).length;
+                        
+                        // Başarıyla eklenen soru sayısı
+                        let basariliEklenen = 0;
+                        let hataOlusan = 0;
+                        
+                        // Her soruyu veritabanına ekle
+                        for (let i = 0; i < questions.length; i++) {
+                            const question = questions[i];
+                            
+                            try {
+                                const newQuestion = {
+                                    soruMetni: question.soruMetni,
+                                    cevaplar: question.cevaplar,
+                                    dogruCevap: question.dogruCevap,
+                                    aciklama: question.aciklama,
+                                    liked: 0,
+                                    unliked: 0,
+                                    report: 0,
+                                    soruNumarasi: mevcutSoruSayisi + i + 1
+                                };
+                                
+                                await push(soruRef, newQuestion);
+                                basariliEklenen++;
+                            } catch (error) {
+                                console.error(`Soru #${i + 1} eklenirken hata:`, error);
+                                hataOlusan++;
+                            }
+                            
+                            // İlerleme durumunu güncelle (50-100 arası)
+                            setImportProgress(50 + Math.floor((i + 1) / questions.length * 50));
+                        }
+                        
+                        // Özet bilgisi oluştur
+                        setImportSummary({
+                            toplamBulunan: tikPositions.length - 1,
+                            basariliAyrıstırılan: questions.length,
+                            basariliEklenen,
+                            hataOlusan
+                        });
+                        
+                        if (basariliEklenen > 0) {
+                            alert(`${basariliEklenen} soru başarıyla eklendi.`);
+                        } else {
+                            alert("Hiçbir soru eklenemedi.");
+                        }
+                    } catch (error) {
+                        console.error("Dosya işleme hatası:", error);
+                        alert(`Dosya işlenirken bir hata oluştu: ${error.message}`);
+                    } finally {
+                        setIsUploading(false);
                     }
                 } catch (error) {
-                    console.error("Dosya işleme hatası:", error);
-                    alert(`Dosya işlenirken bir hata oluştu: ${error.message}`);
-                } finally {
+                    console.error("Docx dönüştürme hatası:", error);
+                    alert(`DOCX dosyası işlenirken bir hata oluştu: ${error.message}`);
                     setIsUploading(false);
                 }
             };
@@ -400,7 +409,7 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                                 </div>
                             </div>
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                DOCX dosyanızdaki sorular tam olarak şu formatta olmalıdır:
+                                DOCX dosyanızdaki her soru yeşil tik (✅) işaretiyle başlamalıdır. Örnek:
                             </p>
                             <div className="mt-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
                                 ✅ 2. Soru<br/>
@@ -416,8 +425,6 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                                 Ortalama hız = 2ab / (a + b)<br/>
                                 = 2×60×90 / (60 + 90) = 10800 / 150 = 72 km/s<br/>
                                 <br/>
-                                -------------------------------<br/>
-                                <br/>
                                 ✅ 3. Soru<br/>
                                 Bir işçi, bir işi 18 günde, diğer işçi aynı işi 12 günde bitiriyor.<br/>
                                 Bu iki işçi birlikte çalışırsa iş kaç günde tamamlanır?<br/>
@@ -430,6 +437,9 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                                 Açıklama:<br/>
                                 Ortak iş süresi = (18 × 12) / (18 + 12) = 216 / 30 = 7.2 gün
                             </div>
+                            <p className="mt-2 text-sm text-text-red-500 dark:text-red-400">
+                                <strong>Önemli:</strong> Dokümanınızda yeşil tik işareti kullanıldığından emin olun.
+                            </p>
                         </div>
 
                         {isUploading && (
