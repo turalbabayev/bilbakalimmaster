@@ -93,11 +93,10 @@ const KonuTasima = ({ closeModal }) => {
                 const newAltKonuRef = push(altkonularRef);
                 const newAltKonuId = newAltKonuRef.key;
 
-                // Alt konunun tüm verilerini kopyala
+                // Alt konunun temel verilerini kopyala
                 await set(newAltKonuRef, {
                     baslik: konuData.baslik,
-                    altkonular: konuData.altkonular || {},
-                    altdallar: konuData.altdallar || {}
+                    altdallar: {}
                 });
 
                 // Alt dalları ve soruları kopyala
