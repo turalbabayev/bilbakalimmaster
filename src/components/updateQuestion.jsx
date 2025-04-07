@@ -79,17 +79,29 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                     }
                     
                     setMevcutSoruNumarasi(data.soruNumarasi || null);
-                    setLoading(false);
+                } else {
+                    // Soru bulunamadıysa hata durumu
+                    console.error("Güncellenecek soru bulunamadı!");
+                    alert("Güncellenecek soru bulunamadı! Modal kapatılacak.");
+                    onClose();
                 }
             } catch (error) {
                 console.error("Veri yüklenirken hata oluştu:", error);
+                alert("Veri yüklenirken bir hata oluştu! Modal kapatılacak.");
+                onClose();
+            } finally {
                 setLoading(false);
             }
         };
 
-        if (isOpen) {
+        if (isOpen && konuId && altKonuId && soruId) {
             setLoading(true); // Yeni soru yüklenirken loading durumunu aktif et
             fetchData();
+        } else if (isOpen) {
+            // Gerekli parametreler eksikse modalı kapat
+            console.error("Eksik parametreler:", { konuId, altKonuId, soruId });
+            alert("Soru güncelleme için gerekli parametreler eksik!");
+            onClose();
         } else {
             // Modal kapandığında tüm form verilerini sıfırla
             setSoru(null);
@@ -98,7 +110,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
             setSelectedAltKonu("");
             setMevcutSoruNumarasi(null);
         }
-    }, [isOpen, konuId, altKonuId, soruId]);
+    }, [isOpen, konuId, altKonuId, soruId, onClose]);
 
     const handleResimYukle = async (e) => {
         const file = e.target.files[0];
@@ -202,6 +214,8 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
             console.log("Eski soru başarıyla silindi");
 
             console.log("=== Güncelleme Başarılı ===");
+            
+            // Kullanıcıya bilgi ver
             alert("Soru başarıyla güncellendi" + (altKonuId !== selectedAltKonu ? " ve taşındı" : "") + ".");
             
             // İşlem tamamlandığında tüm form verilerini sıfırla
@@ -210,7 +224,9 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
             setDogruCevap("");
             setSelectedAltKonu("");
             setMevcutSoruNumarasi(null);
+            setLoading(false);
             
+            // En son modalı kapat
             onClose();
         } catch (error) {
             console.error("=== Güncelleme Hatası ===");
@@ -231,7 +247,28 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
         }
     };
 
-    if (!isOpen || loading) return null;
+    if (!isOpen) return null;
+
+    if (loading) {
+        return (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-11/12 max-w-5xl max-h-[calc(100vh-40px)] overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col">
+                    <div className="p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+                        <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center">
+                            Soruyu Güncelle
+                        </h2>
+                    </div>
+                    
+                    <div className="p-8 flex-1 flex items-center justify-center">
+                        <div className="flex flex-col items-center space-y-4">
+                            <div className="w-12 h-12 border-4 border-t-blue-500 border-gray-200 rounded-full animate-spin"></div>
+                            <p className="text-lg text-gray-700 dark:text-gray-300">Soru yükleniyor...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
