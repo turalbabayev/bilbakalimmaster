@@ -24,6 +24,9 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
             [{ 'align': [] }],
             ['clean']
         ],
+        clipboard: {
+            matchVisual: false,
+        }
     };
 
     const formats = [
@@ -173,6 +176,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                     modules={modules}
                                     formats={formats}
                                     className="bg-white"
+                                    style={{ height: '200px' }}
                                 />
                             </div>
                         </label>
@@ -225,7 +229,8 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                     onChange={setAciklama}
                                     modules={modules}
                                     formats={formats}
-                                    className="bg-white h-[200px] mb-12"
+                                    className="bg-white"
+                                    style={{ height: '200px' }}
                                 />
                             </div>
                         </label>
