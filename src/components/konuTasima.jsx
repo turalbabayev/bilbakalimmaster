@@ -121,17 +121,18 @@ const KonuTasima = ({ closeModal }) => {
                         if (altDalData.sorular) {
                             addLog(`'${altDalData.baslik}' alt dalındaki sorular kopyalanıyor...`);
                             for (const [soruKey, soruData] of Object.entries(altDalData.sorular)) {
-                                const yeniSoruId = push(ref(database, `konular/${newKonuId}/altkonular/${yeniAltKonuId}/altdallar/${yeniAltDalId}/sorular`)).key;
-                                yeniKonuYapisi.altkonular[yeniAltKonuId].altdallar[yeniAltDalId].sorular[yeniSoruId] = {
-                                    soruMetni: soruData.soruMetni || "",
-                                    soruNumarasi: soruData.soruNumarasi || 0,
-                                    cevaplar: soruData.cevaplar || [],
-                                    dogruCevap: soruData.dogruCevap || "",
-                                    aciklama: soruData.aciklama || "",
-                                    report: soruData.report || 0,
-                                    liked: soruData.liked || 0,
-                                    unliked: soruData.unliked || 0
-                                };
+                                // Sorunun tüm verilerini al
+                                const soruRef = ref(database, `konular/${konuId}/altkonular/${altKonuKey}/altdallar/${altDalKey}/sorular/${soruKey}`);
+                                const soruSnapshot = await get(soruRef);
+                                const tamSoruData = soruSnapshot.val();
+
+                                if (tamSoruData) {
+                                    const yeniSoruId = push(ref(database, `konular/${newKonuId}/altkonular/${yeniAltKonuId}/altdallar/${yeniAltDalId}/sorular`)).key;
+                                    yeniKonuYapisi.altkonular[yeniAltKonuId].altdallar[yeniAltDalId].sorular[yeniSoruId] = tamSoruData;
+                                    addLog(`Soru başarıyla kopyalandı: ${tamSoruData.soruMetni?.substring(0, 30)}...`);
+                                } else {
+                                    addLog(`UYARI: Soru verisi alınamadı: ${soruKey}`);
+                                }
                             }
                         } else {
                             addLog(`UYARI: '${altDalData.baslik}' alt dalında soru bulunamadı!`);
