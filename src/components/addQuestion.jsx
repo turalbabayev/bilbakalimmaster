@@ -96,13 +96,13 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
             const newQuestion = {
                 soruMetni,
                 cevaplar,
-                dogruCevap: cevaplar[dogruCevap.charCodeAt(0) - 65],
+                dogruCevap,
                 aciklama,
                 liked: 0,
                 unliked: 0,
                 report: 0,
                 soruNumarasi: soruNumarasi,
-                soruResmi: soruResmi || null // Resim alanını ekle
+                soruResmi: soruResmi || null
             };
             
             push(soruRef, newQuestion)

@@ -109,14 +109,13 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
             console.log("=== Güncelleme Başlangıç ===");
             console.log("Güncellenecek soru:", soru);
             console.log("Cevaplar:", cevaplar);
-            console.log("Doğru cevap:", dogruCevap);
+            console.log("Doğru cevap şıkkı:", dogruCevap);
             console.log("Seçili alt konu:", selectedAltKonu);
 
             // Doğru cevap kontrolü
-            const dogruCevapIndex = cevaplar.findIndex(cevap => cevap === dogruCevap);
-            if (dogruCevapIndex === -1) {
-                console.error("Doğru cevap bulunamadı! Cevaplar:", cevaplar, "Seçilen cevap:", dogruCevap);
-                throw new Error("Doğru cevap bulunamadı!");
+            if (!dogruCevap) {
+                console.error("Doğru cevap seçilmemiş!");
+                throw new Error("Lütfen doğru cevabı seçin!");
             }
 
             const timestamp = Date.now();
@@ -128,7 +127,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
             const updatedSoru = {
                 soruMetni: soru.soruMetni,
                 cevaplar: cevaplar,
-                dogruCevap: cevaplar[dogruCevapIndex],
+                dogruCevap: dogruCevap, // Artık doğru cevap şıkkı olarak saklanıyor
                 aciklama: soru.aciklama,
                 report: soru.report || 0,
                 liked: soru.liked || 0,
