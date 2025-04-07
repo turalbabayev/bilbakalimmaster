@@ -142,21 +142,30 @@ function QuestionContent() {
                                                                         <div dangerouslySetInnerHTML={{ __html: soru.soruMetni }} />
                                                                         <div className="ml-4 space-y-1">
                                                                             {soru.cevaplar &&
-                                                                                soru.cevaplar.map((cevap, cevapIndex) => (
-                                                                                    <div 
-                                                                                        key={cevapIndex}
-                                                                                        className={`p-2 rounded-md ${
-                                                                                            cevap === soru.dogruCevap
-                                                                                                ? "bg-green-100 dark:bg-green-900"
-                                                                                                : "bg-gray-50 dark:bg-gray-700"
-                                                                                        }`}
-                                                                                    >
-                                                                                        <span className="font-bold mr-2">
-                                                                                            {String.fromCharCode(65 + cevapIndex)}:
-                                                                                        </span>
-                                                                                        <span dangerouslySetInnerHTML={{ __html: cevap }} />
-                                                                                    </div>
-                                                                                ))}
+                                                                                soru.cevaplar.map((cevap, cevapIndex) => {
+                                                                                    // Doğru cevap kontrolü
+                                                                                    const isCorrect = 
+                                                                                        // Yeni format (A, B, C, D, E)
+                                                                                        (/^[A-E]$/.test(soru.dogruCevap) && String.fromCharCode(65 + cevapIndex) === soru.dogruCevap) ||
+                                                                                        // Eski format (cevabın kendisi)
+                                                                                        (!(/^[A-E]$/.test(soru.dogruCevap)) && cevap === soru.dogruCevap);
+                                                                                    
+                                                                                    return (
+                                                                                        <div 
+                                                                                            key={cevapIndex}
+                                                                                            className={`p-2 rounded-md ${
+                                                                                                isCorrect
+                                                                                                    ? "bg-green-100 dark:bg-green-900/70 text-green-800 dark:text-green-200"
+                                                                                                    : "bg-gray-50 dark:bg-gray-700"
+                                                                                            }`}
+                                                                                        >
+                                                                                            <span className="font-bold mr-2">
+                                                                                                {String.fromCharCode(65 + cevapIndex)}:
+                                                                                            </span>
+                                                                                            <span dangerouslySetInnerHTML={{ __html: cevap }} />
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
                                                                         </div>
                                                                         {/* Doğru cevap göstergesi */}
                                                                         <div className="mt-3 mb-1">
