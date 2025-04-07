@@ -64,22 +64,20 @@ const KonuTasima = ({ closeModal }) => {
             const newKonuRef = push(konularRef);
             const newKonuId = newKonuRef.key;
 
-            await set(newKonuRef, {
+            // Yeni ana konu yapısını oluştur
+            const yeniKonuYapisi = {
                 baslik: yeniAnaKonuAdi,
                 altkonular: {}
-            });
-            addLog("Ana konu oluşturuldu: " + newKonuId);
+            };
 
-            // Seçili konuları yeni ana konu altına taşı
-            const altkonularRef = ref(database, `konular/${newKonuId}/altkonular`);
-
+            // Seçili her konu için
             for (const konuId of seciliKonular) {
                 const secilenKonu = konular.find((konu) => konu.id === konuId);
                 if (!secilenKonu) continue;
 
-                addLog(`'${secilenKonu.baslik}' konusu taşınıyor...`);
-                
-                // Mevcut konunun verilerini al (alt konular dahil)
+                addLog(`'${secilenKonu.baslik}' konusu işleniyor...`);
+
+                // Mevcut konunun tüm verilerini al
                 const konuRef = ref(database, `konular/${konuId}`);
                 const konuSnapshot = await get(konuRef);
                 const konuData = konuSnapshot.val();
@@ -89,41 +87,36 @@ const KonuTasima = ({ closeModal }) => {
                     continue;
                 }
 
-                // Alt konu olarak ekle
-                const newAltKonuRef = push(altkonularRef);
-                const newAltKonuId = newAltKonuRef.key;
-
-                // Alt konunun temel verilerini kopyala
-                await set(newAltKonuRef, {
+                // Yeni alt konu oluştur
+                const yeniAltKonuId = push(ref(database, `konular/${newKonuId}/altkonular`)).key;
+                yeniKonuYapisi.altkonular[yeniAltKonuId] = {
                     baslik: konuData.baslik,
                     altdallar: {}
-                });
+                };
 
                 // Alt dalları ve soruları kopyala
                 if (konuData.altdallar) {
                     for (const [altDalKey, altDalData] of Object.entries(konuData.altdallar)) {
-                        const altDalRef = ref(database, `konular/${newKonuId}/altkonular/${newAltKonuId}/altdallar/${altDalKey}`);
-                        
-                        // Alt dalın temel verilerini kopyala
-                        const altDalCopy = {
+                        // Yeni alt dal oluştur
+                        const yeniAltDalId = push(ref(database, `konular/${newKonuId}/altkonular/${yeniAltKonuId}/altdallar`)).key;
+                        yeniKonuYapisi.altkonular[yeniAltKonuId].altdallar[yeniAltDalId] = {
                             baslik: altDalData.baslik,
                             sorular: {}
                         };
-                        
-                        await set(altDalRef, altDalCopy);
 
-                        // Alt dalın sorularını kopyala
+                        // Soruları kopyala
                         if (altDalData.sorular) {
                             for (const [soruKey, soruData] of Object.entries(altDalData.sorular)) {
-                                const soruRef = ref(database, `konular/${newKonuId}/altkonular/${newAltKonuId}/altdallar/${altDalKey}/sorular/${soruKey}`);
-                                await set(soruRef, soruData);
+                                yeniKonuYapisi.altkonular[yeniAltKonuId].altdallar[yeniAltDalId].sorular[soruKey] = soruData;
                             }
                         }
                     }
                 }
-
-                addLog(`'${secilenKonu.baslik}' konusu ve tüm alt dalları/soruları başarıyla taşındı.`);
             }
+
+            // Tüm yapıyı bir kerede kaydet
+            await set(newKonuRef, yeniKonuYapisi);
+            addLog("Tüm veriler başarıyla taşındı.");
 
             // İşlemi tamamla
             setIsCompleted(true);
