@@ -75,7 +75,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                 // Soru kontrolü
                 if (!soruSnapshot.exists()) {
                     console.error("Soru bulunamadı:", { konuId, altKonuId, soruId });
-                    alert("Güncellenecek soru bulunamadı! Modal kapatılacak.");
+                    // Alert kaldırıldı
                     setLoading(false);
                     onClose();
                     return;
@@ -88,7 +88,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                 // Soru temel verilerini doğrula
                 if (!soruData) {
                     console.error("Soru verisi boş:", { konuId, altKonuId, soruId });
-                    alert("Soru verileri okunamadı! Modal kapatılacak.");
+                    // Alert kaldırıldı
                     setLoading(false);
                     onClose();
                     return;
@@ -233,7 +233,6 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     const handleUpdate = async () => {
         if (!soru) {
             console.error("Güncellenecek soru bulunamadı!");
-            alert("Güncellenecek soru bulunamadı!");
             return;
         }
 
