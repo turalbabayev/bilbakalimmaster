@@ -125,31 +125,43 @@ function QuestionContent() {
                                                     <li key={soruKey} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg shadow-sm flex flex-col transition-all duration-200 hover:shadow-md">
                                                         <div className="flex justify-between items-start">
                                                             <div className="flex-1 min-w-0">
-                                                                <p className="text-lg font-medium text-gray-700 dark:text-gray-200 mb-3 break-words">
-                                                                    <span className="font-bold text-indigo-600 dark:text-indigo-400 mr-2">#{soru.soruNumarasi || "?"}</span>
-                                                                    {soru.soruMetni || "Soru yok"}
-                                                                </p>
-                                                                <ul className="space-y-2 mb-4">
-                                                                    {Array.isArray(soru.cevaplar)
-                                                                        ? soru.cevaplar.map((cevap, index) => (
-                                                                            <li key={index} className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
-                                                                                <span className="font-bold bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white w-6 h-6 flex items-center justify-center rounded-full">{String.fromCharCode(65 + index)}</span>
-                                                                                <p className="break-words">{cevap}</p>
-                                                                            </li>
-                                                                        ))
-                                                                        : "Cevaplar bulunamadı."}
-                                                                </ul>
-                                                                <p className="text-sm font-medium text-green-600 dark:text-green-400 mt-2">
-                                                                    Doğru Cevap: {soru.dogruCevap || "Belirtilmemiş"} 
-                                                                    {soru.dogruCevap && soru.cevaplar && Array.isArray(soru.cevaplar) && (
-                                                                        <span className="ml-2 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
-                                                                            ({String.fromCharCode(65 + soru.cevaplar.indexOf(soru.dogruCevap))} şıkkı)
-                                                                        </span>
-                                                                    )}
-                                                                </p>
-                                                                <p className="text-base text-gray-700 dark:text-gray-300 mt-3 break-words">
-                                                                    <span className="font-semibold">Açıklama:</span> {soru.aciklama || "Belirtilmemiş"}
-                                                                </p>
+                                                                <div className="flex flex-col p-6">
+                                                                    <div className="flex flex-col space-y-1">
+                                                                        <h3 className="text-lg font-semibold mb-2">
+                                                                            {index + 1}. Soru: 
+                                                                            <div dangerouslySetInnerHTML={{ __html: soru.soruMetni }} />
+                                                                        </h3>
+                                                                        <div className="ml-4 space-y-1">
+                                                                            {soru.cevaplar &&
+                                                                                soru.cevaplar.map((cevap, cevapIndex) => (
+                                                                                    <div 
+                                                                                        key={cevapIndex}
+                                                                                        className={`p-2 rounded-md ${
+                                                                                            cevap === soru.dogruCevap
+                                                                                                ? "bg-green-100 dark:bg-green-900"
+                                                                                                : "bg-gray-50 dark:bg-gray-700"
+                                                                                        }`}
+                                                                                    >
+                                                                                        <span className="font-bold mr-2">
+                                                                                            {String.fromCharCode(65 + cevapIndex)}:
+                                                                                        </span>
+                                                                                        <span dangerouslySetInnerHTML={{ __html: cevap }} />
+                                                                                    </div>
+                                                                                ))}
+                                                                        </div>
+                                                                        {soru.aciklama && (
+                                                                            <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900 rounded-md">
+                                                                                <span className="font-semibold">Açıklama: </span>
+                                                                                <div dangerouslySetInnerHTML={{ __html: soru.aciklama }} />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="mt-4 flex justify-end text-gray-500 dark:text-gray-400 space-x-4 text-sm">
+                                                                        <p className="flex items-center"><span className="mr-1">⚠️</span> {soru.report || 0}</p>
+                                                                        <p className="flex items-center"><span className="mr-1">👍</span> {soru.liked || 0}</p>
+                                                                        <p className="flex items-center"><span className="mr-1">👎</span> {soru.unliked || 0}</p>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                             <div className="flex flex-col space-y-2 ml-4">
                                                                 <button
@@ -179,11 +191,6 @@ function QuestionContent() {
                                                                     onDelete={refreshQuestions}
                                                                 />
                                                             </div>
-                                                        </div>
-                                                        <div className="mt-4 flex justify-end text-gray-500 dark:text-gray-400 space-x-4 text-sm">
-                                                            <p className="flex items-center"><span className="mr-1">⚠️</span> {soru.report || 0}</p>
-                                                            <p className="flex items-center"><span className="mr-1">👍</span> {soru.liked || 0}</p>
-                                                            <p className="flex items-center"><span className="mr-1">👎</span> {soru.unliked || 0}</p>
                                                         </div>
                                                     </li>
                                                 ))

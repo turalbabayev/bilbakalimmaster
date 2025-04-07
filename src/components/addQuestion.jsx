@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { database, messaging } from "../firebase";
 import { ref, push, get } from "firebase/database";
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [selectedAltKonu, setSelectedAltKonu] = useState("");
@@ -10,6 +12,28 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [aciklama, setAciklama] = useState("");
     const [liked, setLiked] = useState(0);
     const [unliked, setUnliked] = useState(0);
+
+    // Quill editör modülleri ve formatları
+    const modules = {
+        toolbar: [
+            [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+            [{ 'font': [] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'color': [] }, { 'background': [] }],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            [{ 'align': [] }],
+            ['clean']
+        ],
+    };
+
+    const formats = [
+        'header',
+        'font',
+        'bold', 'italic', 'underline', 'strike',
+        'color', 'background',
+        'list', 'bullet',
+        'align'
+    ];
 
     const handleAddQuestion = async () => {
         if (
@@ -48,7 +72,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
             push(soruRef, newQuestion)
                 .then(() => {
                     alert("Soru başarıyla eklendi.");
-                    sendNotification("Yeni soru eklendi", `Soru: ${soruMetni}`);
+                    sendNotification("Yeni soru eklendi", `Soru: ${soruMetni.replace(/<[^>]*>?/gm, '')}`);
                     onClose();
                     setSelectedAltKonu("");
                     setSoruMetni("");
@@ -102,91 +126,108 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
         }
     };
 
+    // Cevapları güncellemek için yardımcı fonksiyon
+    const handleCevapChange = (index, value) => {
+        setCevaplar(prevCevaplar => {
+            const newCevaplar = [...prevCevaplar];
+            newCevaplar[index] = value;
+            return newCevaplar;
+        });
+    };
+
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg w-1/2 p-6 max-h-[100vh] overflow-y-auto">
+            <div className="bg-white rounded-lg shadow-lg w-3/4 p-6 max-h-[90vh] overflow-y-auto">
                 <h2 className="text-xl font-bold mb-4 flex items-center justify-center">
                     Soru Ekle
                 </h2>
                 <div className="overflow-y-auto max-h-[80vh] px-2">
-                    <label className="block mb-2">
-                        Alt Konu Seçin:
-                        <select
-                            value={selectedAltKonu}
-                            onChange={(e) => setSelectedAltKonu(e.target.value)}
-                            className="w-full border rounded-md p-2 mt-1"
-                        >
-                            <option value="">Alt konu seçin</option>
-                            {Object.entries(altKonular).map(([key, altKonu]) => (
-                                <option key={key} value={key}>
-                                    {altKonu.baslik}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                    <label className="block mb-2">
-                        Soru Metni:
-                        <textarea
-                            rows="3"
-                            value={soruMetni}
-                            onChange={(e) =>
-                                setSoruMetni(e.target.value.replace(/□/g, ""))
-                            }
-                            className="w-full border rounded-md p-2 mt-1"
-                        ></textarea>
-                    </label>
-                    <label className="block mb-2">
-                        Cevaplar:
+                    <div className="mb-4">
+                        <label className="block mb-2">
+                            Alt Konu Seçin:
+                            <select
+                                value={selectedAltKonu}
+                                onChange={(e) => setSelectedAltKonu(e.target.value)}
+                                className="w-full border rounded-md p-2 mt-1"
+                            >
+                                <option value="">Alt konu seçin</option>
+                                {Object.entries(altKonular).map(([key, altKonu]) => (
+                                    <option key={key} value={key}>
+                                        {altKonu.baslik}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    </div>
+                    
+                    <div className="mb-4">
+                        <label className="block mb-2">
+                            Soru Metni:
+                            <div className="mt-1">
+                                <ReactQuill 
+                                    theme="snow"
+                                    value={soruMetni}
+                                    onChange={setSoruMetni}
+                                    modules={modules}
+                                    formats={formats}
+                                    className="bg-white"
+                                />
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div className="mb-4">
+                        <label className="block mb-2">Cevaplar:</label>
                         {cevaplar.map((cevap, index) => (
-                            <textarea
-                                key={index}
-                                value={cevap}
-                                onChange={(e) =>
-                                    setCevaplar((prev) => {
-                                        const newCevaplar = [...prev];
-                                        newCevaplar[index] = e.target.value.replace(
-                                            /□/g,
-                                            ""
-                                        );
-                                        return newCevaplar;
-                                    })
-                                }
-                                placeholder={`Cevap ${String.fromCharCode(
-                                    65 + index
-                                )}`}
-                                className="w-full border rounded-md p-2 mt-1 mb-1"
-                                maxLength={500}
-                            />
+                            <div key={index} className="mb-3">
+                                <label className="block mb-1">{`Cevap ${String.fromCharCode(65 + index)}`}</label>
+                                <ReactQuill
+                                    theme="snow"
+                                    value={cevap}
+                                    onChange={(value) => handleCevapChange(index, value)}
+                                    modules={modules}
+                                    formats={formats}
+                                    className="bg-white"
+                                />
+                            </div>
                         ))}
-                    </label>
-                    <label className="block mb-4">
-                        Doğru Cevap:
-                        <input
-                            value={dogruCevap}
-                            onChange={(e) => {
-                                setDogruCevap(
-                                    e.target.value.toUpperCase().replace(/□/g, "")
-                                );
-                            }}
-                            placeholder="Doğru cevap (A, B, C, D, E)"
-                            className="w-full border rounded-md p-2 mt-1"
-                        />
-                    </label>
-                    <label className="block mb-4">
-                        Açıklama:
-                        <textarea 
-                            value={aciklama}
-                            onChange={(e) =>
-                                setAciklama(e.target.value.replace(/□/g, ""))
-                            }
-                            placeholder="Doğru cevabın açıklamasını giriniz."
-                            className="w-full border rounded-md p-2 mt-1 h-[200px]"
-                        />
-                    </label>
+                    </div>
+                    
+                    <div className="mb-4">
+                        <label className="block mb-2">
+                            Doğru Cevap:
+                            <input
+                                value={dogruCevap}
+                                onChange={(e) => {
+                                    setDogruCevap(
+                                        e.target.value.toUpperCase().replace(/□/g, "")
+                                    );
+                                }}
+                                placeholder="Doğru cevap (A, B, C, D, E)"
+                                className="w-full border rounded-md p-2 mt-1"
+                            />
+                        </label>
+                    </div>
+                    
+                    <div className="mb-4">
+                        <label className="block mb-2">
+                            Açıklama:
+                            <div className="mt-1">
+                                <ReactQuill
+                                    theme="snow"
+                                    value={aciklama}
+                                    onChange={setAciklama}
+                                    modules={modules}
+                                    formats={formats}
+                                    className="bg-white h-[200px] mb-12"
+                                />
+                            </div>
+                        </label>
+                    </div>
                 </div>
-                <div className="flex justify-end space-x-4 mt-4">
+                <div className="flex justify-end space-x-4 mt-16">
                     <button
                         className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
                         onClick={handleAddQuestion}
