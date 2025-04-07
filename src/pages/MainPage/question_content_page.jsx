@@ -5,6 +5,7 @@ import DeleteQuestion from "../../components/deleteQuestion";
 import UpdateQuestion from "../../components/updateQuestion";
 import ChangeQuestionOrder from "../../components/changeQuestionOrder";
 import ExportToDocx from "../../components/ExportToDocx";
+import ImportQuestionsFromDocx from "../../components/ImportQuestionsFromDocx";
 import { useParams, useNavigate } from "react-router-dom";
 import { database } from "../../firebase";
 import { ref, onValue } from "firebase/database";
@@ -14,6 +15,7 @@ function QuestionContent() {
     const [altKonular, setAltKonular] = useState([]);
     const [baslik, setBaslik] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false); // Güncelleme modali için state
     const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
     const [selectedSoruRef, setSelectedSoruRef] = useState(null)
@@ -76,6 +78,15 @@ function QuestionContent() {
                         <h1 className="text-3xl font-bold text-gray-800 dark:text-white">{baslik}</h1>
                         <div className="flex space-x-3">
                             <ExportToDocx konuBaslik={baslik} altKonular={altKonular} />
+                            <button
+                                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-md transition-all duration-200 flex items-center"
+                                onClick={() => setIsImportModalOpen(true)}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                                </svg>
+                                Soruları İçe Aktar
+                            </button>
                             <button
                                 className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-md transition-all duration-200 flex items-center"
                                 onClick={() => setIsModalOpen(true)}
@@ -264,26 +275,24 @@ function QuestionContent() {
                 currentKonuId={id}
                 altKonular={altKonular}
             />
-            {isUpdateModalOpen && (
-                <UpdateQuestion
-                    isOpen={isUpdateModalOpen}
-                    onClose={() => setIsUpdateModalOpen(false)}
-                    konuId={id}
-                    altKonuId={selectedSoruRef?.split('/')[3]}
-                    soruId={selectedSoruRef?.split('/')[5]}
-                />
-            )}
-            {isOrderModalOpen && (
-                <ChangeQuestionOrder
-                    isOpen={isOrderModalOpen}
-                    onClose={() => {
-                        setIsOrderModalOpen(false);
-                        refreshQuestions();
-                    }}
-                    soruRefPath={selectedSoruRef}
-                    konuId={id}
-                />
-            )}
+            <ImportQuestionsFromDocx
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                currentKonuId={id}
+                altKonular={altKonular}
+            />
+            <UpdateQuestion
+                isOpen={isUpdateModalOpen}
+                onClose={() => setIsUpdateModalOpen(false)}
+                konuId={id}
+                altKonuId={selectedSoruRef ? selectedSoruRef.split("/")[3] : ""}
+                soruId={selectedSoruRef ? selectedSoruRef.split("/")[5] : ""}
+            />
+            <ChangeQuestionOrder
+                isOpen={isOrderModalOpen}
+                onClose={() => setIsOrderModalOpen(false)}
+                soruRef={selectedSoruRef}
+            />
         </Layout>
     );
 }
