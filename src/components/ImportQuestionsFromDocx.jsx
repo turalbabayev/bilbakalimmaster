@@ -32,48 +32,56 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
             const lines = text.split('\n').filter(line => line.trim().length > 0);
             
             if (lines.length < 7) { // En az soru metni + 5 şık + doğru cevap olmalı
+                console.warn("Satır sayısı yetersiz:", lines.length, lines);
                 return null;
             }
             
             // Soru metnini bul (✅ ve benzeri işaretleri temizle)
             let soruIndex = -1;
             for (let i = 0; i < lines.length; i++) {
-                if (lines[i].includes("Soru") || lines[i].includes("✅")) {
+                if (lines[i].includes("✅") && lines[i].includes("Soru")) {
                     soruIndex = i;
                     break;
                 }
             }
             
-            if (soruIndex === -1) return null;
+            if (soruIndex === -1) {
+                console.warn("Soru başlangıcı bulunamadı");
+                return null;
+            }
             
             // Soru metni, soru numarası ifadesini temizleyerek al
             let soruMetni = "";
-            for (let i = soruIndex + 1; i < lines.length; i++) {
+            let i = soruIndex + 1;
+            while (i < lines.length) {
                 const line = lines[i].trim();
-                if (line.match(/^[A-E]\)/) || line.includes("Doğru Cevap:") || line.includes("✅ Doğru Cevap:")) {
+                // Eğer şık satırına geldiyse çık
+                if (line.match(/^[A-E]\)/) || line.match(/^[A-E]\s*\)/)) {
                     break;
                 }
                 soruMetni += (soruMetni ? "\n" : "") + line;
+                i++;
+            }
+            
+            soruMetni = soruMetni.trim();
+            if (!soruMetni) {
+                console.warn("Soru metni bulunamadı");
+                return null;
             }
             
             // Şıkları al (A, B, C, D, E)
-            const cevaplar = [];
+            const cevaplar = ["", "", "", "", ""];
             const sikPattern = /^([A-E])\)\s*(.+)$/;
+            const sikPattern2 = /^([A-E])\s*\)\s*(.+)$/;
             
-            let sikIndex = -1;
-            for (let i = 0; i < lines.length; i++) {
-                if (lines[i].match(sikPattern)) {
-                    sikIndex = i;
-                    break;
-                }
-            }
+            let sikFound = false;
             
-            if (sikIndex === -1) return null;
-            
-            for (let i = sikIndex; i < sikIndex + 5; i++) {
+            // Soru metninden sonraki satırdan itibaren şıkları ara
+            for (let j = 0; j < 5; j++) {
                 if (i < lines.length) {
-                    const match = lines[i].match(sikPattern);
+                    let match = lines[i].match(sikPattern) || lines[i].match(sikPattern2);
                     if (match) {
+                        sikFound = true;
                         // Şık sırasını belirle (A=0, B=1, C=2, D=3, E=4)
                         const sikIndex = match[1].charCodeAt(0) - 65;
                         // Şık içeriğini al
@@ -81,63 +89,65 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                         
                         // Doğru indekse yerleştir
                         cevaplar[sikIndex] = sikIcerik;
-                    } else {
-                        // Şık formatına uymayan bir satırla karşılaşıldı
-                        break;
                     }
+                    i++;
                 }
             }
             
-            // Eksik şıkları boş string ile doldur
-            while (cevaplar.length < 5) {
-                cevaplar.push("");
+            if (!sikFound) {
+                console.warn("Hiç şık bulunamadı");
+                return null;
             }
             
             // Doğru cevabı al
             let dogruCevap = "";
             let aciklama = "";
             
-            // Doğru cevap satırını bul
-            let dogruCevapIndex = -1;
-            for (let i = 0; i < lines.length; i++) {
-                if (lines[i].includes("Doğru Cevap:") || lines[i].includes("✅ Doğru Cevap:")) {
-                    dogruCevapIndex = i;
-                    break;
-                }
-            }
-            
-            if (dogruCevapIndex !== -1) {
-                const dogruCevapLine = lines[dogruCevapIndex].replace(/^✅\s*/, "").trim();
-                const dogruCevapMatch = dogruCevapLine.match(/Doğru Cevap:\s*([A-E])\)/);
-                if (dogruCevapMatch && dogruCevapMatch[1]) {
-                    dogruCevap = dogruCevapMatch[1];
-                }
-            }
-            
-            // Açıklama bölümünü bul
-            let aciklamaStart = -1;
-            for (let i = 0; i < lines.length; i++) {
-                if (lines[i].includes("Açıklama:")) {
-                    aciklamaStart = i;
-                    break;
-                }
-            }
-            
-            if (aciklamaStart !== -1) {
-                for (let i = aciklamaStart; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    if (i === aciklamaStart) {
-                        aciklama = line.replace(/^Açıklama:\s*/i, "");
+            // Kalan satırlardan doğru cevabı ve açıklamayı bul
+            for (; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                if (line.includes("Doğru Cevap:") || line.includes("✅ Doğru Cevap:")) {
+                    // A) 72 formatından sadece A'yı al
+                    const dogruCevapMatch = line.match(/Doğru Cevap:\s*([A-E])\)/);
+                    if (dogruCevapMatch && dogruCevapMatch[1]) {
+                        dogruCevap = dogruCevapMatch[1];
                     } else {
-                        aciklama += "\n" + line;
+                        // Doğru cevabı bulamazsa tam formatı yazdır
+                        console.warn("Doğru cevap formatı algılanamadı:", line);
                     }
+                } else if (line.includes("Açıklama:")) {
+                    // Açıklama satırını bulduk, sonraki satırları da ekle
+                    aciklama = line.replace(/^Açıklama:\s*/i, "").trim();
+                    i++;
+                    
+                    // Bir sonraki soruya kadar veya boş satırları atla
+                    while (i < lines.length) {
+                        const nextLine = lines[i].trim();
+                        // Eğer yeni bir soru başlıyorsa veya boş satır varsa çık
+                        if (nextLine.includes("✅") || nextLine === "") {
+                            break;
+                        }
+                        aciklama += "\n" + nextLine;
+                        i++;
+                    }
+                    break;
                 }
             }
             
             // Doğru cevap bulunamadıysa varsayılan olarak A şıkkını seç
             if (!dogruCevap) {
                 dogruCevap = "A";
+                console.warn("Doğru cevap bulunamadı, varsayılan A kullanılıyor");
             }
+            
+            // Debug için tüm değerleri logla
+            console.log("Ayrıştırma sonucu:", {
+                soruMetni,
+                cevaplar,
+                dogruCevap,
+                aciklama
+            });
             
             return {
                 soruMetni,
@@ -174,7 +184,7 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                 try {
                     const arrayBuffer = e.target.result;
                     
-                    // Docx içeriğini HTML'e dönüştür
+                    // Docx içeriğini metne dönüştür
                     const result = await mammoth.extractRawText({
                         arrayBuffer: arrayBuffer
                     });
@@ -186,28 +196,26 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                         console.warn("Docx dönüştürme uyarıları:", warnings);
                     }
                     
-                    // Metni satırlara ayır
-                    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+                    // Dokümandaki her bir soruyu oluştur
+                    console.log("İçe aktarılan metin:", text);
                     
-                    // Soruların başlangıç indekslerini bul
-                    const soruIndexes = [];
-                    for (let i = 0; i < lines.length; i++) {
-                        if (lines[i].includes("✅") && lines[i].includes("Soru")) {
-                            soruIndexes.push(i);
-                        }
+                    // Metni soruları belirten "✅ X. Soru" formatına göre böl
+                    const questionRegex = /(✅\s*\d+\.\s*Soru.*?)(?=✅\s*\d+\.\s*Soru|$)/gs;
+                    const matches = Array.from(text.matchAll(questionRegex));
+                    
+                    if (matches.length === 0) {
+                        throw new Error("Dokümanda uygun formatta soru bulunamadı. Her soru '✅ X. Soru' formatında başlamalıdır.");
                     }
                     
-                    // Soruları oluştur
+                    console.log(`${matches.length} adet soru bulundu.`);
+                    
+                    // Soruları ayrıştır
                     const questions = [];
                     const errors = [];
                     
-                    for (let i = 0; i < soruIndexes.length; i++) {
-                        const startIndex = soruIndexes[i];
-                        const endIndex = i < soruIndexes.length - 1 ? soruIndexes[i + 1] : lines.length;
-                        
-                        // Bu soru için satırları al
-                        const questionLines = lines.slice(startIndex, endIndex);
-                        const questionText = questionLines.join('\n');
+                    for (let i = 0; i < matches.length; i++) {
+                        const questionText = matches[i][1].trim();
+                        console.log(`Soru #${i + 1} ayrıştırılıyor:`, questionText.substring(0, 100) + "...");
                         
                         const question = parseQuestion(questionText);
                         
@@ -218,7 +226,7 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                         }
                         
                         // İlerleme durumunu güncelle
-                        setImportProgress(Math.floor((i + 1) / soruIndexes.length * 50));
+                        setImportProgress(Math.floor((i + 1) / matches.length * 50));
                     }
                     
                     setParseErrors(errors);
@@ -271,7 +279,7 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                     
                     // Özet bilgisi oluştur
                     setImportSummary({
-                        toplamBulunan: soruIndexes.length,
+                        toplamBulunan: matches.length,
                         basariliAyrıstırılan: questions.length,
                         basariliEklenen,
                         hataOlusan
@@ -352,8 +360,20 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                                 </div>
                             </div>
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                DOCX dosyanızdaki her soru "✅ X. Soru" formatında başlamalıdır.
+                                DOCX dosyanızdaki her soru "✅ X. Soru" formatında başlamalıdır. Örnek format:
                             </p>
+                            <div className="mt-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+                                ✅ 1. Soru<br/>
+                                Soru metni burada<br/>
+                                A) Şık 1<br/>
+                                B) Şık 2<br/>
+                                C) Şık 3<br/>
+                                D) Şık 4<br/>
+                                E) Şık 5<br/>
+                                ✅ Doğru Cevap: A) Şık içeriği<br/>
+                                Açıklama:<br/>
+                                Açıklama metni burada
+                            </div>
                         </div>
 
                         {isUploading && (
