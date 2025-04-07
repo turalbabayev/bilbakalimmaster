@@ -13,6 +13,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     const [selectedAltKonu, setSelectedAltKonu] = useState(altKonuId || "");
     const [mevcutSoruNumarasi, setMevcutSoruNumarasi] = useState(null);
     const [resimYukleniyor, setResimYukleniyor] = useState(false);
+    const [modalKey, setModalKey] = useState(0);
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -37,6 +38,12 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     ];
 
     useEffect(() => {
+        if (isOpen) {
+            setModalKey(prev => prev + 1);
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
         const fetchData = async () => {
             try {
                 console.log("Modal açıldı, veri yükleme başlıyor:", { konuId, altKonuId, soruId, isOpen });
@@ -48,6 +55,13 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                     onClose();
                     return;
                 }
+                
+                // State'i sıfırla
+                setSoru(null);
+                setCevaplar(["", "", "", "", ""]);
+                setDogruCevap("");
+                setSelectedAltKonu("");
+                setMevcutSoruNumarasi(null);
                 
                 // Önce veri tabanı referanslarını oluştur
                 const konularRef = ref(database, `konular/${konuId}`);
@@ -174,11 +188,6 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
 
         if (isOpen) {
             // State'i sıfırla ve loading'i başlat
-            setSoru(null);
-            setCevaplar(["", "", "", "", ""]);
-            setDogruCevap("");
-            setSelectedAltKonu("");
-            setMevcutSoruNumarasi(null);
             setLoading(true);
             
             // Veri yükleme işlemini başlat
@@ -198,7 +207,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                 console.log("Modal kapandı, state temizlendi");
             }
         };
-    }, [isOpen, konuId, altKonuId, soruId, onClose]);
+    }, [isOpen, konuId, altKonuId, soruId, onClose, modalKey]);
 
     const handleResimYukle = async (e) => {
         const file = e.target.files[0];
