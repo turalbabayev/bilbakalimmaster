@@ -165,6 +165,17 @@ function SubbranchContent() {
                                                                                 </div>
                                                                             ))}
                                                                     </div>
+                                                                    {/* Doğru cevap göstergesi */}
+                                                                    <div className="mt-3 mb-1">
+                                                                        <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                                                                            Doğru Cevap: {soru[1].dogruCevap || "Belirtilmemiş"} 
+                                                                            {soru[1].dogruCevap && soru[1].cevaplar && Array.isArray(soru[1].cevaplar) && (
+                                                                                <span className="ml-2 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
+                                                                                    ({String.fromCharCode(65 + soru[1].cevaplar.indexOf(soru[1].dogruCevap))} şıkkı)
+                                                                                </span>
+                                                                            )}
+                                                                        </p>
+                                                                    </div>
                                                                     {soru[1].aciklama && (
                                                                         <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900 rounded-md">
                                                                             <span className="font-semibold">Açıklama: </span>

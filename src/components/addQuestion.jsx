@@ -183,13 +183,17 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                         {cevaplar.map((cevap, index) => (
                             <div key={index} className="mb-3">
                                 <label className="block mb-1">{`Cevap ${String.fromCharCode(65 + index)}`}</label>
-                                <ReactQuill
-                                    theme="snow"
+                                <textarea
                                     value={cevap}
-                                    onChange={(value) => handleCevapChange(index, value)}
-                                    modules={modules}
-                                    formats={formats}
-                                    className="bg-white"
+                                    onChange={(e) => {
+                                        const newCevaplar = [...cevaplar];
+                                        newCevaplar[index] = e.target.value.replace(/□/g, "");
+                                        setCevaplar(newCevaplar);
+                                    }}
+                                    placeholder={`Cevap ${String.fromCharCode(65 + index)}`}
+                                    className="w-full border rounded-md p-2 mt-1 mb-1"
+                                    rows="2"
+                                    maxLength={500}
                                 />
                             </div>
                         ))}
