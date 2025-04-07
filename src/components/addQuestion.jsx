@@ -165,8 +165,8 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                         </label>
                     </div>
                     
-                    <div className="mb-4">
-                        <label className="block mb-2">
+                    <div className="mb-2">
+                        <label className="block mb-1">
                             Soru Metni:
                             <div className="mt-1">
                                 <ReactQuill 
@@ -176,14 +176,14 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                     modules={modules}
                                     formats={formats}
                                     className="bg-white"
-                                    style={{ height: '120px' }}
+                                    style={{ height: '100px' }}
                                 />
                             </div>
                         </label>
                     </div>
                     
-                    <div className="mb-4">
-                        <label className="block mb-2">Cevaplar:</label>
+                    <div className="mb-2 mt-4">
+                        <label className="block mb-1">Cevaplar:</label>
                         {cevaplar.map((cevap, index) => (
                             <div key={index} className="mb-3">
                                 <label className="block mb-1">{`Cevap ${String.fromCharCode(65 + index)}`}</label>
