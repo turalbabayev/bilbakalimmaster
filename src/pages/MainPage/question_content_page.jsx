@@ -6,6 +6,7 @@ import UpdateQuestion from "../../components/updateQuestion";
 import ChangeQuestionOrder from "../../components/changeQuestionOrder";
 import ExportToDocx from "../../components/ExportToDocx";
 import ImportQuestionsFromDocx from "../../components/ImportQuestionsFromDocx";
+import ImportQuestionsFromJSON from "../../components/ImportQuestionsFromJSON";
 import { useParams, useNavigate } from "react-router-dom";
 import { database } from "../../firebase";
 import { ref, onValue } from "firebase/database";
@@ -16,6 +17,7 @@ function QuestionContent() {
     const [baslik, setBaslik] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [isImportJSONModalOpen, setIsImportJSONModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false); // Güncelleme modali için state
     const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
     const [selectedSoruRef, setSelectedSoruRef] = useState(null)
@@ -85,7 +87,17 @@ function QuestionContent() {
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
                                 </svg>
-                                Soruları İçe Aktar
+                                DOCX'ten İçe Aktar
+                            </button>
+                            <button
+                                className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium shadow-md transition-all duration-200 flex items-center"
+                                onClick={() => setIsImportJSONModalOpen(true)}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7c-2 0-3 1-3 3z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10h6m-6 4h6" />
+                                </svg>
+                                JSON'dan İçe Aktar
                             </button>
                             <button
                                 className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-md transition-all duration-200 flex items-center"
@@ -278,6 +290,12 @@ function QuestionContent() {
             <ImportQuestionsFromDocx
                 isOpen={isImportModalOpen}
                 onClose={() => setIsImportModalOpen(false)}
+                currentKonuId={id}
+                altKonular={altKonular}
+            />
+            <ImportQuestionsFromJSON
+                isOpen={isImportJSONModalOpen}
+                onClose={() => setIsImportJSONModalOpen(false)}
                 currentKonuId={id}
                 altKonular={altKonular}
             />
