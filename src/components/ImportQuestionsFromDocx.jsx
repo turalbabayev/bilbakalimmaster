@@ -186,15 +186,29 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                         console.warn("Docx dönüştürme uyarıları:", warnings);
                     }
                     
-                    // Metni sorulara ayır (her "---" işareti bir soru sonu)
-                    const questionTexts = text.split('---').filter(q => q.trim().length > 0);
+                    // Metni satırlara ayır
+                    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
                     
-                    // Soruları ayrıştır
+                    // Soruların başlangıç indekslerini bul
+                    const soruIndexes = [];
+                    for (let i = 0; i < lines.length; i++) {
+                        if (lines[i].includes("✅") && lines[i].includes("Soru")) {
+                            soruIndexes.push(i);
+                        }
+                    }
+                    
+                    // Soruları oluştur
                     const questions = [];
                     const errors = [];
                     
-                    for (let i = 0; i < questionTexts.length; i++) {
-                        const questionText = questionTexts[i].trim();
+                    for (let i = 0; i < soruIndexes.length; i++) {
+                        const startIndex = soruIndexes[i];
+                        const endIndex = i < soruIndexes.length - 1 ? soruIndexes[i + 1] : lines.length;
+                        
+                        // Bu soru için satırları al
+                        const questionLines = lines.slice(startIndex, endIndex);
+                        const questionText = questionLines.join('\n');
+                        
                         const question = parseQuestion(questionText);
                         
                         if (question) {
@@ -204,7 +218,7 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                         }
                         
                         // İlerleme durumunu güncelle
-                        setImportProgress(Math.floor((i + 1) / questionTexts.length * 50));
+                        setImportProgress(Math.floor((i + 1) / soruIndexes.length * 50));
                     }
                     
                     setParseErrors(errors);
@@ -257,7 +271,7 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                     
                     // Özet bilgisi oluştur
                     setImportSummary({
-                        toplamBulunan: questionTexts.length,
+                        toplamBulunan: soruIndexes.length,
                         basariliAyrıstırılan: questions.length,
                         basariliEklenen,
                         hataOlusan
@@ -338,7 +352,7 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                                 </div>
                             </div>
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                DOCX dosyanız "ExportToDocx" bileşeni ile oluşturulan formatta olmalıdır.
+                                DOCX dosyanızdaki her soru "✅ X. Soru" formatında başlamalıdır.
                             </p>
                         </div>
 
