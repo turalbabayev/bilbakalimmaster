@@ -30,24 +30,194 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
         try {
             console.log("Ayrıştırılacak soru metni:", text.substring(0, 100) + "...");
             
+            // Tek satırsa bile ayrıştırmayı dene
+            if (text.includes("Doğru Cevap:") && text.includes("Açıklama:")) {
+                // Özel durum: Tüm içerik tek satırda
+                // Örnek: "✅ Doğru Cevap: D) 12Açıklama:Kısa kenar = x, uzun kenar = 3xÇevre: 2(x + 3x) = 8x = 96 → x = 12"
+                
+                // Parçalara ayır
+                const soruMatch = text.match(/(✅|🟢|\u2705|\*|□|■|√|•|\u2713|\u2714|\u2611)\s*(\d+)[\.\)\s]*Soru\s*(.*?)((?:A[\.\)]|B[\.\)]|C[\.\)]|D[\.\)]|E[\.\)]|1[\.\)]|2[\.\)]|3[\.\)]|4[\.\)]|5[\.\)]|I[\.\)]|II[\.\)]|III[\.\)]|IV[\.\)]|V[\.\)]|VI[\.\)]))/s);
+                let soruMetni = "";
+                
+                if (soruMatch) {
+                    soruMetni = soruMatch[3].trim();
+                }
+                
+                // Şıkları bul - farklı format seçeneklerini destekle
+                const cevaplar = ["", "", "", "", ""];
+                
+                // A), B), C) şeklindeki harf şıkları
+                const sikMatches = text.match(/([A-E])[\.)\s]+([^A-E)\.\n✅🟢\*□■√•\u2713\u2714\u2611]*)/g) || [];
+                
+                // 1), 2), 3) şeklindeki sayı şıkları
+                const numericMatches = text.match(/([1-5])[\.)\s]+([^1-5)\.\n✅🟢\*□■√•\u2713\u2714\u2611]*)/g) || [];
+                
+                // I), II), III) şeklindeki roma rakamları şıkları
+                const romanMatches = text.match(/(I{1,3}|IV|V|VI)[\.)\s]+([^I)\.\n✅🟢\*□■√•\u2713\u2714\u2611]*)/g) || [];
+                
+                // Harf şıkları
+                for (const sikMatch of sikMatches) {
+                    const match = sikMatch.match(/([A-E])[\.)\s]+(.*)/);
+                    if (match) {
+                        const sikIndex = match[1].charCodeAt(0) - 65;
+                        if (sikIndex >= 0 && sikIndex < 5) {
+                            cevaplar[sikIndex] = match[2].trim();
+                        }
+                    }
+                }
+                
+                // Sayı şıkları (eğer harf şıkları bulunamadıysa)
+                if (sikMatches.length === 0 && numericMatches.length > 0) {
+                    for (const sikMatch of numericMatches) {
+                        const match = sikMatch.match(/([1-5])[\.)\s]+(.*)/);
+                        if (match) {
+                            const sikIndex = parseInt(match[1]) - 1;
+                            if (sikIndex >= 0 && sikIndex < 5) {
+                                cevaplar[sikIndex] = match[2].trim();
+                            }
+                        }
+                    }
+                }
+                
+                // Roma şıkları (eğer diğer şıklar bulunamadıysa)
+                if (sikMatches.length === 0 && numericMatches.length === 0 && romanMatches.length > 0) {
+                    const romanToIndex = {
+                        'I': 0, 'II': 1, 'III': 2, 'IV': 3, 'V': 4, 'VI': 5
+                    };
+                    
+                    for (const sikMatch of romanMatches) {
+                        const match = sikMatch.match(/(I{1,3}|IV|V|VI)[\.)\s]+(.*)/);
+                        if (match) {
+                            const sikIndex = romanToIndex[match[1]];
+                            if (sikIndex !== undefined && sikIndex >= 0 && sikIndex < 5) {
+                                cevaplar[sikIndex] = match[2].trim();
+                            }
+                        }
+                    }
+                }
+                
+                // Doğru cevabı bul - daha fazla format desteği ekle
+                const dogruCevapFormats = [
+                    /Doğru Cevap:?\s*([A-E])[\.\)]/i,   // Harf formatı
+                    /Doğru Cevap:?\s*([1-5])[\.\)]/i,   // Sayı formatı
+                    /Doğru Cevap:?\s*(I{1,3}|IV|V|VI)[\.\)]/i,  // Roma formatı
+                    /Cevap:?\s*([A-E])[\.\)]/i,         // Sadece "Cevap:" ile
+                    /Çözüm:?\s*([A-E])[\.\)]/i          // "Çözüm:" ile
+                ];
+                
+                let dogruCevap = "A"; // Varsayılan
+                
+                for (const format of dogruCevapFormats) {
+                    const dogruCevapMatch = text.match(format);
+                    if (dogruCevapMatch) {
+                        const cevap = dogruCevapMatch[1];
+                        
+                        // Harfse direkt al
+                        if (/^[A-E]$/.test(cevap)) {
+                            dogruCevap = cevap;
+                            break;
+                        }
+                        
+                        // Sayıysa harfe çevir
+                        if (/^[1-5]$/.test(cevap)) {
+                            dogruCevap = String.fromCharCode(65 + parseInt(cevap) - 1);
+                            break;
+                        }
+                        
+                        // Roma rakamıysa harfe çevir
+                        const romanToLetter = {
+                            'I': 'A', 'II': 'B', 'III': 'C', 'IV': 'D', 'V': 'E', 'VI': 'F'
+                        };
+                        if (romanToLetter[cevap]) {
+                            dogruCevap = romanToLetter[cevap];
+                            break;
+                        }
+                    }
+                }
+                
+                // Açıklamayı bul
+                const aciklamaMatch = text.match(/Açıklama:?(.*?)(?=(✅|🟢|\u2705|\*|□|■|√|•|\u2713|\u2714|\u2611|\s*\d+\.\s*Soru)|$)/is);
+                const aciklama = aciklamaMatch ? aciklamaMatch[1].trim() : "";
+                
+                // Soru metni veya şıklar yoksa hata döndür
+                if (!soruMetni) {
+                    console.warn("Tek satır modunda soru metni bulunamadı");
+                    return null;
+                }
+                
+                // Şıklar bulunamadıysa bile devam et
+                if (sikMatches.length === 0 && numericMatches.length === 0 && romanMatches.length === 0) {
+                    console.warn("Şıklar bulunamadı ama devam ediliyor");
+                }
+                
+                return {
+                    soruMetni,
+                    cevaplar,
+                    dogruCevap,
+                    aciklama
+                };
+            }
+            
             // Soruyu parçalara ayır
             const lines = text.split('\n').filter(line => line.trim().length > 0);
             
-            if (lines.length < 4) { // En az soru işareti + soru metni + şıklar + doğru cevap
+            if (lines.length < 3) { // En az soru başlığı, soru metni ve bir şık olmalı
                 console.warn("Satır sayısı yetersiz:", lines.length, lines);
+                
+                // Son bir şans olarak tek satır modunu deneyelim
+                if (lines.length === 1 && lines[0].includes("Soru") && lines[0].includes(")")) {
+                    // Tek satırda olabilir
+                    const line = lines[0];
+                    
+                    // Soru metnini, şıkları ve doğru cevabı çıkarmaya çalış
+                    const soruMatch = line.match(/(✅|🟢|\u2705|\*|□|■|√|•|\u2713|\u2714|\u2611)\s*\d+[\.\)]\s*Soru\s*(.*?)([A-E][\.\)])/);
+                    if (soruMatch) {
+                        const soruMetni = soruMatch[2].trim();
+                        
+                        // Şıkları ve doğru cevabı bul
+                        const cevaplar = ["", "", "", "", ""];
+                        const dogruCevap = "A"; // Varsayılan
+                        
+                        return {
+                            soruMetni,
+                            cevaplar,
+                            dogruCevap,
+                            aciklama: ""
+                        };
+                    }
+                }
+                
                 return null;
             }
             
-            // İlk satırda genellikle yeşil tik ve Soru numarası olacak - atla
+            // İlk satırda genellikle yeşil tik ve Soru numarası olacak
             // Soru metnini bul
             let soruMetni = "";
             let i = 0;
             
-            // İlk satırı atla, bu genelde soru başlığı olur
-            i = 1;
+            // Soru numarası içeren satırı bul
+            const soruBaslikPattern = /(✅|🟢|\u2705|\*|□|■|√|•|\u2713|\u2714|\u2611)?\s*\d+[\.\)]\s*Soru/i;
+            
+            if (lines[0].match(soruBaslikPattern)) {
+                // İlk satır soru başlığı, soru metninin başlangıcını bul
+                if (lines.length > 1) {
+                    // İkinci satırdan itibaren soru metni
+                    i = 1;
+                } else {
+                    // Soru başlığını ayır ve metni çıkar
+                    const baslikParts = lines[0].split("Soru");
+                    if (baslikParts.length > 1) {
+                        soruMetni = baslikParts[1].trim();
+                    }
+                    i = lines.length; // İşlemi bitir
+                }
+            } else {
+                // Soru başlığı yok, ilk satırdan başla
+                i = 0;
+            }
             
             // Soru metnini al (şıklar başlayana kadar)
-            const sikPattern = /^([A-E])\)\s*(.+)$/;
+            const sikPattern = /^([A-E]|[1-5]|I{1,3}|IV|V|VI)[\.\)]\s*(.+)$/;
             while (i < lines.length) {
                 const line = lines[i].trim();
                 
@@ -57,7 +227,7 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                 }
                 
                 // Eğer doğru cevap satırına geldiysek çık
-                if (line.match(/(✅|🟢|\u2705|Doğru Cevap)/i)) {
+                if (line.match(/(✅|🟢|\u2705|\*|□|■|√|•|\u2713|\u2714|\u2611|Doğru Cevap|Cevap|Çözüm)/i)) {
                     break;
                 }
                 
@@ -71,41 +241,64 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                 return null;
             }
             
-            // Şıkları al (A, B, C, D, E)
+            // Şıkları al (A, B, C, D, E veya sayısal/roma şıkları)
             const cevaplar = ["", "", "", "", ""];
             
             let sikFound = false;
             
             // Şıkları bul
-            for (let j = 0; j < 5 && i < lines.length; j++) {
+            while (i < lines.length) {
                 const line = lines[i].trim();
-                const match = line.match(sikPattern);
                 
-                if (match) {
+                // Harf şıkları kontrolü
+                const harfMatch = line.match(/^([A-E])[\.\)]\s*(.+)$/);
+                if (harfMatch) {
                     sikFound = true;
-                    // Şık sırasını belirle (A=0, B=1, C=2, D=3, E=4)
-                    const sikIndex = match[1].charCodeAt(0) - 65;
-                    // Şık içeriğini al
-                    const sikIcerik = match[2].trim();
-                    
-                    // Doğru indekse yerleştir
+                    const sikIndex = harfMatch[1].charCodeAt(0) - 65;
                     if (sikIndex >= 0 && sikIndex < 5) {
-                        cevaplar[sikIndex] = sikIcerik;
+                        cevaplar[sikIndex] = harfMatch[2].trim();
                     }
                     i++;
-                } else if (line.match(/(✅|🟢|\u2705|Doğru Cevap)/i)) {
-                    // Şıklardan sonra doğru cevap satırına geldik
-                    break;
-                } else {
-                    // Tanınmayan satır veya başka bir bölüm, ilerle
-                    i++;
-                    j--; // Şık sayısını artırma
+                    continue;
                 }
+                
+                // Sayı şıkları kontrolü
+                const numericMatch = line.match(/^([1-5])[\.\)]\s*(.+)$/);
+                if (numericMatch) {
+                    sikFound = true;
+                    const sikIndex = parseInt(numericMatch[1]) - 1;
+                    if (sikIndex >= 0 && sikIndex < 5) {
+                        cevaplar[sikIndex] = numericMatch[2].trim();
+                    }
+                    i++;
+                    continue;
+                }
+                
+                // Roma rakamları şıkları kontrolü
+                const romaMatch = line.match(/^(I{1,3}|IV|V|VI)[\.\)]\s*(.+)$/);
+                if (romaMatch) {
+                    sikFound = true;
+                    const romaSiklar = {'I': 0, 'II': 1, 'III': 2, 'IV': 3, 'V': 4, 'VI': 5};
+                    const sikIndex = romaSiklar[romaMatch[1]];
+                    if (sikIndex !== undefined && sikIndex >= 0 && sikIndex < 5) {
+                        cevaplar[sikIndex] = romaMatch[2].trim();
+                    }
+                    i++;
+                    continue;
+                }
+                
+                // Doğru cevap veya başka bölüm kontrolü
+                if (line.match(/(✅|🟢|\u2705|\*|□|■|√|•|\u2713|\u2714|\u2611|Doğru Cevap|Cevap|Çözüm)/i)) {
+                    break;
+                }
+                
+                // Tanınmayan satır, ilerle
+                i++;
             }
             
+            // Soru şıkları bulunamazsa bile devam etmeyi dene
             if (!sikFound) {
-                console.warn("Hiç şık bulunamadı");
-                return null;
+                console.warn("Hiç şık bulunamadı, şıksız devam ediliyor");
             }
             
             // Doğru cevabı al
@@ -115,7 +308,7 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
             // Doğru cevap satırını bul
             let dogruCevapSatiri = "";
             for (let j = i; j < lines.length; j++) {
-                if (lines[j].match(/(✅|🟢|\u2705|Doğru Cevap)/i)) {
+                if (lines[j].match(/(Doğru Cevap|Cevap|Çözüm)/i)) {
                     dogruCevapSatiri = lines[j];
                     i = j + 1; // Bir sonraki satırdan devam et
                     break;
@@ -124,12 +317,40 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
             
             // Doğru cevap şıkkını bul
             if (dogruCevapSatiri) {
-                // "Doğru Cevap: A)" formatından A'yı çıkar
-                const dogruCevapMatch = dogruCevapSatiri.match(/([A-E])\)/);
-                if (dogruCevapMatch && dogruCevapMatch[1]) {
-                    dogruCevap = dogruCevapMatch[1];
-                } else {
-                    console.warn("Doğru cevap şıkkı algılanamadı:", dogruCevapSatiri);
+                // Çeşitli formatları dene
+                const formatlar = [
+                    /[^A-Z]([A-E])[\.\)]/,             // Harf formatı (A),A.,A)
+                    /[^0-9]([1-5])[\.\)]/,             // Sayı formatı (1),1.,1)
+                    /[^I](I{1,3}|IV|V|VI)[\.\)]/,      // Roma formatı (I),I.,I)
+                    /^Doğru Cevap:?\s*([A-E])[\.\)]/i, // "Doğru Cevap: A)" formatı
+                    /^Cevap:?\s*([A-E])[\.\)]/i,       // "Cevap: A)" formatı
+                    /^Çözüm:?\s*([A-E])[\.\)]/i        // "Çözüm: A)" formatı
+                ];
+                
+                for (const format of formatlar) {
+                    const match = dogruCevapSatiri.match(format);
+                    if (match && match[1]) {
+                        const cevap = match[1];
+                        
+                        // Harfse direkt kullan
+                        if (/^[A-E]$/.test(cevap)) {
+                            dogruCevap = cevap;
+                            break;
+                        }
+                        
+                        // Sayıysa harfe çevir
+                        if (/^[1-5]$/.test(cevap)) {
+                            dogruCevap = String.fromCharCode(65 + parseInt(cevap) - 1);
+                            break;
+                        }
+                        
+                        // Roma rakamıysa harfe çevir
+                        const romaHarfler = {'I': 'A', 'II': 'B', 'III': 'C', 'IV': 'D', 'V': 'E'};
+                        if (romaHarfler[cevap]) {
+                            dogruCevap = romaHarfler[cevap];
+                            break;
+                        }
+                    }
                 }
             }
             
@@ -148,6 +369,14 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                         i++;
                     }
                     break;
+                }
+            }
+            
+            // Açıklama bulunamadıysa, doğru cevap satırının devamına bakabiliriz
+            if (!aciklama && dogruCevapSatiri) {
+                const aciklamaParts = dogruCevapSatiri.split("Açıklama:");
+                if (aciklamaParts.length > 1) {
+                    aciklama = aciklamaParts[1].trim();
                 }
             }
             
@@ -211,66 +440,114 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                         console.warn("Docx dönüştürme uyarıları:", warnings);
                     }
                     
+                    // Karakterlerin Unicode kodlarını görmek için
+                    const firstFewChars = text.substring(0, 200);
+                    console.log("İlk birkaç karakter:", firstFewChars);
+                    console.log("Unicode kodları:");
+                    for(let i=0; i < Math.min(200, text.length); i++) {
+                        const char = text.charAt(i);
+                        const code = text.charCodeAt(i);
+                        if (code > 127) { // ASCII olmayan karakterler
+                            console.log(`Pozisyon ${i}: '${char}' - Unicode: U+${code.toString(16).padStart(4, '0')}`);
+                        }
+                    }
+                    
+                    // Olası tik işaretlerini kontrol et
+                    const checkPatterns = [
+                        {pattern: /[\u2705]/g, name: "Yeşil Tik (U+2705)"},
+                        {pattern: /[\u2714]/g, name: "Tik İşareti (U+2714)"},
+                        {pattern: /[\u2713]/g, name: "Kontrol İşareti (U+2713)"},
+                        {pattern: /[\u2611]/g, name: "Tikli Kutu (U+2611)"},
+                        {pattern: /[\uD83D][\uDC4D]/g, name: "Başparmak Yukarı (U+1F44D)"},
+                        {pattern: /[\uD83D][\uDFE2]/g, name: "Yeşil Daire (U+1F7E2)"}
+                    ];
+                    
+                    for (const {pattern, name} of checkPatterns) {
+                        const matches = text.match(pattern) || [];
+                        if (matches.length > 0) {
+                            console.log(`${name} bulundu: ${matches.length} adet`);
+                        }
+                    }
+                    
                     // Dokümandaki her bir soruyu oluştur
                     console.log("İçe aktarılan metin:", text);
                     
                     // Yeşil tik işareti Unicode'da U+2705 olarak geçiyor, metinde ✅ olarak görünebilir
-                    // Hem ✅ hem de 🟢 sembollerini destekle
-                    const greenCheckmark = "(✅|🟢|\\u2705|\\u{2705})";
+                    // Hem ✅ hem de 🟢 sembollerini ve diğer olası işaretleri destekle
+                    const greenCheckmark = "(✅|🟢|\\u2705|\\u{2705}|✓|\\u2714|\\u{2714}|\\u2713|\\u{2713}|\\u2611|\\u{2611}|☑|\\uD83D\\uDFE2|\\uD83D\\uDC4D|•|\\*|□|■|√)";
                     
                     try {
                         // Soruları birbirinden ayır
                         const questions = [];
                         const errors = [];
                         
-                        // Yazı tipi, Word'den içe aktarma sırasında değişebilir
-                        // Önce metin içindeki tüm yeşil tik işaretlerini bul
-                        const checkmarks = text.match(new RegExp(greenCheckmark, "gu")) || [];
-                        
-                        if (checkmarks.length === 0) {
-                            console.warn("Metin içinde hiç yeşil tik işareti bulunamadı");
-                            throw new Error("Dokümanda yeşil tik (✅) işareti bulunamadı. Soruların yeşil tik işaretiyle başladığından emin olun.");
-                        }
-                        
-                        console.log(`Metin içinde ${checkmarks.length} adet tik işareti bulundu`);
-                        
-                        // Metni parçalara ayır
-                        // Her tik işaretinin konumunu bul
+                        // Metni daha esnek bir şekilde parçalara ayır
+                        // Her soru işaretinin konumunu bul
                         const tikPositions = [];
-                        const checkmarkRegex = new RegExp(greenCheckmark, "gu");
+                        
+                        // Farklı soru başlangıç formatlarını dene
+                        const checkmarkRegex = new RegExp(`${greenCheckmark}\\s*\\d+\\.\\s*Soru`, "gu");
+                        const altCheckmarkRegex = new RegExp(`${greenCheckmark}\\s*Soru\\s*\\d+`, "gu");
+                        const numberOnlyRegex = /\b\d+\.\s*Soru\b/gu;
+                        
                         let match;
+                        // İşaretli ve numaralı sorular (✅ 1. Soru)
                         while ((match = checkmarkRegex.exec(text)) !== null) {
                             tikPositions.push(match.index);
                         }
                         
-                        // Son konumdan sonrasını da ekle
+                        // Alternatif format (✅ Soru 1)
+                        if (tikPositions.length === 0) {
+                            while ((match = altCheckmarkRegex.exec(text)) !== null) {
+                                tikPositions.push(match.index);
+                            }
+                        }
+                        
+                        // Eğer hiç işaretli soru bulunamazsa, sadece numaralı soruları dene
+                        if (tikPositions.length === 0) {
+                            console.warn("İşaretli soru bulunamadı, sadece numaralı soruları deniyorum");
+                            while ((match = numberOnlyRegex.exec(text)) !== null) {
+                                tikPositions.push(match.index);
+                            }
+                        }
+                        
+                        // Hala hiç soru başlangıcı bulunamadıysa son çare olarak sadece tik işaretlerini dene
+                        if (tikPositions.length === 0) {
+                            console.warn("Numaralı sorular bulunamadı, sadece tik işaretlerini deniyorum");
+                            const onlyCheckmarkRegex = new RegExp(greenCheckmark, "gu");
+                            while ((match = onlyCheckmarkRegex.exec(text)) !== null) {
+                                tikPositions.push(match.index);
+                            }
+                        }
+                        
+                        console.log(`${tikPositions.length} adet olası soru başlangıcı bulundu`);
+                        
+                        if (tikPositions.length === 0) {
+                            throw new Error("Soru başlangıçları tanınamadı. Lütfen DOCX dosyasını kontrol edin.");
+                        }
+                        
+                        // Son konumdan sonrasını da ekle (metin sonuna kadar)
                         tikPositions.push(text.length);
                         
-                        // Her iki tik işareti arasındaki metni bir soru olarak al
+                        // Tüm soruları ayrıştır
                         for (let i = 0; i < tikPositions.length - 1; i++) {
                             const start = tikPositions[i];
                             const end = tikPositions[i + 1];
-                            const questionText = text.substring(start, end);
+                            const questionText = text.slice(start, end).trim();
                             
-                            // Sorular arasındaki ayraçları ve boşlukları temizle
-                            const cleanedText = questionText
-                                .replace(/[-_]{3,}/g, "") // Çizgileri temizle
-                                .trim();
+                            // Soru metnini ayrıştır
+                            const parsedQuestion = parseQuestion(questionText);
                             
-                            if (cleanedText.length > 0) {
-                                console.log(`Soru #${i + 1} metni: ${cleanedText.substring(0, 50)}...`);
-                                const parsedQuestion = parseQuestion(cleanedText);
-                                
-                                if (parsedQuestion) {
-                                    questions.push(parsedQuestion);
-                                } else {
-                                    console.warn(`Soru #${i + 1} ayrıştırılamadı`);
-                                    errors.push(`Soru #${i + 1}: Ayrıştırma hatası`);
-                                }
+                            if (parsedQuestion) {
+                                questions.push(parsedQuestion);
+                            } else {
+                                console.warn(`#${i + 1} numaralı soru ayrıştırılamadı:`);
+                                console.warn(questionText.substring(0, 100) + "...");
+                                errors.push({
+                                    index: i + 1,
+                                    text: questionText.substring(0, 100) + "..."
+                                });
                             }
-                            
-                            // İlerleme durumunu güncelle
-                            setImportProgress(Math.floor((i + 1) / (tikPositions.length - 1) * 50));
                         }
                         
                         setParseErrors(errors);
@@ -409,7 +686,7 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                                 </div>
                             </div>
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                DOCX dosyanızdaki her soru yeşil tik (✅) işaretiyle başlamalıdır. Örnek:
+                                DOCX dosyanızdaki her soru yeşil tik (✅) işaretiyle başlamalıdır. Örnek format:
                             </p>
                             <div className="mt-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
                                 ✅ 2. Soru<br/>
@@ -424,21 +701,9 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                                 Açıklama:<br/>
                                 Ortalama hız = 2ab / (a + b)<br/>
                                 = 2×60×90 / (60 + 90) = 10800 / 150 = 72 km/s<br/>
-                                <br/>
-                                ✅ 3. Soru<br/>
-                                Bir işçi, bir işi 18 günde, diğer işçi aynı işi 12 günde bitiriyor.<br/>
-                                Bu iki işçi birlikte çalışırsa iş kaç günde tamamlanır?<br/>
-                                A) 6<br/>
-                                B) 7.2<br/>
-                                C) 7.5<br/>
-                                D) 8<br/>
-                                E) 8.5<br/>
-                                ✅ Doğru Cevap: D) 8<br/>
-                                Açıklama:<br/>
-                                Ortak iş süresi = (18 × 12) / (18 + 12) = 216 / 30 = 7.2 gün
                             </div>
                             <p className="mt-2 text-sm text-text-red-500 dark:text-red-400">
-                                <strong>Önemli:</strong> Dokümanınızda yeşil tik işareti kullanıldığından emin olun.
+                                <strong>Önemli:</strong> DOCX içindeki her soru başlangıcında ve doğru cevap kısmında yeşil tik işareti (✅) kullanılması gereklidir. Sorun yaşıyorsanız, DOCX dosyanızı Word'de açıp yeşil tik işaretlerini kontrol edin veya yeniden ekleyin (Emoji → ✓ veya ✅ seçerek).
                             </p>
                         </div>
 
@@ -478,7 +743,7 @@ const ImportQuestionsFromDocx = ({ isOpen, onClose, currentKonuId, altKonular })
                                 <h3 className="font-medium text-yellow-800 dark:text-yellow-300 mb-2">Ayrıştırma Hataları</h3>
                                 <ul className="space-y-1 text-sm max-h-40 overflow-y-auto">
                                     {parseErrors.map((error, index) => (
-                                        <li key={index}>{error}</li>
+                                        <li key={index}>{error.text}</li>
                                     ))}
                                 </ul>
                             </div>
