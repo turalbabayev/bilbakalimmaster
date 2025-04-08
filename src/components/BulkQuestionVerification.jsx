@@ -71,8 +71,18 @@ const BulkQuestionVerification = ({ sorular }) => {
     const getGundemBilgisi = async () => {
         try {
             const prompt = `
-            Merhaba! Bugünün önemli gündem maddelerinden birini kısaca özetler misin? 
-            Lütfen tek bir paragraf halinde, ilginç ve bilgilendirici bir şekilde yanıt ver.
+            Sen bir haber spikerisin. Aşağıdaki konulardan biriyle ilgili güncel ve önemli bir haberi, haber formatında kısaca anlat:
+            - Döviz kurları ve ekonomik gelişmeler
+            - Önemli devlet açıklamaları ve kararlar
+            - Eğitim ve sınav haberleri
+            - Spor haberleri
+            - Hava durumu
+            - Teknoloji ve bilim haberleri
+            - Önemli toplumsal gelişmeler
+
+            Lütfen haberi tek paragraf halinde, "Son Dakika" formatında ve tarih/saat belirterek anlat.
+            Örnek format:
+            [Tarih Saat] SON DAKİKA: [Haber içeriği...]
             `;
 
             const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
@@ -534,61 +544,80 @@ const BulkQuestionVerification = ({ sorular }) => {
                             {aktifModel === 'gpt' ? 'GPT Analiz Yapıyor' : 'Gemini AI Analiz Yapıyor'}
                         </div>
                         
-                        {aktifModel === 'gpt' ? (
-                            <div className="relative w-64 h-64 mb-6">
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="w-32 h-32 border-4 border-purple-200 dark:border-purple-800 rounded-full animate-spin"></div>
-                                </div>
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="w-24 h-24 border-4 border-purple-300 dark:border-purple-700 rounded-full animate-spin-slow"></div>
-                                </div>
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="w-16 h-16 border-4 border-purple-400 dark:border-purple-600 rounded-full animate-spin-slower"></div>
-                                </div>
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="text-4xl animate-bounce">🧠</span>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="relative w-64 h-64 mb-6">
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="w-32 h-32 border-4 border-blue-200 dark:border-blue-800 rounded-full animate-spin"></div>
-                                </div>
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="w-24 h-24 border-4 border-blue-300 dark:border-blue-700 rounded-full animate-spin-slow"></div>
-                                </div>
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="w-16 h-16 border-4 border-blue-400 dark:border-blue-600 rounded-full animate-spin-slower"></div>
-                                </div>
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="text-4xl animate-bounce">🤖</span>
-                                </div>
-                            </div>
-                        )}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
+                            <div className="flex flex-col items-center">
+                                {aktifModel === 'gpt' ? (
+                                    <div className="relative w-48 h-48">
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="w-full h-full border-4 border-purple-200 dark:border-purple-800 rounded-full animate-[spin_3s_linear_infinite]"></div>
+                                        </div>
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="w-3/4 h-3/4 border-4 border-purple-300 dark:border-purple-700 rounded-full animate-[spin_2s_linear_infinite]"></div>
+                                        </div>
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="w-1/2 h-1/2 border-4 border-purple-400 dark:border-purple-600 rounded-full animate-[spin_1s_linear_infinite]"></div>
+                                        </div>
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="animate-bounce">
+                                                <span className="text-4xl">🧠</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="relative w-48 h-48">
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="w-full h-full border-4 border-blue-200 dark:border-blue-800 rounded-full animate-[spin_3s_linear_infinite]"></div>
+                                        </div>
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="w-3/4 h-3/4 border-4 border-blue-300 dark:border-blue-700 rounded-full animate-[spin_2s_linear_infinite]"></div>
+                                        </div>
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="w-1/2 h-1/2 border-4 border-blue-400 dark:border-blue-600 rounded-full animate-[spin_1s_linear_infinite]"></div>
+                                        </div>
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="animate-bounce">
+                                                <span className="text-4xl">🤖</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
-                        <div className="text-center space-y-2">
-                            <p className="text-gray-600 dark:text-gray-400 italic">
-                                {aktifModel === 'gpt' ? 'GPT düşünüyor... 🤔' : 'Gemini düşünüyor... 🤔'}
-                            </p>
-                            <div className="flex justify-center space-x-2">
-                                <span className="animate-bounce">🔍</span>
-                                <span className="animate-bounce delay-75">📚</span>
-                                <span className="animate-bounce delay-150">💡</span>
+                                <div className="text-center mt-6 space-y-4">
+                                    <p className="text-lg font-medium text-gray-600 dark:text-gray-400">
+                                        {aktifModel === 'gpt' ? 'GPT düşünüyor... 🤔' : 'Gemini düşünüyor... 🤔'}
+                                    </p>
+                                    <div className="flex justify-center space-x-3">
+                                        <span className="animate-bounce text-2xl">🔍</span>
+                                        <span className="animate-bounce delay-75 text-2xl">📚</span>
+                                        <span className="animate-bounce delay-150 text-2xl">💡</span>
+                                    </div>
+                                    <div className="text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                                        <p>Sorular karmaşıksa biraz zaman alabilir.</p>
+                                        <p>Lütfen bekleyin...</p>
+                                    </div>
+                                </div>
                             </div>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
-                                Sorular karmaşıksa biraz zaman alabilir.
-                                <br />
-                                Lütfen bekleyin...
-                            </p>
 
                             {gundemBilgisi && (
-                                <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900 rounded-lg max-w-2xl mx-auto">
-                                    <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-2">
-                                        💫 Gündemden Bir Bilgi
-                                    </h3>
-                                    <p className="text-blue-700 dark:text-blue-300 text-sm">
-                                        {gundemBilgisi}
-                                    </p>
+                                <div className="flex flex-col justify-center">
+                                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900 dark:to-purple-900 p-6 rounded-xl shadow-lg transform hover:scale-105 transition-transform duration-300">
+                                        <div className="flex items-center mb-4">
+                                            <span className="text-2xl mr-2">📰</span>
+                                            <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-300 dark:to-purple-300">
+                                                Gündemden Haberler
+                                            </h3>
+                                        </div>
+                                        <div className="prose prose-sm max-w-none">
+                                            <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                                                {gundemBilgisi}
+                                            </p>
+                                        </div>
+                                        <div className="mt-4 flex justify-end">
+                                            <span className="text-sm text-gray-500 dark:text-gray-400 animate-pulse">
+                                                Canlı Haber 🔴
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>
