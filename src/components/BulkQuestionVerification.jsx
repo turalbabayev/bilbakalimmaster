@@ -5,21 +5,27 @@ import { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle } from 
 const BulkQuestionVerification = ({ sorular }) => {
     const [sonuclar, setSonuclar] = useState([]);
     const [yukleniyor, setYukleniyor] = useState(false);
-    const [apiKey, setApiKey] = useState(null);
+    const [openaiApiKey, setOpenaiApiKey] = useState(null);
+    const [geminiApiKey, setGeminiApiKey] = useState(null);
     const [seciliSorular, setSeciliSorular] = useState([]);
     const [dogrulamaSecenegi, setDogrulamaSecenegi] = useState('secili');
+    const [aktifModel, setAktifModel] = useState(null);
 
     useEffect(() => {
-        // Component yüklendiğinde API anahtarını al
-        const key = process.env.REACT_APP_OPENAI_API_KEY;
-        console.log('API Key (useEffect):', key);
+        // Component yüklendiğinde API anahtarlarını al
+        const openaiKey = process.env.REACT_APP_OPENAI_API_KEY;
+        const geminiKey = process.env.REACT_APP_GEMINI_API_KEY;
         
-        if (!key) {
-            console.error('API anahtarı bulunamadı. Lütfen .env dosyasını kontrol edin.');
-            return;
+        if (!openaiKey) {
+            console.error('OpenAI API anahtarı bulunamadı. Lütfen .env dosyasını kontrol edin.');
         }
         
-        setApiKey(key);
+        if (!geminiKey) {
+            console.error('Gemini API anahtarı bulunamadı. Lütfen .env dosyasını kontrol edin.');
+        }
+        
+        setOpenaiApiKey(openaiKey);
+        setGeminiApiKey(geminiKey);
     }, []);
 
     const handleSoruSecim = (soruId) => {
@@ -49,9 +55,9 @@ const BulkQuestionVerification = ({ sorular }) => {
         }
     };
 
-    const sorulariDogrula = async () => {
-        if (!apiKey) {
-            console.error('API anahtarı henüz yüklenmedi');
+    const sorulariDogrula = async (model) => {
+        if (!openaiApiKey && !geminiApiKey) {
+            console.error('API anahtarları henüz yüklenmedi');
             return;
         }
 
@@ -61,11 +67,11 @@ const BulkQuestionVerification = ({ sorular }) => {
         }
 
         setYukleniyor(true);
+        setAktifModel(model);
         const yeniSonuclar = [];
 
         // Seçili soruları filtrele
         const dogrulanacakSorular = sorular.filter(soru => seciliSorular.includes(soru.id));
-        console.log('Dogrulanacak sorular:', dogrulanacakSorular.length);
         
         for (const soru of dogrulanacakSorular) {
             try {
@@ -89,30 +95,46 @@ const BulkQuestionVerification = ({ sorular }) => {
                     5. Bu soru diğer sorularla aynı mı? Benzerlik varsa ne kadar?
                 `;
 
-                console.log('API Key (sorulariDogrula):', apiKey);
-
-                const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: "gpt-3.5-turbo",
-                        messages: [
-                            {
-                                role: "system",
-                                content: "Sen bir eğitim uzmanısın. Soruları analiz ederken her madde için 1-2 cümlelik açıklama yap. Çok uzun olma ama gerekli bilgiyi ver. Son madde için doğru cevabın harfini belirt."
-                            },
-                            {
-                                role: "user",
-                                content: prompt
-                            }
-                        ],
-                        temperature: 0.7,
-                        max_tokens: 500
-                    })
-                });
+                let response;
+                if (model === 'gpt') {
+                    response = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${openaiApiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: "gpt-3.5-turbo",
+                            messages: [
+                                {
+                                    role: "system",
+                                    content: "Sen bir eğitim uzmanısın. Soruları analiz ederken her madde için 1-2 cümlelik açıklama yap. Çok uzun olma ama gerekli bilgiyi ver. Son madde için doğru cevabın harfini belirt."
+                                },
+                                {
+                                    role: "user",
+                                    content: prompt
+                                }
+                            ],
+                            temperature: 0.7,
+                            max_tokens: 500
+                        })
+                    });
+                } else if (model === 'gemini') {
+                    response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-goog-api-key': geminiApiKey
+                        },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{
+                                    text: prompt
+                                }]
+                            }]
+                        })
+                    });
+                }
 
                 if (!response.ok) {
                     const errorData = await response.json();
@@ -120,25 +142,34 @@ const BulkQuestionVerification = ({ sorular }) => {
                 }
 
                 const data = await response.json();
-                const text = data.choices[0].message.content;
+                let text;
+                
+                if (model === 'gpt') {
+                    text = data.choices[0].message.content;
+                } else if (model === 'gemini') {
+                    text = data.candidates[0].content.parts[0].text;
+                }
 
                 yeniSonuclar.push({
                     soru: soru,
                     analiz: text,
-                    sistemDogruCevap: soru.dogruCevap // Sistemdeki doğru cevabı da ekle
+                    sistemDogruCevap: soru.dogruCevap,
+                    model: model
                 });
             } catch (error) {
                 console.error('Hata:', error);
                 yeniSonuclar.push({
                     soru: soru,
                     analiz: `Analiz sırasında bir hata oluştu: ${error.message}`,
-                    sistemDogruCevap: soru.dogruCevap
+                    sistemDogruCevap: soru.dogruCevap,
+                    model: model
                 });
             }
         }
 
         setSonuclar(yeniSonuclar);
         setYukleniyor(false);
+        setAktifModel(null);
     };
 
     const sonuclariIndir = () => {
@@ -254,7 +285,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                             }),
                             
                             new Paragraph({
-                                text: "GPT Analizi:",
+                                text: "Analiz:",
                                 heading: HeadingLevel.HEADING_3,
                                 spacing: {
                                     after: 80,
@@ -383,24 +414,44 @@ const BulkQuestionVerification = ({ sorular }) => {
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {seciliSorular.length} soru seçildi
                 </span>
-                <button
-                    onClick={sorulariDogrula}
-                    disabled={yukleniyor || !apiKey || seciliSorular.length === 0}
-                    className="w-48 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {!apiKey ? 'API Anahtarı Yükleniyor...' : yukleniyor ? 
-                        <div className="flex items-center justify-center">
-                            <span className="animate-pulse mr-2">🧠</span>
-                            <span className="animate-bounce delay-75">A</span>
-                            <span className="animate-bounce delay-100">n</span>
-                            <span className="animate-bounce delay-150">a</span>
-                            <span className="animate-bounce delay-200">l</span>
-                            <span className="animate-bounce delay-250">i</span>
-                            <span className="animate-bounce delay-300">z</span>
-                            <span className="animate-pulse ml-2">🔍</span>
-                        </div> 
-                        : 'Soruları Doğrula'}
-                </button>
+                <div className="flex space-x-4">
+                    <button
+                        onClick={() => sorulariDogrula('gpt')}
+                        disabled={yukleniyor || !openaiApiKey || seciliSorular.length === 0}
+                        className={`w-48 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${aktifModel === 'gpt' ? 'ring-2 ring-offset-2 ring-purple-500' : ''}`}
+                    >
+                        {!openaiApiKey ? 'OpenAI API Anahtarı Yükleniyor...' : yukleniyor && aktifModel === 'gpt' ? 
+                            <div className="flex items-center justify-center">
+                                <span className="animate-pulse mr-2">🧠</span>
+                                <span className="animate-bounce delay-75">A</span>
+                                <span className="animate-bounce delay-100">n</span>
+                                <span className="animate-bounce delay-150">a</span>
+                                <span className="animate-bounce delay-200">l</span>
+                                <span className="animate-bounce delay-250">i</span>
+                                <span className="animate-bounce delay-300">z</span>
+                                <span className="animate-pulse ml-2">🔍</span>
+                            </div> 
+                            : 'GPT ile Doğrula'}
+                    </button>
+                    <button
+                        onClick={() => sorulariDogrula('gemini')}
+                        disabled={yukleniyor || !geminiApiKey || seciliSorular.length === 0}
+                        className={`w-48 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${aktifModel === 'gemini' ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
+                    >
+                        {!geminiApiKey ? 'Gemini API Anahtarı Yükleniyor...' : yukleniyor && aktifModel === 'gemini' ? 
+                            <div className="flex items-center justify-center">
+                                <span className="animate-pulse mr-2">🤖</span>
+                                <span className="animate-bounce delay-75">A</span>
+                                <span className="animate-bounce delay-100">n</span>
+                                <span className="animate-bounce delay-150">a</span>
+                                <span className="animate-bounce delay-200">l</span>
+                                <span className="animate-bounce delay-250">i</span>
+                                <span className="animate-bounce delay-300">z</span>
+                                <span className="animate-pulse ml-2">🔍</span>
+                            </div> 
+                            : 'Gemini AI ile Doğrula'}
+                    </button>
+                </div>
             </div>
 
             {yukleniyor && (
@@ -461,9 +512,16 @@ const BulkQuestionVerification = ({ sorular }) => {
                     <div className="space-y-8">
                         {sonuclar.map((sonuc, index) => (
                             <div key={index} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-                                <div className="flex items-center mb-4">
+                                <div className="flex items-center justify-between mb-4">
                                     <span className="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-1 rounded-full text-sm font-medium">
                                         Soru {index + 1}
+                                    </span>
+                                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                        sonuc.model === 'gpt' 
+                                            ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' 
+                                            : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                                    }`}>
+                                        {sonuc.model === 'gpt' ? 'GPT-3.5' : 'Gemini AI'}
                                     </span>
                                 </div>
                                 
