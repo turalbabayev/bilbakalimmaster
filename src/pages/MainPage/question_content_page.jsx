@@ -12,7 +12,7 @@ import BulkDownloadQuestions from "../../components/BulkDownloadQuestions";
 import BulkQuestionVerification from "../../components/BulkQuestionVerification";
 import { useParams, useNavigate } from "react-router-dom";
 import { database } from "../../firebase";
-import { ref, onValue, update } from "firebase/database";
+import { ref, onValue, update, get } from "firebase/database";
 
 function QuestionContent() {
     const { id } = useParams();
@@ -43,13 +43,21 @@ function QuestionContent() {
         return () => unsubscribe();
     }, [id]);
 
-    const refreshQuestions = () => {
+    const refreshQuestions = useCallback(() => {
         const konuRef = ref(database, `konular/${id}`);
-        onValue(konuRef, (snapshot) => {
-            const data = snapshot.val();
-            setAltKonular(data.altkonular || []);
+        get(konuRef).then((snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                setAltKonular(data.altkonular || []);
+                setBaslik(data.baslik || "Başlık Yok");
+                console.log('Sorular başarıyla yenilendi');
+            } else {
+                console.log('Konu bulunamadı');
+            }
+        }).catch((error) => {
+            console.error('Veri yenilenirken hata:', error);
         });
-    };
+    }, [id]);
 
     const toggleExpand = (altKonuKey) => {
         setExpandedAltKonu((prev) => (prev === altKonuKey ? null : altKonuKey));
@@ -441,12 +449,17 @@ function QuestionContent() {
                             <BulkQuestionVerification 
                                 sorular={Object.values(altKonular[selectedAltKonuId]?.sorular || {})} 
                                 onSoruGuncelle={handleSoruDogruCevapGuncelle}
+                                onGuncellemeSuccess={refreshQuestions}
                             />
                         </div>
                         
                         <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex justify-end">
                             <button
-                                onClick={() => setIsBulkVerificationOpen(false)}
+                                onClick={() => {
+                                    setIsBulkVerificationOpen(false);
+                                    // Modal kapandığında soruları yenile
+                                    refreshQuestions();
+                                }}
                                 className="px-6 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                             >
                                 Kapat

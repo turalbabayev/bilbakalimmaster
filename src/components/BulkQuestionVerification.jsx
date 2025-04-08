@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle } from 'docx';
 
-const BulkQuestionVerification = ({ sorular, onSoruGuncelle }) => {
+const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess }) => {
     const [sonuclar, setSonuclar] = useState([]);
     const [yukleniyor, setYukleniyor] = useState(false);
     const [openaiApiKey, setOpenaiApiKey] = useState(null);
@@ -550,6 +550,11 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle }) => {
 
                 // Başarılı güncelleme mesajı
                 alert('Doğru cevap başarıyla güncellendi!');
+                
+                // Eğer başarı callback'i tanımlandıysa çağır
+                if (onGuncellemeSuccess && typeof onGuncellemeSuccess === 'function') {
+                    onGuncellemeSuccess();
+                }
             }
         } catch (error) {
             console.error('Güncelleme hatası:', error);
