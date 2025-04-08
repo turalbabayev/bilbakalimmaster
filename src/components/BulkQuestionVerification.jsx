@@ -75,26 +75,6 @@ const BulkQuestionVerification = ({ sorular }) => {
         
         for (const soru of dogrulanacakSorular) {
             try {
-                const prompt = `
-                    Aşağıdaki soruyu ve cevapları analiz et:
-                    
-                    Soru: ${soru.soruMetni}
-                    
-                    Cevaplar:
-                    A) ${soru.cevaplar[0]}
-                    B) ${soru.cevaplar[1]}
-                    C) ${soru.cevaplar[2]}
-                    D) ${soru.cevaplar[3]}
-                    E) ${soru.cevaplar[4]}
-                    
-                    Lütfen şunları kontrol et ve kısa bir açıklama yap:
-                    1. Soru mantıklı mı? Neden?
-                    2. Cevaplar mantıklı mı? Herhangi bir sorun var mı?
-                    3. Cevaplar arasında tekrar var mı? Varsa hangileri?
-                    4. Senin düşüncene göre doğru cevap nedir? (A, B, C, D veya E)
-                    5. Bu soru diğer sorularla aynı mı? Benzerlik varsa ne kadar?
-                `;
-
                 let response;
                 if (model === 'gpt') {
                     response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -112,7 +92,25 @@ const BulkQuestionVerification = ({ sorular }) => {
                                 },
                                 {
                                     role: "user",
-                                    content: prompt
+                                    content: `
+                                        Aşağıdaki soruyu ve cevapları analiz et:
+                                        
+                                        Soru: ${soru.soruMetni}
+                                        
+                                        Cevaplar:
+                                        A) ${soru.cevaplar[0]}
+                                        B) ${soru.cevaplar[1]}
+                                        C) ${soru.cevaplar[2]}
+                                        D) ${soru.cevaplar[3]}
+                                        E) ${soru.cevaplar[4]}
+                                        
+                                        Lütfen şunları kontrol et ve kısa bir açıklama yap:
+                                        1. Soru mantıklı mı? Neden?
+                                        2. Cevaplar mantıklı mı? Herhangi bir sorun var mı?
+                                        3. Cevaplar arasında tekrar var mı? Varsa hangileri?
+                                        4. Senin düşüncene göre doğru cevap nedir? (A, B, C, D veya E)
+                                        5. Bu soru diğer sorularla aynı mı? Benzerlik varsa ne kadar?
+                                    `
                                 }
                             ],
                             temperature: 0.7,
@@ -120,6 +118,26 @@ const BulkQuestionVerification = ({ sorular }) => {
                         })
                     });
                 } else if (model === 'gemini') {
+                    const prompt = `
+                    Merhaba, sen bir üniversitede akademisyensin ve sana vereceğim soruların cevaplarını kontrol etmeni istiyorum. Bu sorular banka terfi sınavına girecek kişiler için hazırlandı, senin dikkatin çok önemli.
+
+                    Soru: ${soru.soruMetni}
+                    
+                    Cevaplar:
+                    A) ${soru.cevaplar[0]}
+                    B) ${soru.cevaplar[1]}
+                    C) ${soru.cevaplar[2]}
+                    D) ${soru.cevaplar[3]}
+                    E) ${soru.cevaplar[4]}
+                    
+                    Lütfen aşağıdaki formatta yanıt ver:
+
+                    Doğru Cevap Şıkkı: [A/B/C/D/E] ✅
+                    Açıklama: [Kısa ve öz açıklama]
+                    Şıklarda Tekrarlanan Cevap: [Var/Yok, varsa hangi şıklar]
+                    Tekrarlanan Soru: [Evet/Hayır]
+                    `;
+
                     response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
                         method: 'POST',
                         headers: {
