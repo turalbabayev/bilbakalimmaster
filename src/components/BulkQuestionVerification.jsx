@@ -329,7 +329,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                                     <div className="mt-4 bg-blue-50 dark:bg-blue-900 p-4 rounded-lg border-l-4 border-blue-500">
                                         <p className="font-semibold text-blue-900 dark:text-blue-100">Sistemdeki Doğru Cevap:</p>
                                         <p className="text-blue-700 dark:text-blue-300 mt-1">
-                                            Doğru Cevap ({sonuc.sistemDogruCevap}): {sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65]}
+                                            Cevap ({sonuc.sistemDogruCevap}): {sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65]}
                                         </p>
                                     </div>
                                 </div>
