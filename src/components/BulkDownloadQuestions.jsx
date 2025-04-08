@@ -190,12 +190,15 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
             children.push(cevapTable);
 
             if (indirmeTipi === "tum") {
-                // Doğru cevap
+                // Doğru cevap ve şık harfi
+                const dogruCevapIndex = soru.cevaplar.indexOf(soru.dogruCevap);
+                const dogruCevapHarfi = String.fromCharCode(65 + dogruCevapIndex);
+                
                 children.push(
                     new Paragraph({
                         children: [
                             new TextRun({
-                                text: `Doğru Cevap: ${soru.dogruCevap}`,
+                                text: `Doğru Cevap: ${soru.dogruCevap} (${dogruCevapHarfi})`,
                                 bold: true,
                                 color: "008000",
                             }),
@@ -317,7 +320,7 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                                 
                                 <div>
                                     <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">İndirme Miktarı</h3>
-                                    <div className="flex space-x-4">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                                         <label className="flex items-center space-x-2 cursor-pointer">
                                             <input
                                                 type="radio"
@@ -348,6 +351,26 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                                             />
                                             <span className="text-gray-700 dark:text-gray-300">İlk 20 Soru</span>
                                         </label>
+                                        <label className="flex items-center space-x-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                value="30"
+                                                checked={indirmeMiktari === "30"}
+                                                onChange={(e) => handleIndirmeMiktariChange(e.target.value)}
+                                                className="form-radio text-blue-600"
+                                            />
+                                            <span className="text-gray-700 dark:text-gray-300">İlk 30 Soru</span>
+                                        </label>
+                                        <label className="flex items-center space-x-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                value="40"
+                                                checked={indirmeMiktari === "40"}
+                                                onChange={(e) => handleIndirmeMiktariChange(e.target.value)}
+                                                className="form-radio text-blue-600"
+                                            />
+                                            <span className="text-gray-700 dark:text-gray-300">İlk 40 Soru</span>
+                                        </label>
                                     </div>
                                 </div>
                             </div>
@@ -367,18 +390,49 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                                 </span>
                             </div>
                             
-                            <div className="space-y-2">
+                            <div className="space-y-4">
                                 {Object.entries(sorular).map(([soruId, soru], index) => (
-                                    <div key={soruId} className="flex items-center space-x-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedSorular[soruId] || false}
-                                            onChange={() => handleSoruToggle(soruId)}
-                                            className="form-checkbox text-blue-600"
-                                        />
-                                        <span className="text-gray-700 dark:text-gray-300">
-                                            {index + 1}. Soru: {soru.soruMetni.replace(/<[^>]*>/g, '').substring(0, 100)}...
-                                        </span>
+                                    <div key={soruId} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800">
+                                        <div className="flex items-start space-x-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedSorular[soruId] || false}
+                                                onChange={() => handleSoruToggle(soruId)}
+                                                className="form-checkbox text-blue-600 mt-1"
+                                            />
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                                                        {index + 1}. Soru
+                                                    </span>
+                                                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                                                        Doğru Cevap: {soru.dogruCevap}
+                                                    </span>
+                                                </div>
+                                                <p className="mt-2 text-gray-700 dark:text-gray-300">
+                                                    {soru.soruMetni.replace(/<[^>]*>/g, '')}
+                                                </p>
+                                                <div className="mt-3 space-y-2">
+                                                    {soru.cevaplar.map((cevap, i) => (
+                                                        <div key={i} className="flex items-center space-x-2">
+                                                            <span className="text-gray-500 dark:text-gray-400 w-6">
+                                                                {String.fromCharCode(65 + i)})
+                                                            </span>
+                                                            <span className="text-gray-700 dark:text-gray-300">
+                                                                {cevap}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                {soru.aciklama && (
+                                                    <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                                                            Açıklama: {soru.aciklama}
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
