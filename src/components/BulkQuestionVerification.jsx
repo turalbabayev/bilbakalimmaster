@@ -35,6 +35,10 @@ const BulkQuestionVerification = ({ sorular }) => {
                 const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
                 console.log('API Key:', apiKey); // Debug için
 
+                if (!apiKey) {
+                    throw new Error('API anahtarı bulunamadı. Lütfen .env.local dosyasını kontrol edin.');
+                }
+
                 const response = await fetch('https://api.openai.com/v1/chat/completions', {
                     method: 'POST',
                     headers: {
