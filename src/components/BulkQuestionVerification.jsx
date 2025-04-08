@@ -3,14 +3,21 @@ import React, { useState, useEffect } from 'react';
 const BulkQuestionVerification = ({ sorular }) => {
     const [sonuclar, setSonuclar] = useState([]);
     const [yukleniyor, setYukleniyor] = useState(false);
+    const [apiKey, setApiKey] = useState(null);
 
     useEffect(() => {
-        // Component yüklendiğinde API anahtarını kontrol et
-        const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
-        console.log('API Key (useEffect):', apiKey);
+        // Component yüklendiğinde API anahtarını al
+        const key = process.env.REACT_APP_OPENAI_API_KEY;
+        console.log('API Key (useEffect):', key);
+        setApiKey(key);
     }, []);
 
     const sorulariDogrula = async () => {
+        if (!apiKey) {
+            console.error('API anahtarı henüz yüklenmedi');
+            return;
+        }
+
         setYukleniyor(true);
         const yeniSonuclar = [];
 
@@ -38,12 +45,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                     Detaylı bir analiz yap ve sonuçları maddeler halinde belirt.
                 `;
 
-                const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
                 console.log('API Key (sorulariDogrula):', apiKey);
-
-                if (!apiKey) {
-                    throw new Error('API anahtarı bulunamadı. Lütfen .env.local dosyasını kontrol edin.');
-                }
 
                 const response = await fetch('https://api.openai.com/v1/chat/completions', {
                     method: 'POST',
@@ -97,10 +99,10 @@ const BulkQuestionVerification = ({ sorular }) => {
         <div className="space-y-6">
             <button
                 onClick={sorulariDogrula}
-                disabled={yukleniyor}
+                disabled={yukleniyor || !apiKey}
                 className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                {yukleniyor ? 'Analiz Ediliyor...' : 'Soruları Doğrula'}
+                {!apiKey ? 'API Anahtarı Yükleniyor...' : yukleniyor ? 'Analiz Ediliyor...' : 'Soruları Doğrula'}
             </button>
 
             {sonuclar.length > 0 && (
