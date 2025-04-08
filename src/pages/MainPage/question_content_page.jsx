@@ -191,13 +191,33 @@ function QuestionContent() {
         return null;
     };
 
-    const handleUpdateFromBulkVerification = (soruId) => {
-        console.log('Güncelleme isteği geldi, soru ID:', soruId);
-        console.log('Tüm sorular:', Object.values(altKonular).flatMap(altKonu => 
-            altKonu.sorular ? Object.entries(altKonu.sorular).map(([key, soru]) => ({key, ...soru})) : []
-        ));
+    const handleUpdateFromBulkVerification = (soru) => {
+        console.log('Güncelleme isteği geldi, soru:', soru);
         
-        const soruRef = findSoruRefById(soruId);
+        // Sorunun referansını bul
+        let soruRef = null;
+        
+        // Tüm alt konuları dolaş
+        outerLoop: for (const altKonuKey of Object.keys(altKonular)) {
+            const altKonu = altKonular[altKonuKey];
+            
+            // Alt konuda sorular varsa kontrol et
+            if (altKonu.sorular) {
+                // Tüm soruları dolaş
+                for (const soruKey of Object.keys(altKonu.sorular)) {
+                    const dbSoru = altKonu.sorular[soruKey];
+                    
+                    // Soru içeriği aynı mı kontrol et
+                    if (dbSoru.soruMetni === soru.soruMetni &&
+                        JSON.stringify(dbSoru.cevaplar) === JSON.stringify(soru.cevaplar)) {
+                        soruRef = `konular/${id}/altkonular/${altKonuKey}/sorular/${soruKey}`;
+                        console.log('Soru içeriğine göre bulundu:', soruRef);
+                        break outerLoop;
+                    }
+                }
+            }
+        }
+        
         if (soruRef) {
             console.log('Bulundu, güncelleme modalı açılıyor:', soruRef);
             setSelectedSoruRef(soruRef);
@@ -210,7 +230,7 @@ function QuestionContent() {
                 setIsUpdateModalOpen(true);
             }, 100);
         } else {
-            console.error('Soru referansı bulunamadı:', soruId);
+            console.error('Soru referansı bulunamadı:', soru);
             alert('Soru bulunamadı. Lütfen sayfayı yenileyip tekrar deneyin.');
         }
     };

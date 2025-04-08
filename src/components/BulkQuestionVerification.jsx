@@ -529,14 +529,11 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess
         try {
             // Artık modalı açıyoruz
             if (onUpdateClick && typeof onUpdateClick === 'function') {
-                // Sorunun ID'sini kontrol edelim ve doğru şekilde gönderelim
-                console.log('Güncelleme talep edilen soru:', soru.id);
+                // Sorunun kendisini gönderiyoruz
+                console.log('Güncelleme talep edilen soru:', soru);
                 
-                // Eğer doğru belirlenmişse sorunun ID'sini, yoksa sorunun kendisini gönder
-                const idToUse = typeof soru.id === 'string' ? soru.id : (soru.id || soru);
-                console.log('Kullanılacak ID:', idToUse);
-                
-                onUpdateClick(idToUse);
+                // Soru nesnesinin kendisini gönderiyoruz
+                onUpdateClick(soru);
                 return;
             } else {
                 throw new Error('Güncelleme fonksiyonu tanımlanmamış');
