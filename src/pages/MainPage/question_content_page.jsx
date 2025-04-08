@@ -13,6 +13,7 @@ import BulkQuestionVerification from "../../components/BulkQuestionVerification"
 import { useParams, useNavigate } from "react-router-dom";
 import { database } from "../../firebase";
 import { ref, onValue, update, get } from "firebase/database";
+import { getDatabase } from "firebase/database";
 
 function QuestionContent() {
     const { id } = useParams();
@@ -240,35 +241,59 @@ function QuestionContent() {
     };
 
     // Soru güncelleme tamamlandığında çağrılacak fonksiyon
-    const handleUpdateComplete = () => {
-        console.log('Güncelleme tamamlandı, toplu doğrulama modalı tekrar gösteriliyor');
+    const handleUpdateComplete = (updatedQuestion) => {
+        console.log("Soru güncellendi, veriler yenileniyor...");
         
-        // Güncelleme modalını kapat
+        // Önce modalları kapat
         setIsUpdateModalOpen(false);
         
-        // Toplu doğrulama modalını tekrar göster
-        document.querySelector('.bulk-verification-modal')?.classList.remove('hidden');
-        
-        // Verileri yenile
-        refreshQuestions().then(() => {
-            // Güncellenmiş soru bilgisini al
-            if (selectedSoruRef) {
-                const yol = selectedSoruRef.split('/');
-                const altKonuKey = yol[3];
-                const soruKey = yol[5];
+        // Daha sonra, verileri yenileyip bulk verification modalını güncelle
+        // Kısa bir gecikme ekleyerek veritabanı işlemlerinin tamamlanmasını sağlayalım
+        setTimeout(() => {
+            // Soruları yenile
+            refreshQuestions().then(() => {
+                console.log("Sorular başarıyla yenilendi.");
                 
-                if (altKonular[altKonuKey]?.sorular?.[soruKey]) {
-                    const guncelSoru = altKonular[altKonuKey].sorular[soruKey];
-                    
-                    console.log('Güncellenmiş soru bulundu:', guncelSoru);
-                    
-                    // Ref üzerinden güncelleme fonksiyonunu çağır
-                    if (bulkVerificationRef.current) {
-                        bulkVerificationRef.current.updateSonucWithGuncelSoru(guncelSoru);
+                // Bulk verification modalı açıksa ve referansı varsa, güncel soruyu gönder
+                if (isBulkVerificationOpen && bulkVerificationRef.current) {
+                    // Güncel soruyu veritabanından direkt olarak al
+                    try {
+                        const db = getDatabase();
+                        const konuRef = ref(db, `konular/${id}/altkonular/${selectedAltKonuId}/sorular/${selectedSoruRef.split("/")[5]}`);
+                        
+                        get(konuRef).then((snapshot) => {
+                            if (snapshot.exists()) {
+                                const guncelSorular = snapshot.val();
+                                
+                                // Güncellenen soruyu ID veya içerik üzerinden bul
+                                const guncelSoru = Object.values(guncelSorular).find(soru => 
+                                    soru.id === updatedQuestion.id || 
+                                    (soru.soruMetni === updatedQuestion.soruMetni && 
+                                    JSON.stringify(soru.cevaplar) === JSON.stringify(updatedQuestion.cevaplar))
+                                );
+                                
+                                if (guncelSoru) {
+                                    console.log("Güncel soru bulundu, bulk verification modalı güncelleniyor:", guncelSoru);
+                                    bulkVerificationRef.current.updateSonucWithGuncelSoru(guncelSoru);
+                                } else {
+                                    console.log("Güncellenen soru veritabanında bulunamadı.");
+                                }
+                            } else {
+                                console.log("Konu verileri bulunamadı.");
+                            }
+                        }).catch(error => {
+                            console.error("Güncel soru verileri alınırken hata:", error);
+                        });
+                    } catch (error) {
+                        console.error("Bulk verification güncelleme hatası:", error);
                     }
+                } else {
+                    console.log("Bulk verification modalı açık değil veya referans bulunamadı.");
                 }
-            }
-        });
+            }).catch(error => {
+                console.error("Sorular yenilenirken hata:", error);
+            });
+        }, 500); // 500ms bekle
     };
 
     return (
