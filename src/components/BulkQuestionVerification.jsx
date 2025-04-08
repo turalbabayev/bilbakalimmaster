@@ -551,13 +551,13 @@ const BulkQuestionVerification = ({ sorular }) => {
                                     <p className="font-semibold text-gray-900 dark:text-gray-100">Cevaplar:</p>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
                                         {sonuc.soru.cevaplar.map((cevap, i) => {
-                                            const isDogruCevap = sonuc.soru.dogruCevap === String.fromCharCode(65 + i);
+                                            const isDogruCevap = sonuc.sistemDogruCevap === String.fromCharCode(65 + i);
                                             return (
                                                 <div 
                                                     key={i} 
                                                     className={`p-2 rounded-lg ${
                                                         isDogruCevap 
-                                                            ? 'bg-green-100 dark:bg-green-900' 
+                                                            ? 'bg-green-100 dark:bg-green-900 border-l-4 border-green-500' 
                                                             : 'bg-gray-50 dark:bg-gray-700'
                                                     }`}
                                                 >
@@ -568,7 +568,11 @@ const BulkQuestionVerification = ({ sorular }) => {
                                                     }`}>
                                                         {String.fromCharCode(65 + i)})
                                                     </span>{' '}
-                                                    <span className="text-gray-700 dark:text-gray-300">{cevap}</span>
+                                                    <span className={`${
+                                                        isDogruCevap 
+                                                            ? 'text-green-800 dark:text-green-200' 
+                                                            : 'text-gray-700 dark:text-gray-300'
+                                                    }`}>{cevap}</span>
                                                 </div>
                                             );
                                         })}
