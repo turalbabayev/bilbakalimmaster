@@ -269,12 +269,17 @@ const BulkQuestionVerification = ({ sorular }) => {
                     D) ${soru.cevaplar[3]}
                     E) ${soru.cevaplar[4]}
                     
-                    Lütfen aşağıdaki formatta yanıt ver:
+                    Lütfen cevabını TAM OLARAK aşağıdaki formatta ver. Format dışına ASLA çıkma:
 
                     Doğru Cevap Şıkkı: [A/B/C/D/E] ✅
                     Açıklama: [Kısa ve öz açıklama]
                     Şıklarda Tekrarlanan Cevap: [Var/Yok, varsa hangi şıklar]
                     Tekrarlanan Soru: [Evet/Hayır]
+
+                    ÖNEMLİ NOTLAR:
+                    1. Doğru Cevap Şıkkı formatını ASLA değiştirme. Tam olarak "Doğru Cevap Şıkkı: X ✅" şeklinde olmalı.
+                    2. Tekrarlanan cevap varsa mutlaka hangi şıklar olduğunu belirt.
+                    3. Bu formatın dışına ASLA çıkma ve başka bir şey ekleme.
                     `;
 
                     response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
