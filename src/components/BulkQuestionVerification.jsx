@@ -527,6 +527,10 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle }) => {
 
     const handleDogruCevapGuncelle = async (soruId, yeniCevap) => {
         try {
+            if (!onSoruGuncelle || typeof onSoruGuncelle !== 'function') {
+                throw new Error('Güncelleme fonksiyonu tanımlanmamış');
+            }
+
             if (window.confirm(`Bu sorunun doğru cevabını "${yeniCevap}" şıkkı olarak güncellemek istiyor musunuz?`)) {
                 await onSoruGuncelle(soruId, yeniCevap);
                 
@@ -549,7 +553,7 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle }) => {
             }
         } catch (error) {
             console.error('Güncelleme hatası:', error);
-            alert('Doğru cevap güncellenirken bir hata oluştu!');
+            alert(`Doğru cevap güncellenirken bir hata oluştu: ${error.message}`);
         }
     };
 
