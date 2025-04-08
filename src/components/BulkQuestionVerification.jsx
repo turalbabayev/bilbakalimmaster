@@ -7,9 +7,13 @@ const BulkQuestionVerification = ({ sorular }) => {
 
     useEffect(() => {
         // Component yüklendiğinde API anahtarını al
-        const key = process.env.REACT_APP_OPENAI_API_KEY;
+        const key = window._env_?.REACT_APP_OPENAI_API_KEY || process.env.REACT_APP_OPENAI_API_KEY;
         console.log('API Key (useEffect):', key);
-        setApiKey(key);
+        if (key) {
+            setApiKey(key);
+        } else {
+            console.error('API anahtarı bulunamadı. Lütfen .env dosyasını kontrol edin.');
+        }
     }, []);
 
     const sorulariDogrula = async () => {
