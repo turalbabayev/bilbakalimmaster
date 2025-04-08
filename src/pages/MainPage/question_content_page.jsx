@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Layout from "../../components/layout";
 import AddQuestion from "../../components/addQuestion";
 import DeleteQuestion from "../../components/deleteQuestion";
@@ -31,6 +31,9 @@ function QuestionContent() {
     const [isBulkVerificationOpen, setIsBulkVerificationOpen] = useState(false);
     const navigate = useNavigate();
 
+    // BulkQuestionVerification bileşenine ref tanımlıyoruz
+    const bulkVerificationRef = useRef(null);
+
     useEffect(() => {
         const konuRef = ref(database, `konular/${id}`);
         const unsubscribe = onValue(konuRef, (snapshot) => {
@@ -43,27 +46,28 @@ function QuestionContent() {
         return () => unsubscribe();
     }, [id]);
 
+    // Soruları yenileme fonksiyonu güncellendi - Promise döndürüyor
     const refreshQuestions = useCallback(() => {
         console.log('Sorular yenilenmeye başladı...');
         
         return new Promise((resolve, reject) => {
             try {
                 // Mevcut dinleyiciyi kaldır ve yeniden ekle
-        const konuRef = ref(database, `konular/${id}`);
+                const konuRef = ref(database, `konular/${id}`);
                 
                 // Taze veri almak için get kullan
                 get(konuRef)
                     .then((snapshot) => {
                         if (snapshot.exists()) {
-            const data = snapshot.val();
+                            const data = snapshot.val();
                             console.log('Alınan taze veri:', data);
                             setAltKonular(data.altkonular || {});
                             setBaslik(data.baslik || "Başlık Yok");
                             console.log('Veriler başarıyla güncellendi');
-                            resolve(true);
+                            resolve(data); // Veriyi dışarı aktarıyoruz
                         } else {
                             console.log('Konu bulunamadı');
-                            resolve(false);
+                            resolve(null);
                         }
                     })
                     .catch((error) => {
@@ -235,7 +239,7 @@ function QuestionContent() {
         }
     };
 
-    // Güncelleme tamamlandığında toplu doğrulama modalını tekrar göstermek için fonksiyon
+    // Soru güncelleme tamamlandığında çağrılacak fonksiyon
     const handleUpdateComplete = () => {
         console.log('Güncelleme tamamlandı, toplu doğrulama modalı tekrar gösteriliyor');
         
@@ -246,7 +250,25 @@ function QuestionContent() {
         document.querySelector('.bulk-verification-modal')?.classList.remove('hidden');
         
         // Verileri yenile
-        refreshQuestions();
+        refreshQuestions().then(() => {
+            // Güncellenmiş soru bilgisini al
+            if (selectedSoruRef) {
+                const yol = selectedSoruRef.split('/');
+                const altKonuKey = yol[3];
+                const soruKey = yol[5];
+                
+                if (altKonular[altKonuKey]?.sorular?.[soruKey]) {
+                    const guncelSoru = altKonular[altKonuKey].sorular[soruKey];
+                    
+                    console.log('Güncellenmiş soru bulundu:', guncelSoru);
+                    
+                    // Ref üzerinden güncelleme fonksiyonunu çağır
+                    if (bulkVerificationRef.current) {
+                        bulkVerificationRef.current.updateSonucWithGuncelSoru(guncelSoru);
+                    }
+                }
+            }
+        });
     };
 
     return (
@@ -565,6 +587,7 @@ function QuestionContent() {
                         
                         <div className="p-8 overflow-y-auto flex-1">
                             <BulkQuestionVerification 
+                                ref={bulkVerificationRef}
                                 sorular={Object.values(altKonular[selectedAltKonuId]?.sorular || {})} 
                                 onSoruGuncelle={handleSoruDogruCevapGuncelle}
                                 onGuncellemeSuccess={refreshQuestions}

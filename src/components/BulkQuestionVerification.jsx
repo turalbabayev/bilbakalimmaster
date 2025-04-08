@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle } from 'docx';
 
-const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess, onUpdateClick }) => {
+const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess, onUpdateClick }, ref) => {
     const [sonuclar, setSonuclar] = useState([]);
     const [yukleniyor, setYukleniyor] = useState(false);
     const [openaiApiKey, setOpenaiApiKey] = useState(null);
@@ -551,6 +551,37 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess
         return doc.body.textContent || "";
     };
 
+    // Sonuçları güncelleme fonksiyonu
+    const updateSonucWithGuncelSoru = (guncelSoru) => {
+        console.log('Güncel soru alındı, sonuçlar güncelleniyor:', guncelSoru);
+
+        setSonuclar(prevSonuclar => {
+            return prevSonuclar.map(sonuc => {
+                // Soru içeriğini kontrol ederek eşleştir
+                if (sonuc.soru.soruMetni === guncelSoru.soruMetni && 
+                    JSON.stringify(sonuc.soru.cevaplar) === JSON.stringify(guncelSoru.cevaplar)) {
+                    // Eşleşen soru bulundu, yeni doğru cevabı güncelle
+                    return {
+                        ...sonuc,
+                        sistemDogruCevap: guncelSoru.dogruCevap,
+                        soru: {
+                            ...sonuc.soru,
+                            dogruCevap: guncelSoru.dogruCevap
+                        }
+                    };
+                }
+                return sonuc;
+            });
+        });
+
+        console.log('Sonuçlar güncellendi');
+    };
+
+    // Bu fonksiyonu dışarıya açık bir şekilde tanımlıyoruz
+    useImperativeHandle(ref, () => ({
+        updateSonucWithGuncelSoru
+    }));
+
     return (
         <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
@@ -895,4 +926,9 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess
     );
 };
 
-export default BulkQuestionVerification;
+// forwardRef kullanarak ref'i geçir
+const BulkQuestionVerificationWithRef = React.forwardRef((props, ref) => {
+    return <BulkQuestionVerification {...props} ref={ref} />;
+});
+
+export default BulkQuestionVerificationWithRef;
