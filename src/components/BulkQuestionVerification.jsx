@@ -32,11 +32,14 @@ const BulkQuestionVerification = ({ sorular }) => {
                     Detaylı bir analiz yap ve sonuçları maddeler halinde belirt.
                 `;
 
+                const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+                console.log('API Key:', apiKey); // Debug için
+
                 const response = await fetch('https://api.openai.com/v1/chat/completions', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_API_KEY}`
+                        'Authorization': `Bearer ${apiKey}`
                     },
                     body: JSON.stringify({
                         model: "gpt-3.5-turbo",
