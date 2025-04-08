@@ -7,16 +7,15 @@ import 'react-quill/dist/quill.snow.css';
 const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     const [soru, setSoru] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [cevaplar, setCevaplar] = useState(soru.cevaplar || ["", "", "", "", ""]);
-    const [dogruCevap, setDogruCevap] = useState(soru.dogruCevap || "");
-    const [aciklama, setAciklama] = useState(soru.aciklama || "");
-    const [soruResmi, setSoruResmi] = useState(soru.soruResmi || null);
-    const [resimYukleniyor, setResimYukleniyor] = useState(false);
-    const [zenginMetinCevaplar, setZenginMetinCevaplar] = useState(false);
+    const [cevaplar, setCevaplar] = useState(["", "", "", "", ""]);
+    const [dogruCevap, setDogruCevap] = useState("");
     const [altKonular, setAltKonular] = useState({});
     const [selectedAltKonu, setSelectedAltKonu] = useState(altKonuId || "");
     const [mevcutSoruNumarasi, setMevcutSoruNumarasi] = useState(null);
+    const [resimYukleniyor, setResimYukleniyor] = useState(false);
     const [modalKey, setModalKey] = useState(0);
+    const [soruResmi, setSoruResmi] = useState(null);
+    const [zenginMetinAktif, setZenginMetinAktif] = useState(false);
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -492,27 +491,30 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                                     Cevaplar
                                 </label>
                                 <button
-                                    onClick={() => setZenginMetinCevaplar(!zenginMetinCevaplar)}
-                                    className="px-4 py-2 rounded-xl bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-all duration-200 font-medium flex items-center gap-2"
+                                    onClick={() => setZenginMetinAktif(!zenginMetinAktif)}
+                                    className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
+                                        zenginMetinAktif 
+                                            ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' 
+                                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                                    }`}
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                    </svg>
-                                    {zenginMetinCevaplar ? 'Normal Metin' : 'Zengin Metin'}
+                                    {zenginMetinAktif ? 'Basit Metin Editörüne Geç' : 'Zengin Metin Editörüne Geç'}
                                 </button>
                             </div>
                             <div className="space-y-4">
-                                {['A', 'B', 'C', 'D', 'E'].map((harf, index) => (
-                                    <div key={harf} className="flex items-start gap-4">
-                                        <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg font-medium text-gray-900 dark:text-white">
-                                            {harf}
+                                {cevaplar.map((cevap, index) => (
+                                    <div key={index} className="flex items-start gap-4">
+                                        <div className="flex-shrink-0 pt-3">
+                                            <span className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                                                {String.fromCharCode(65 + index)})
+                                            </span>
                                         </div>
                                         <div className="flex-1">
-                                            {zenginMetinCevaplar ? (
+                                            {zenginMetinAktif ? (
                                                 <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
                                                     <ReactQuill
                                                         theme="snow"
-                                                        value={cevaplar[index]}
+                                                        value={cevap}
                                                         onChange={(value) => {
                                                             const newCevaplar = [...cevaplar];
                                                             newCevaplar[index] = value;
@@ -526,30 +528,38 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                                             ) : (
                                                 <input
                                                     type="text"
-                                                    value={cevaplar[index]}
+                                                    value={cevap}
                                                     onChange={(e) => {
                                                         const newCevaplar = [...cevaplar];
                                                         newCevaplar[index] = e.target.value;
                                                         setCevaplar(newCevaplar);
                                                     }}
-                                                    placeholder={`${harf} şıkkı`}
+                                                    placeholder={`${String.fromCharCode(65 + index)} şıkkının cevabını girin`}
                                                     className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                                                 />
                                             )}
                                         </div>
-                                        <div className="flex-shrink-0">
-                                            <input
-                                                type="radio"
-                                                name="dogruCevap"
-                                                value={harf}
-                                                checked={dogruCevap === harf}
-                                                onChange={(e) => setDogruCevap(e.target.value)}
-                                                className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:bg-gray-700 dark:border-gray-600"
-                                            />
-                                        </div>
                                     </div>
                                 ))}
                             </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                Doğru Cevap
+                            </label>
+                            <select
+                                value={dogruCevap}
+                                onChange={(e) => setDogruCevap(e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                            >
+                                <option value="">Doğru cevabı seçin</option>
+                                {cevaplar.map((_, index) => (
+                                    <option key={index} value={String.fromCharCode(65 + index)}>
+                                        {String.fromCharCode(65 + index)}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <div>

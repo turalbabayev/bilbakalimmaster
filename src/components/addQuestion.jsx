@@ -14,6 +14,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [unliked, setUnliked] = useState(0);
     const [soruResmi, setSoruResmi] = useState(null);
     const [resimYukleniyor, setResimYukleniyor] = useState(false);
+    const [zenginMetinAktif, setZenginMetinAktif] = useState(false);
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -221,39 +222,80 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                         </div>
 
                         <div>
-                            <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
-                                Cevaplar
-                            </label>
+                            <div className="flex justify-between items-center mb-3">
+                                <label className="block text-base font-semibold text-gray-900 dark:text-white">
+                                    Cevaplar
+                                </label>
+                                <button
+                                    onClick={() => setZenginMetinAktif(!zenginMetinAktif)}
+                                    className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
+                                        zenginMetinAktif 
+                                            ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' 
+                                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                                    }`}
+                                >
+                                    {zenginMetinAktif ? 'Basit Metin Editörüne Geç' : 'Zengin Metin Editörüne Geç'}
+                                </button>
+                            </div>
                             <div className="space-y-4">
                                 {cevaplar.map((cevap, index) => (
-                                    <div key={index} className="flex items-center gap-4 group">
-                                        <div 
-                                            className={`w-10 h-10 flex items-center justify-center rounded-xl font-semibold text-lg transition-all duration-200
-                                                ${dogruCevap === String.fromCharCode(65 + index) 
-                                                    ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 ring-2 ring-green-500'
-                                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30'}`}
-                                            onClick={() => setDogruCevap(String.fromCharCode(65 + index))}
-                                            style={{ cursor: 'pointer' }}
-                                        >
-                                            {String.fromCharCode(65 + index)}
+                                    <div key={index} className="flex items-start gap-4">
+                                        <div className="flex-shrink-0 pt-3">
+                                            <span className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                                                {String.fromCharCode(65 + index)})
+                                            </span>
                                         </div>
-                                        <textarea
-                                            value={cevap}
-                                            onChange={(e) => {
-                                                const newCevaplar = [...cevaplar];
-                                                newCevaplar[index] = e.target.value;
-                                                setCevaplar(newCevaplar);
-                                            }}
-                                            placeholder={`${String.fromCharCode(65 + index)} şıkkının cevabı`}
-                                            className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                                            rows="2"
-                                        />
+                                        <div className="flex-1">
+                                            {zenginMetinAktif ? (
+                                                <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
+                                                    <ReactQuill
+                                                        theme="snow"
+                                                        value={cevap}
+                                                        onChange={(value) => {
+                                                            const newCevaplar = [...cevaplar];
+                                                            newCevaplar[index] = value;
+                                                            setCevaplar(newCevaplar);
+                                                        }}
+                                                        modules={modules}
+                                                        formats={formats}
+                                                        className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <input
+                                                    type="text"
+                                                    value={cevap}
+                                                    onChange={(e) => {
+                                                        const newCevaplar = [...cevaplar];
+                                                        newCevaplar[index] = e.target.value;
+                                                        setCevaplar(newCevaplar);
+                                                    }}
+                                                    placeholder={`${String.fromCharCode(65 + index)} şıkkının cevabını girin`}
+                                                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                                />
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
-                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                Doğru cevabı seçmek için şık harfine tıklayın
-                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                Doğru Cevap
+                            </label>
+                            <select
+                                value={dogruCevap}
+                                onChange={(e) => setDogruCevap(e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                            >
+                                <option value="">Doğru cevabı seçin</option>
+                                {cevaplar.map((_, index) => (
+                                    <option key={index} value={String.fromCharCode(65 + index)}>
+                                        {String.fromCharCode(65 + index)}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <div>
