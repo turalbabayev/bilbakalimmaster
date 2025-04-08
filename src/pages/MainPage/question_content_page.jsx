@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Layout from "../../components/layout";
 import AddQuestion from "../../components/addQuestion";
 import DeleteQuestion from "../../components/deleteQuestion";
@@ -12,7 +12,7 @@ import BulkDownloadQuestions from "../../components/BulkDownloadQuestions";
 import BulkQuestionVerification from "../../components/BulkQuestionVerification";
 import { useParams, useNavigate } from "react-router-dom";
 import { database } from "../../firebase";
-import { ref, onValue } from "firebase/database";
+import { ref, onValue, update } from "firebase/database";
 
 function QuestionContent() {
     const { id } = useParams();
@@ -84,6 +84,48 @@ function QuestionContent() {
         if (!html) return "";
         const doc = new DOMParser().parseFromString(html, 'text/html');
         return doc.body.textContent || "";
+    };
+
+    // Sorunun doğru cevabını güncelleyen fonksiyon - Realtime Database için güncellendi
+    const handleSoruDogruCevapGuncelle = async (soruId, yeniCevap) => {
+        // Sorunun referansını bulma
+        const soruRef = Object.keys(altKonular).reduce((ref, altKonuKey) => {
+            if (ref) return ref;
+            
+            if (altKonular[altKonuKey].sorular) {
+                const sorular = altKonular[altKonuKey].sorular;
+                const keys = Object.keys(sorular);
+                
+                for (const key of keys) {
+                    if (sorular[key].id === soruId) {
+                        return `konular/${id}/altkonular/${altKonuKey}/sorular/${key}`;
+                    }
+                }
+            }
+            
+            return null;
+        }, null);
+        
+        if (!soruRef) {
+            throw new Error('Soru referansı bulunamadı');
+        }
+        
+        try {
+            // Realtime Database güncelleme işlemi
+            const updates = {};
+            updates[`${soruRef}/dogruCevap`] = yeniCevap;
+            
+            await update(ref(database), updates);
+            console.log(`Doğru cevap güncellendi: ${soruRef} -> ${yeniCevap}`);
+            
+            // Soruları yenile
+            refreshQuestions();
+            
+            return true;
+        } catch (error) {
+            console.error("Doğru cevap güncellenirken hata:", error);
+            throw error;
+        }
     };
 
     return (
@@ -398,6 +440,7 @@ function QuestionContent() {
                         <div className="p-8 overflow-y-auto flex-1">
                             <BulkQuestionVerification 
                                 sorular={Object.values(altKonular[selectedAltKonuId]?.sorular || {})} 
+                                onSoruGuncelle={handleSoruDogruCevapGuncelle}
                             />
                         </div>
                         
