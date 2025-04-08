@@ -555,25 +555,28 @@ const BulkQuestionVerification = ({ sorular }) => {
                                 <div className="mb-4">
                                     <p className="font-semibold text-gray-900 dark:text-gray-100">Cevaplar:</p>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-                                        {sonuc.soru.cevaplar.map((cevap, i) => (
-                                            <div 
-                                                key={i} 
-                                                className={`p-2 rounded-lg ${
-                                                    sonuc.soru.dogruCevap === String.fromCharCode(65 + i) 
-                                                        ? 'bg-green-100 dark:bg-green-900' 
-                                                        : 'bg-gray-50 dark:bg-gray-700'
-                                                }`}
-                                            >
-                                                <span className={`font-medium ${
-                                                    sonuc.soru.dogruCevap === String.fromCharCode(65 + i) 
-                                                        ? 'text-green-800 dark:text-green-200' 
-                                                        : 'text-gray-700 dark:text-gray-300'
-                                                }`}>
-                                                    {String.fromCharCode(65 + i)})
-                                                </span>{' '}
-                                                <span className="text-gray-700 dark:text-gray-300">{cevap}</span>
-                                            </div>
-                                        ))}
+                                        {sonuc.soru.cevaplar.map((cevap, i) => {
+                                            const isDogruCevap = sonuc.soru.dogruCevap === String.fromCharCode(65 + i);
+                                            return (
+                                                <div 
+                                                    key={i} 
+                                                    className={`p-2 rounded-lg ${
+                                                        isDogruCevap 
+                                                            ? 'bg-green-100 dark:bg-green-900' 
+                                                            : 'bg-gray-50 dark:bg-gray-700'
+                                                    }`}
+                                                >
+                                                    <span className={`font-medium ${
+                                                        isDogruCevap 
+                                                            ? 'text-green-800 dark:text-green-200' 
+                                                            : 'text-gray-700 dark:text-gray-300'
+                                                    }`}>
+                                                        {String.fromCharCode(65 + i)})
+                                                    </span>{' '}
+                                                    <span className="text-gray-700 dark:text-gray-300">{cevap}</span>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                                 
