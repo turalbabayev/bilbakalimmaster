@@ -274,12 +274,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                             new Paragraph({
                                 children: [
                                     new TextRun({
-                                        text: `${sonuc.soru.dogruCevap}) `,
-                                        bold: true,
-                                        color: "0000FF",
-                                    }),
-                                    new TextRun({
-                                        text: sonuc.soru.cevaplar[sonuc.soru.dogruCevap.charCodeAt(0) - 65],
+                                        text: `${sonuc.soru.cevaplar[sonuc.soru.dogruCevap.charCodeAt(0) - 65]} - ${sonuc.soru.dogruCevap}`,
                                         bold: true,
                                         color: "0000FF",
                                     }),
@@ -604,11 +599,8 @@ const BulkQuestionVerification = ({ sorular }) => {
                                     <div className="mt-4 bg-blue-50 dark:bg-blue-900 p-4 rounded-lg border-l-4 border-blue-500">
                                         <p className="font-semibold text-blue-900 dark:text-blue-100">Sistemdeki Doğru Cevap:</p>
                                         <div className="flex items-center mt-2">
-                                            <span className="bg-blue-200 dark:bg-blue-800 px-3 py-1 rounded-full font-bold mr-2">
-                                                {sonuc.soru.dogruCevap}
-                                            </span>
                                             <span className="text-blue-700 dark:text-blue-300">
-                                                {sonuc.soru.cevaplar[sonuc.soru.dogruCevap.charCodeAt(0) - 65]}
+                                                {sonuc.soru.cevaplar[sonuc.soru.dogruCevap.charCodeAt(0) - 65]} - {sonuc.soru.dogruCevap}
                                             </span>
                                         </div>
                                     </div>
