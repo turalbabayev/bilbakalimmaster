@@ -146,6 +146,11 @@ function SubbranchContent() {
 
                                     {altDal.sorular ? (
                                         <div className="space-y-4">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <span className="text-gray-600 dark:text-gray-400">
+                                                    {Object.keys(altDal.sorular).length} Soru
+                                                </span>
+                                            </div>
                                             {sortedQuestions(altDal.sorular).map(([soruKey, soru]) => (
                                                 <div key={soruKey} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                                                     <div className="flex justify-between items-start">
