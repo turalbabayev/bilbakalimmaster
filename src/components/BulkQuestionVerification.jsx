@@ -10,6 +10,7 @@ const BulkQuestionVerification = ({ sorular }) => {
     const [seciliSorular, setSeciliSorular] = useState([]);
     const [dogrulamaSecenegi, setDogrulamaSecenegi] = useState('secili');
     const [aktifModel, setAktifModel] = useState(null);
+    const [gundemBilgisi, setGundemBilgisi] = useState(null);
 
     useEffect(() => {
         // Component yüklendiğinde API anahtarlarını al
@@ -41,17 +42,63 @@ const BulkQuestionVerification = ({ sorular }) => {
     const handleDogrulamaSecenegi = (secenek) => {
         setDogrulamaSecenegi(secenek);
         
+        // Önce soruları sırala (varsa soruNumarasi'na göre, yoksa varsayılan sıra)
+        const siraliSorular = [...sorular].sort((a, b) => {
+            if (a.soruNumarasi && b.soruNumarasi) {
+                return a.soruNumarasi - b.soruNumarasi;
+            }
+            return 0;
+        });
+        
         if (secenek === 'ilk10') {
-            const ilk10 = sorular.slice(0, 10).map(soru => soru.id);
+            // İlk 10 soruyu seç
+            const ilk10 = siraliSorular.slice(0, 10).map(soru => soru.id);
             setSeciliSorular(ilk10);
         } else if (secenek === 'ilk20') {
-            const ilk20 = sorular.slice(0, 20).map(soru => soru.id);
+            // İlk 20 soruyu seç
+            const ilk20 = siraliSorular.slice(0, 20).map(soru => soru.id);
             setSeciliSorular(ilk20);
         } else if (secenek === 'hepsi') {
-            const tumSorular = sorular.map(soru => soru.id);
+            // Tüm soruları seç
+            const tumSorular = siraliSorular.map(soru => soru.id);
             setSeciliSorular(tumSorular);
         } else if (secenek === 'secili') {
+            // Seçili soruları temizle
             setSeciliSorular([]);
+        }
+    };
+
+    const getGundemBilgisi = async () => {
+        try {
+            const prompt = `
+            Merhaba! Bugünün önemli gündem maddelerinden birini kısaca özetler misin? 
+            Lütfen tek bir paragraf halinde, ilginç ve bilgilendirici bir şekilde yanıt ver.
+            `;
+
+            const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': geminiApiKey
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: prompt
+                        }]
+                    }]
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Gündem bilgisi alınamadı');
+            }
+
+            const data = await response.json();
+            setGundemBilgisi(data.candidates[0].content.parts[0].text);
+        } catch (error) {
+            console.error('Gündem bilgisi alınırken hata:', error);
+            setGundemBilgisi('Gündem bilgisi şu anda alınamıyor.');
         }
     };
 
@@ -68,10 +115,18 @@ const BulkQuestionVerification = ({ sorular }) => {
 
         setYukleniyor(true);
         setAktifModel(model);
+        getGundemBilgisi(); // Gündem bilgisini al
         const yeniSonuclar = [];
 
-        // Seçili soruları filtrele
-        const dogrulanacakSorular = sorular.filter(soru => seciliSorular.includes(soru.id));
+        // Seçili soruları sıralı olarak filtrele
+        const dogrulanacakSorular = sorular
+            .filter(soru => seciliSorular.includes(soru.id))
+            .sort((a, b) => {
+                if (a.soruNumarasi && b.soruNumarasi) {
+                    return a.soruNumarasi - b.soruNumarasi;
+                }
+                return 0;
+            });
         
         for (const soru of dogrulanacakSorular) {
             try {
@@ -525,6 +580,17 @@ const BulkQuestionVerification = ({ sorular }) => {
                                 <br />
                                 Lütfen bekleyin...
                             </p>
+
+                            {gundemBilgisi && (
+                                <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900 rounded-lg max-w-2xl mx-auto">
+                                    <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-2">
+                                        💫 Gündemden Bir Bilgi
+                                    </h3>
+                                    <p className="text-blue-700 dark:text-blue-300 text-sm">
+                                        {gundemBilgisi}
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
