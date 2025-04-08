@@ -231,17 +231,41 @@ const BulkQuestionVerification = ({ sorular }) => {
             </div>
 
             {yukleniyor && (
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md animate-pulse">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
                     <div className="flex flex-col items-center">
-                        <div className="text-xl mb-2">Sorular Analiz Ediliyor</div>
-                        <div className="flex space-x-2 mb-4">
-                            <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce"></div>
-                            <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce delay-75"></div>
-                            <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce delay-150"></div>
+                        <div className="text-2xl font-bold mb-4 text-purple-600 dark:text-purple-400">
+                            Sorular Analiz Ediliyor
                         </div>
-                        <div className="text-gray-500 italic text-center">
-                            <p>GPT düşünüyor... 🤔</p>
-                            <p className="mt-2">Sorular karmaşıksa biraz zaman alabilir.</p>
+                        
+                        <div className="relative w-64 h-64 mb-6">
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-32 h-32 border-4 border-purple-200 dark:border-purple-800 rounded-full animate-spin"></div>
+                            </div>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-24 h-24 border-4 border-purple-300 dark:border-purple-700 rounded-full animate-spin-slow"></div>
+                            </div>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-16 h-16 border-4 border-purple-400 dark:border-purple-600 rounded-full animate-spin-slower"></div>
+                            </div>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="text-4xl animate-bounce">🧠</span>
+                            </div>
+                        </div>
+
+                        <div className="text-center space-y-2">
+                            <p className="text-gray-600 dark:text-gray-400 italic">
+                                GPT düşünüyor... 🤔
+                            </p>
+                            <div className="flex justify-center space-x-2">
+                                <span className="animate-bounce">🔍</span>
+                                <span className="animate-bounce delay-75">📚</span>
+                                <span className="animate-bounce delay-150">💡</span>
+                            </div>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
+                                Sorular karmaşıksa biraz zaman alabilir.
+                                <br />
+                                Lütfen bekleyin...
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -305,7 +329,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                                     <div className="mt-4 bg-blue-50 dark:bg-blue-900 p-4 rounded-lg border-l-4 border-blue-500">
                                         <p className="font-semibold text-blue-900 dark:text-blue-100">Sistemdeki Doğru Cevap:</p>
                                         <p className="text-blue-700 dark:text-blue-300 mt-1">
-                                            {sonuc.sistemDogruCevap}) {sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65]}
+                                            Doğru Cevap ({sonuc.sistemDogruCevap}): {sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65]}
                                         </p>
                                     </div>
                                 </div>
