@@ -558,9 +558,17 @@ const BulkQuestionVerification = ({ sorular }) => {
                                         {sonuc.soru.cevaplar.map((cevap, i) => (
                                             <div 
                                                 key={i} 
-                                                className={`p-2 rounded-lg ${sonuc.soru.dogruCevap === String.fromCharCode(65 + i) ? 'bg-green-100 dark:bg-green-900 border-l-4 border-green-500' : 'bg-gray-50 dark:bg-gray-700'}`}
+                                                className={`p-2 rounded-lg ${
+                                                    sonuc.soru.dogruCevap === String.fromCharCode(65 + i) 
+                                                        ? 'bg-green-100 dark:bg-green-900 border-l-4 border-green-500' 
+                                                        : 'bg-gray-50 dark:bg-gray-700'
+                                                }`}
                                             >
-                                                <span className={`font-medium ${sonuc.soru.dogruCevap === String.fromCharCode(65 + i) ? 'text-green-800 dark:text-green-200' : 'text-gray-700 dark:text-gray-300'}`}>
+                                                <span className={`font-medium ${
+                                                    sonuc.soru.dogruCevap === String.fromCharCode(65 + i) 
+                                                        ? 'text-green-800 dark:text-green-200' 
+                                                        : 'text-gray-700 dark:text-gray-300'
+                                                }`}>
                                                     {String.fromCharCode(65 + i)})
                                                 </span>{' '}
                                                 <span className="text-gray-700 dark:text-gray-300">{cevap}</span>
