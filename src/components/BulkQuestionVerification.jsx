@@ -186,6 +186,12 @@ const BulkQuestionVerification = ({ sorular }) => {
         }
     };
 
+    // Gemini'nin cevabından doğru şıkkı çıkaran fonksiyon
+    const getGeminiDogruCevap = (analiz) => {
+        const match = analiz.match(/Doğru Cevap Şıkkı: ([A-E]) ✅/);
+        return match ? match[1] : null;
+    };
+
     const sorulariDogrula = async (model) => {
         if (!openaiApiKey && !geminiApiKey) {
             console.error('API anahtarları henüz yüklenmedi');
@@ -312,10 +318,16 @@ const BulkQuestionVerification = ({ sorular }) => {
                     text = data.candidates[0].content.parts[0].text;
                 }
 
+                // Gemini'nin önerdiği doğru cevabı al
+                const geminiDogruCevap = getGeminiDogruCevap(text);
+                const cevapUyumsuz = geminiDogruCevap && geminiDogruCevap !== soru.dogruCevap;
+
                 yeniSonuclar.push({
                     soru: soru,
                     analiz: text,
                     sistemDogruCevap: soru.dogruCevap,
+                    geminiDogruCevap: geminiDogruCevap,
+                    cevapUyumsuz: cevapUyumsuz,
                     model: model
                 });
             } catch (error) {
@@ -324,6 +336,8 @@ const BulkQuestionVerification = ({ sorular }) => {
                     soru: soru,
                     analiz: `Analiz sırasında bir hata oluştu: ${error.message}`,
                     sistemDogruCevap: soru.dogruCevap,
+                    geminiDogruCevap: null,
+                    cevapUyumsuz: true,
                     model: model
                 });
             }
@@ -791,6 +805,22 @@ const BulkQuestionVerification = ({ sorular }) => {
                                     <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border-l-4 border-purple-500">
                                         <div className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 prose prose-sm max-w-none">
                                             {sonuc.analiz.split('\n').map((line, i) => {
+                                                if (line.includes('Doğru Cevap Şıkkı:')) {
+                                                    return (
+                                                        <p key={i} className={`font-bold mt-3 ${
+                                                            sonuc.cevapUyumsuz 
+                                                                ? 'text-red-600 dark:text-red-400' 
+                                                                : 'text-green-600 dark:text-green-400'
+                                                        }`}>
+                                                            {line}
+                                                            {sonuc.cevapUyumsuz && (
+                                                                <span className="ml-2 text-red-600 dark:text-red-400">
+                                                                    (Sistemdeki cevaptan farklı!)
+                                                                </span>
+                                                            )}
+                                                        </p>
+                                                    );
+                                                }
                                                 if (line.includes('1.') || line.includes('2.') || line.includes('3.') || 
                                                     line.includes('4.') || line.includes('5.')) {
                                                     return (
@@ -809,10 +839,34 @@ const BulkQuestionVerification = ({ sorular }) => {
                                     
                                     <div className="mt-4 bg-blue-50 dark:bg-blue-900 p-4 rounded-lg border-l-4 border-blue-500">
                                         <p className="font-semibold text-blue-900 dark:text-blue-100">Sistemdeki Doğru Cevap:</p>
-                                        <div className="flex items-center mt-2">
-                                            <span className="text-blue-700 dark:text-blue-300">
+                                        <div className="flex items-center justify-between mt-2">
+                                            <span className={`${
+                                                sonuc.cevapUyumsuz 
+                                                    ? 'text-red-700 dark:text-red-300' 
+                                                    : 'text-blue-700 dark:text-blue-300'
+                                            }`}>
                                                 {sonuc.sistemDogruCevap}) {stripHtml(sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65])}
                                             </span>
+                                            {sonuc.cevapUyumsuz && (
+                                                <button
+                                                    onClick={() => {
+                                                        if (window.confirm(`Bu sorunun doğru cevabını Gemini'nin önerdiği "${sonuc.geminiDogruCevap}" şıkkı olarak güncellemek istiyor musunuz?`)) {
+                                                            // Burada güncelleme işlemi yapılacak
+                                                            console.log('Soru güncelleme talebi:', {
+                                                                soruId: sonuc.soru.id,
+                                                                eskiCevap: sonuc.sistemDogruCevap,
+                                                                yeniCevap: sonuc.geminiDogruCevap
+                                                            });
+                                                        }
+                                                    }}
+                                                    className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors flex items-center space-x-2"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                                    </svg>
+                                                    <span>Doğru Cevabı Güncelle</span>
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
