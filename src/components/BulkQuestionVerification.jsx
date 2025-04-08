@@ -70,8 +70,16 @@ const BulkQuestionVerification = ({ sorular }) => {
 
     const getGundemBilgisi = async () => {
         try {
+            const bugununTarihi = new Date().toLocaleDateString('tr-TR', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
             const prompt = `
-            Sen bir haber spikerisin. Aşağıdaki konulardan biriyle ilgili güncel ve önemli bir haberi, haber formatında kısaca anlat:
+            Bugünün tarihi: ${bugununTarihi}
+
+            Sen bir haber spikerisin. Aşağıdaki konulardan biriyle ilgili BUGÜNÜN tarihine ait güncel ve önemli bir haberi, haber formatında kısaca anlat:
             - Döviz kurları ve ekonomik gelişmeler
             - Önemli devlet açıklamaları ve kararlar
             - Eğitim ve sınav haberleri
@@ -82,7 +90,9 @@ const BulkQuestionVerification = ({ sorular }) => {
 
             Lütfen haberi tek paragraf halinde, "Son Dakika" formatında ve tarih/saat belirterek anlat.
             Örnek format:
-            [Tarih Saat] SON DAKİKA: [Haber içeriği...]
+            [${bugununTarihi}] SON DAKİKA: [Haber içeriği...]
+
+            NOT: Kesinlikle 2023 yılına ait haber verme, sadece bugünün tarihine ait güncel bir haber ver.
             `;
 
             const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
