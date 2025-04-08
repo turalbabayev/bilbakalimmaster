@@ -274,7 +274,12 @@ const BulkQuestionVerification = ({ sorular }) => {
                             new Paragraph({
                                 children: [
                                     new TextRun({
-                                        text: `${sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65]} (${sonuc.sistemDogruCevap})`,
+                                        text: `${sonuc.soru.dogruCevap}) `,
+                                        bold: true,
+                                        color: "0000FF",
+                                    }),
+                                    new TextRun({
+                                        text: sonuc.soru.cevaplar[sonuc.soru.dogruCevap.charCodeAt(0) - 65],
                                         bold: true,
                                         color: "0000FF",
                                     }),
@@ -589,10 +594,10 @@ const BulkQuestionVerification = ({ sorular }) => {
                                         <p className="font-semibold text-blue-900 dark:text-blue-100">Sistemdeki Doğru Cevap:</p>
                                         <div className="flex items-center mt-2">
                                             <span className="bg-blue-200 dark:bg-blue-800 px-3 py-1 rounded-full font-bold mr-2">
-                                                {sonuc.sistemDogruCevap}
+                                                {sonuc.soru.dogruCevap}
                                             </span>
                                             <span className="text-blue-700 dark:text-blue-300">
-                                                {sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65]} ({sonuc.sistemDogruCevap})
+                                                {sonuc.soru.cevaplar[sonuc.soru.dogruCevap.charCodeAt(0) - 65]}
                                             </span>
                                         </div>
                                     </div>
