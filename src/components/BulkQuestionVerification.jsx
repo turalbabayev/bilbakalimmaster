@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle } from 'docx';
 
-const BulkQuestionVerification = ({ sorular }) => {
+const BulkQuestionVerification = ({ sorular, onSoruGuncelle }) => {
     const [sonuclar, setSonuclar] = useState([]);
     const [yukleniyor, setYukleniyor] = useState(false);
     const [openaiApiKey, setOpenaiApiKey] = useState(null);
@@ -525,6 +525,34 @@ const BulkQuestionVerification = ({ sorular }) => {
         });
     };
 
+    const handleDogruCevapGuncelle = async (soruId, yeniCevap) => {
+        try {
+            if (window.confirm(`Bu sorunun doğru cevabını "${yeniCevap}" şıkkı olarak güncellemek istiyor musunuz?`)) {
+                await onSoruGuncelle(soruId, yeniCevap);
+                
+                // Sonuçları güncelle
+                setSonuclar(prevSonuclar => 
+                    prevSonuclar.map(sonuc => {
+                        if (sonuc.soru.id === soruId) {
+                            return {
+                                ...sonuc,
+                                sistemDogruCevap: yeniCevap,
+                                cevapUyumsuz: false // Artık uyumsuzluk kalmadı
+                            };
+                        }
+                        return sonuc;
+                    })
+                );
+
+                // Başarılı güncelleme mesajı
+                alert('Doğru cevap başarıyla güncellendi!');
+            }
+        } catch (error) {
+            console.error('Güncelleme hatası:', error);
+            alert('Doğru cevap güncellenirken bir hata oluştu!');
+        }
+    };
+
     // HTML etiketlerini temizleme fonksiyonu
     const stripHtml = (html) => {
         if (!html) return "";
@@ -855,16 +883,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                                             </span>
                                             {sonuc.cevapUyumsuz && (
                                                 <button
-                                                    onClick={() => {
-                                                        if (window.confirm(`Bu sorunun doğru cevabını Gemini'nin önerdiği "${sonuc.geminiDogruCevap}" şıkkı olarak güncellemek istiyor musunuz?`)) {
-                                                            // Burada güncelleme işlemi yapılacak
-                                                            console.log('Soru güncelleme talebi:', {
-                                                                soruId: sonuc.soru.id,
-                                                                eskiCevap: sonuc.sistemDogruCevap,
-                                                                yeniCevap: sonuc.geminiDogruCevap
-                                                            });
-                                                        }
-                                                    }}
+                                                    onClick={() => handleDogruCevapGuncelle(sonuc.soru.id, sonuc.geminiDogruCevap)}
                                                     className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors flex items-center space-x-2"
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
