@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { saveAs } from 'file-saver';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle } from 'docx';
 
 const BulkQuestionVerification = ({ sorular }) => {
     const [sonuclar, setSonuclar] = useState([]);
@@ -139,6 +141,177 @@ const BulkQuestionVerification = ({ sorular }) => {
         setYukleniyor(false);
     };
 
+    const sonuclariIndir = () => {
+        if (sonuclar.length === 0) return;
+        
+        // DOCX dosyası oluştur
+        const doc = new Document({
+            sections: [{
+                properties: {},
+                children: [
+                    new Paragraph({
+                        text: "Soru Analiz Sonuçları",
+                        heading: HeadingLevel.HEADING_1,
+                        thematicBreak: true,
+                    }),
+                    
+                    ...sonuclar.flatMap((sonuc, index) => {
+                        return [
+                            new Paragraph({
+                                text: `SORU ${index + 1}`,
+                                heading: HeadingLevel.HEADING_2,
+                                thematicBreak: true,
+                                spacing: {
+                                    before: 400,
+                                    after: 200,
+                                },
+                            }),
+                            new Paragraph({
+                                text: "Soru Metni:",
+                                heading: HeadingLevel.HEADING_3,
+                                spacing: {
+                                    after: 80,
+                                },
+                            }),
+                            new Paragraph({
+                                text: sonuc.soru.soruMetni,
+                                spacing: {
+                                    after: 200,
+                                },
+                            }),
+                            
+                            new Paragraph({
+                                text: "Cevaplar:",
+                                heading: HeadingLevel.HEADING_3,
+                                spacing: {
+                                    after: 80,
+                                },
+                            }),
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: "A) " + sonuc.soru.cevaplar[0],
+                                        bold: sonuc.sistemDogruCevap === "A",
+                                    }),
+                                ],
+                                spacing: { after: 80 },
+                            }),
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: "B) " + sonuc.soru.cevaplar[1],
+                                        bold: sonuc.sistemDogruCevap === "B",
+                                    }),
+                                ],
+                                spacing: { after: 80 },
+                            }),
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: "C) " + sonuc.soru.cevaplar[2],
+                                        bold: sonuc.sistemDogruCevap === "C",
+                                    }),
+                                ],
+                                spacing: { after: 80 },
+                            }),
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: "D) " + sonuc.soru.cevaplar[3],
+                                        bold: sonuc.sistemDogruCevap === "D",
+                                    }),
+                                ],
+                                spacing: { after: 80 },
+                            }),
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: "E) " + sonuc.soru.cevaplar[4],
+                                        bold: sonuc.sistemDogruCevap === "E",
+                                    }),
+                                ],
+                                spacing: { after: 200 },
+                            }),
+                            
+                            new Paragraph({
+                                text: "Sistemdeki Doğru Cevap:",
+                                heading: HeadingLevel.HEADING_3,
+                                spacing: {
+                                    after: 80,
+                                },
+                            }),
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: `${sonuc.sistemDogruCevap}) ${sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65]}`,
+                                        bold: true,
+                                        color: "0000FF",
+                                    }),
+                                ],
+                                spacing: {
+                                    after: 200,
+                                },
+                            }),
+                            
+                            new Paragraph({
+                                text: "GPT Analizi:",
+                                heading: HeadingLevel.HEADING_3,
+                                spacing: {
+                                    after: 80,
+                                },
+                            }),
+                            ...sonuc.analiz.split('\n')
+                                .filter(line => line.trim() !== '')
+                                .map(line => {
+                                    let props = {};
+                                    
+                                    if (line.includes('1.') || line.includes('2.') || line.includes('3.') || 
+                                        line.includes('4.') || line.includes('5.')) {
+                                        props.heading = HeadingLevel.HEADING_4;
+                                        props.spacing = { before: 120, after: 80 };
+                                    }
+                                    else if (line.toLowerCase().includes('doğru cevap')) {
+                                        props.children = [
+                                            new TextRun({
+                                                text: line,
+                                                bold: true,
+                                                color: "008000",
+                                            }),
+                                        ];
+                                    }
+                                    
+                                    return new Paragraph({
+                                        text: line,
+                                        ...props,
+                                    });
+                                }),
+                            
+                            new Paragraph({
+                                text: "------------------------------------------------------",
+                                spacing: {
+                                    before: 400,
+                                    after: 400,
+                                },
+                                border: {
+                                    bottom: {
+                                        color: "999999",
+                                        style: BorderStyle.SINGLE,
+                                        size: 6,
+                                    },
+                                },
+                            }),
+                        ];
+                    }),
+                ],
+            }],
+        });
+        
+        // DOCX dosyasını oluştur ve indir
+        Packer.toBlob(doc).then(blob => {
+            saveAs(blob, `soru-analiz-sonuclari-${new Date().toISOString().slice(0, 10)}.docx`);
+        });
+    };
+
     return (
         <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
@@ -273,7 +446,18 @@ const BulkQuestionVerification = ({ sorular }) => {
 
             {sonuclar.length > 0 && (
                 <div className="space-y-6 mt-8">
-                    <h2 className="text-xl font-bold">Analiz Sonuçları</h2>
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-bold">Analiz Sonuçları</h2>
+                        <button
+                            onClick={sonuclariIndir}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                            Sonuçları İndir (DOCX)
+                        </button>
+                    </div>
                     <div className="space-y-8">
                         {sonuclar.map((sonuc, index) => (
                             <div key={index} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
@@ -329,7 +513,8 @@ const BulkQuestionVerification = ({ sorular }) => {
                                     <div className="mt-4 bg-blue-50 dark:bg-blue-900 p-4 rounded-lg border-l-4 border-blue-500">
                                         <p className="font-semibold text-blue-900 dark:text-blue-100">Sistemdeki Doğru Cevap:</p>
                                         <p className="text-blue-700 dark:text-blue-300 mt-1">
-                                            Cevap ({sonuc.sistemDogruCevap}): {sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65]}
+                                            <span className="bg-blue-200 dark:bg-blue-800 px-2 py-1 rounded-md font-bold mr-2">{sonuc.sistemDogruCevap}</span>
+                                            {sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65]}
                                         </p>
                                     </div>
                                 </div>
@@ -342,4 +527,4 @@ const BulkQuestionVerification = ({ sorular }) => {
     );
 };
 
-export default BulkQuestionVerification; 
+export default BulkQuestionVerification;
