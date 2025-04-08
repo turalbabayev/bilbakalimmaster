@@ -49,13 +49,13 @@ function QuestionContent() {
         return new Promise((resolve, reject) => {
             try {
                 // Mevcut dinleyiciyi kaldır ve yeniden ekle
-                const konuRef = ref(database, `konular/${id}`);
+        const konuRef = ref(database, `konular/${id}`);
                 
                 // Taze veri almak için get kullan
                 get(konuRef)
                     .then((snapshot) => {
                         if (snapshot.exists()) {
-                            const data = snapshot.val();
+            const data = snapshot.val();
                             console.log('Alınan taze veri:', data);
                             setAltKonular(data.altkonular || {});
                             setBaslik(data.baslik || "Başlık Yok");
@@ -155,6 +155,38 @@ function QuestionContent() {
         } catch (error) {
             console.error("Doğru cevap güncellenirken hata:", error);
             throw error;
+        }
+    };
+
+    // Soru ID'sinden referansını bulan yardımcı fonksiyon
+    const findSoruRefById = (soruId) => {
+        let soruRef = null;
+        
+        Object.keys(altKonular).forEach(altKonuKey => {
+            if (soruRef) return;
+            
+            if (altKonular[altKonuKey].sorular) {
+                const sorular = altKonular[altKonuKey].sorular;
+                Object.keys(sorular).forEach(soruKey => {
+                    if (sorular[soruKey].id === soruId) {
+                        soruRef = `konular/${id}/altkonular/${altKonuKey}/sorular/${soruKey}`;
+                    }
+                });
+            }
+        });
+        
+        return soruRef;
+    };
+
+    const handleUpdateFromBulkVerification = (soruId) => {
+        const soruRef = findSoruRefById(soruId);
+        if (soruRef) {
+            console.log('Bulundu, güncelleme modalı açılıyor:', soruRef);
+            setSelectedSoruRef(soruRef);
+            setIsUpdateModalOpen(true);
+        } else {
+            console.error('Soru referansı bulunamadı:', soruId);
+            alert('Soru bulunamadı. Lütfen sayfayı yenileyip tekrar deneyin.');
         }
     };
 
@@ -472,6 +504,7 @@ function QuestionContent() {
                                 sorular={Object.values(altKonular[selectedAltKonuId]?.sorular || {})} 
                                 onSoruGuncelle={handleSoruDogruCevapGuncelle}
                                 onGuncellemeSuccess={refreshQuestions}
+                                onUpdateClick={handleUpdateFromBulkVerification}
                             />
                         </div>
                         
