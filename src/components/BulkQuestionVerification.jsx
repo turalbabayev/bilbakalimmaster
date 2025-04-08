@@ -298,7 +298,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                                 },
                             }),
                             new Paragraph({
-                                text: sonuc.soru.soruMetni,
+                                text: stripHtml(sonuc.soru.soruMetni),
                                 spacing: {
                                     after: 200,
                                 },
@@ -314,7 +314,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                             new Paragraph({
                                 children: [
                                     new TextRun({
-                                        text: "A) " + sonuc.soru.cevaplar[0],
+                                        text: "A) " + stripHtml(sonuc.soru.cevaplar[0]),
                                         bold: sonuc.sistemDogruCevap === "A",
                                     }),
                                 ],
@@ -323,7 +323,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                             new Paragraph({
                                 children: [
                                     new TextRun({
-                                        text: "B) " + sonuc.soru.cevaplar[1],
+                                        text: "B) " + stripHtml(sonuc.soru.cevaplar[1]),
                                         bold: sonuc.sistemDogruCevap === "B",
                                     }),
                                 ],
@@ -332,7 +332,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                             new Paragraph({
                                 children: [
                                     new TextRun({
-                                        text: "C) " + sonuc.soru.cevaplar[2],
+                                        text: "C) " + stripHtml(sonuc.soru.cevaplar[2]),
                                         bold: sonuc.sistemDogruCevap === "C",
                                     }),
                                 ],
@@ -341,7 +341,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                             new Paragraph({
                                 children: [
                                     new TextRun({
-                                        text: "D) " + sonuc.soru.cevaplar[3],
+                                        text: "D) " + stripHtml(sonuc.soru.cevaplar[3]),
                                         bold: sonuc.sistemDogruCevap === "D",
                                     }),
                                 ],
@@ -350,7 +350,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                             new Paragraph({
                                 children: [
                                     new TextRun({
-                                        text: "E) " + sonuc.soru.cevaplar[4],
+                                        text: "E) " + stripHtml(sonuc.soru.cevaplar[4]),
                                         bold: sonuc.sistemDogruCevap === "E",
                                     }),
                                 ],
@@ -367,7 +367,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                             new Paragraph({
                                 children: [
                                     new TextRun({
-                                        text: `${sonuc.sistemDogruCevap}) ${sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65]}`,
+                                        text: `${sonuc.sistemDogruCevap}) ${stripHtml(sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65])}`,
                                         bold: true,
                                         color: "0000FF",
                                     }),
@@ -436,6 +436,13 @@ const BulkQuestionVerification = ({ sorular }) => {
         });
     };
 
+    // HTML etiketlerini temizleme fonksiyonu
+    const stripHtml = (html) => {
+        if (!html) return "";
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        return doc.body.textContent || "";
+    };
+
     return (
         <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
@@ -490,7 +497,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                                 <label htmlFor={`soru-${soru.id}`} className="flex-1 cursor-pointer">
                                     <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
                                         <p className="font-medium text-gray-800 dark:text-gray-200">
-                                            {index + 1}. {soru.soruMetni.length > 100 ? soru.soruMetni.substring(0, 100) + '...' : soru.soruMetni}
+                                            {index + 1}. {stripHtml(soru.soruMetni).length > 100 ? stripHtml(soru.soruMetni).substring(0, 100) + '...' : stripHtml(soru.soruMetni)}
                                         </p>
                                         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                                             Doğru Cevap: {soru.dogruCevap}
@@ -667,17 +674,15 @@ const BulkQuestionVerification = ({ sorular }) => {
                                 
                                 <div className="mb-4 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                                     <p className="font-semibold text-gray-900 dark:text-gray-100">Soru Metni:</p>
-                                    <p className="text-gray-700 dark:text-gray-300 mt-1">{sonuc.soru.soruMetni}</p>
+                                    <p className="text-gray-700 dark:text-gray-300 mt-1">{stripHtml(sonuc.soru.soruMetni)}</p>
                                 </div>
                                 
                                 <div className="mb-4">
                                     <p className="font-semibold text-gray-900 dark:text-gray-100">Cevaplar:</p>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
                                         {sonuc.soru.cevaplar.map((cevap, i) => {
-                                            // Doğru cevabın şık harfini bul
                                             let dogruCevapHarfi = sonuc.sistemDogruCevap;
                                             if (!/^[A-E]$/.test(dogruCevapHarfi)) {
-                                                // Eğer doğru cevap bir harf değilse, cevaplar içinde ara
                                                 const index = sonuc.soru.cevaplar.findIndex(c => c === sonuc.sistemDogruCevap);
                                                 if (index !== -1) {
                                                     dogruCevapHarfi = String.fromCharCode(65 + index);
@@ -705,7 +710,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                                                         isDogruCevap 
                                                             ? 'text-green-800 dark:text-green-200' 
                                                             : 'text-gray-700 dark:text-gray-300'
-                                                    }`}>{cevap}</span>
+                                                    }`}>{stripHtml(cevap)}</span>
                                                 </div>
                                             );
                                         })}
@@ -737,7 +742,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                                         <p className="font-semibold text-blue-900 dark:text-blue-100">Sistemdeki Doğru Cevap:</p>
                                         <div className="flex items-center mt-2">
                                             <span className="text-blue-700 dark:text-blue-300">
-                                                {sonuc.sistemDogruCevap}) {sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65]}
+                                                {sonuc.sistemDogruCevap}) {stripHtml(sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65])}
                                             </span>
                                         </div>
                                     </div>
