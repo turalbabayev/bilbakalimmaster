@@ -551,7 +551,17 @@ const BulkQuestionVerification = ({ sorular }) => {
                                     <p className="font-semibold text-gray-900 dark:text-gray-100">Cevaplar:</p>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
                                         {sonuc.soru.cevaplar.map((cevap, i) => {
-                                            const isDogruCevap = sonuc.sistemDogruCevap === String.fromCharCode(65 + i);
+                                            // Doğru cevabın şık harfini bul
+                                            let dogruCevapHarfi = sonuc.sistemDogruCevap;
+                                            if (!/^[A-E]$/.test(dogruCevapHarfi)) {
+                                                // Eğer doğru cevap bir harf değilse, cevaplar içinde ara
+                                                const index = sonuc.soru.cevaplar.findIndex(c => c === sonuc.sistemDogruCevap);
+                                                if (index !== -1) {
+                                                    dogruCevapHarfi = String.fromCharCode(65 + index);
+                                                }
+                                            }
+                                            
+                                            const isDogruCevap = dogruCevapHarfi === String.fromCharCode(65 + i);
                                             return (
                                                 <div 
                                                     key={i} 
