@@ -61,7 +61,9 @@ const BulkQuestionVerification = ({ sorular }) => {
         setYukleniyor(true);
         const yeniSonuclar = [];
 
+        // Seçili soruları filtrele
         const dogrulanacakSorular = sorular.filter(soru => seciliSorular.includes(soru.id));
+        console.log('Dogrulanacak sorular:', dogrulanacakSorular.length);
         
         for (const soru of dogrulanacakSorular) {
             try {
@@ -120,13 +122,15 @@ const BulkQuestionVerification = ({ sorular }) => {
 
                 yeniSonuclar.push({
                     soru: soru,
-                    analiz: text
+                    analiz: text,
+                    sistemDogruCevap: soru.dogruCevap // Sistemdeki doğru cevabı da ekle
                 });
             } catch (error) {
                 console.error('Hata:', error);
                 yeniSonuclar.push({
                     soru: soru,
-                    analiz: `Analiz sırasında bir hata oluştu: ${error.message}`
+                    analiz: `Analiz sırasında bir hata oluştu: ${error.message}`,
+                    sistemDogruCevap: soru.dogruCevap
                 });
             }
         }
@@ -268,6 +272,13 @@ const BulkQuestionVerification = ({ sorular }) => {
                                                 return <p key={i}>{line}</p>;
                                             })}
                                         </div>
+                                    </div>
+                                    
+                                    <div className="mt-4 bg-blue-50 dark:bg-blue-900 p-4 rounded-lg border-l-4 border-blue-500">
+                                        <p className="font-semibold text-blue-900 dark:text-blue-100">Sistemdeki Doğru Cevap:</p>
+                                        <p className="text-blue-700 dark:text-blue-300 mt-1">
+                                            {sonuc.sistemDogruCevap}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
