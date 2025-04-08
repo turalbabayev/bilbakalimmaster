@@ -9,6 +9,8 @@ import AnnouncementPage from './pages/MainPage/announcement_page';
 import ProtectedRouter from './routes/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function App() {
   return (
@@ -22,6 +24,18 @@ function App() {
             <Route path='/question/:konuId/:altKonuId' element={<ProtectedRouter><SubbranchContent/></ProtectedRouter>} />
             <Route path='/announcements' element={<ProtectedRouter><AnnouncementPage /></ProtectedRouter>} />
           </Routes>
+          <ToastContainer 
+            position="top-right"
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="colored"
+          />
         </Router>
     </AuthProvider>
   );

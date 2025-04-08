@@ -4,6 +4,7 @@ import { ref, get, set, remove } from "firebase/database";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { toast } from "react-toastify";
+import 'react-toastify/dist/ReactToastify.css';
 
 const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateComplete }) => {
     const [soru, setSoru] = useState(null);
