@@ -76,17 +76,81 @@ const BulkQuestionVerification = ({ sorular }) => {
                 day: 'numeric'
             });
 
+            const konular = [
+                {
+                    baslik: "Ekonomi",
+                    alt_konular: [
+                        "Döviz kurları ve piyasa hareketleri",
+                        "Merkez Bankası kararları",
+                        "Borsa ve yatırım haberleri",
+                        "Enflasyon ve ekonomik göstergeler"
+                    ]
+                },
+                {
+                    baslik: "Siyaset",
+                    alt_konular: [
+                        "Cumhurbaşkanlığı açıklamaları",
+                        "Meclis gündemindeki konular",
+                        "Yerel yönetim kararları",
+                        "Uluslararası ilişkiler"
+                    ]
+                },
+                {
+                    baslik: "Eğitim",
+                    alt_konular: [
+                        "YÖK ve üniversite haberleri",
+                        "MEB duyuruları",
+                        "Sınav tarihleri ve değişiklikler",
+                        "Eğitim reformları"
+                    ]
+                },
+                {
+                    baslik: "Spor",
+                    alt_konular: [
+                        "Futbol maç sonuçları",
+                        "Basketbol haberleri",
+                        "Milli takım gelişmeleri",
+                        "Transfer haberleri"
+                    ]
+                },
+                {
+                    baslik: "Teknoloji",
+                    alt_konular: [
+                        "Yapay zeka gelişmeleri",
+                        "Mobil teknoloji yenilikleri",
+                        "Uzay ve bilim keşifleri",
+                        "Dijital dönüşüm haberleri"
+                    ]
+                },
+                {
+                    baslik: "Sağlık",
+                    alt_konular: [
+                        "Sağlık Bakanlığı açıklamaları",
+                        "Hastane ve sağlık hizmetleri",
+                        "İlaç ve aşı gelişmeleri",
+                        "Sağlık politikaları"
+                    ]
+                },
+                {
+                    baslik: "Hava Durumu",
+                    alt_konular: [
+                        "Günlük hava tahminleri",
+                        "Meteorolojik uyarılar",
+                        "Doğal afet riskleri",
+                        "Mevsimsel değişiklikler"
+                    ]
+                }
+            ];
+
+            // Rastgele bir konu seç
+            const rastgeleKonu = konular[Math.floor(Math.random() * konular.length)];
+            // Seçilen konudan rastgele bir alt konu seç
+            const rastgeleAltKonu = rastgeleKonu.alt_konular[Math.floor(Math.random() * rastgeleKonu.alt_konular.length)];
+
             const prompt = `
             Bugünün tarihi: ${bugununTarihi}
 
-            Sen bir haber spikerisin. Aşağıdaki konulardan biriyle ilgili BUGÜNÜN tarihine ait güncel ve önemli bir haberi, haber formatında kısaca anlat:
-            - Döviz kurları ve ekonomik gelişmeler
-            - Önemli devlet açıklamaları ve kararlar
-            - Eğitim ve sınav haberleri
-            - Spor haberleri
-            - Hava durumu
-            - Teknoloji ve bilim haberleri
-            - Önemli toplumsal gelişmeler
+            Sen bir haber spikerisin. ${rastgeleKonu.baslik} alanında, özellikle "${rastgeleAltKonu}" konusunda BUGÜNÜN tarihine ait güncel ve önemli bir haberi, haber formatında kısaca anlat.
 
             Lütfen haberi tek paragraf halinde, "Son Dakika" formatında ve tarih/saat belirterek anlat.
             Örnek format:
