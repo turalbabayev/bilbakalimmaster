@@ -120,7 +120,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                         })
                     });
                 } else if (model === 'gemini') {
-                    response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
+                    response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
