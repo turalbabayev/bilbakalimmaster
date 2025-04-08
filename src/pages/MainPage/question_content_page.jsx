@@ -160,22 +160,33 @@ function QuestionContent() {
 
     // Soru ID'sinden referansını bulan yardımcı fonksiyon
     const findSoruRefById = (soruId) => {
+        console.log('Aranan soru ID:', soruId);
+        console.log('Mevcut alt konular:', altKonular);
+        
         let soruRef = null;
         
-        Object.keys(altKonular).forEach(altKonuKey => {
-            if (soruRef) return;
+        // Tüm alt konuları dolaş
+        for (const altKonuKey of Object.keys(altKonular)) {
+            const altKonu = altKonular[altKonuKey];
             
-            if (altKonular[altKonuKey].sorular) {
-                const sorular = altKonular[altKonuKey].sorular;
-                Object.keys(sorular).forEach(soruKey => {
-                    if (sorular[soruKey].id === soruId) {
+            // Alt konuda sorular varsa kontrol et
+            if (altKonu.sorular) {
+                // Tüm soruları dolaş
+                for (const soruKey of Object.keys(altKonu.sorular)) {
+                    const soru = altKonu.sorular[soruKey];
+                    
+                    // ID eşleşiyor mu kontrol et
+                    if (soru.id === soruId) {
                         soruRef = `konular/${id}/altkonular/${altKonuKey}/sorular/${soruKey}`;
+                        console.log('Soru bulundu:', soruRef);
+                        return soruRef;
                     }
-                });
+                }
             }
-        });
+        }
         
-        return soruRef;
+        console.log('Soru bulunamadı:', soruId);
+        return null;
     };
 
     const handleUpdateFromBulkVerification = (soruId) => {
@@ -183,7 +194,14 @@ function QuestionContent() {
         if (soruRef) {
             console.log('Bulundu, güncelleme modalı açılıyor:', soruRef);
             setSelectedSoruRef(soruRef);
-            setIsUpdateModalOpen(true);
+            
+            // Toplu doğrulama modalını kapat
+            setIsBulkVerificationOpen(false);
+            
+            // Biraz bekledikten sonra güncelleme modalını aç
+            setTimeout(() => {
+                setIsUpdateModalOpen(true);
+            }, 100);
         } else {
             console.error('Soru referansı bulunamadı:', soruId);
             alert('Soru bulunamadı. Lütfen sayfayı yenileyip tekrar deneyin.');

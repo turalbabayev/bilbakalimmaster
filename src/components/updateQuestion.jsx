@@ -251,13 +251,13 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     const handleUpdate = async () => {
         if (!soru) {
             console.error("Güncellenecek soru bulunamadı!");
-            return;
-        }
+                return;
+            }
 
         // Alt konu seçimi kontrolü ekle
-        if (!selectedAltKonu) {
+            if (!selectedAltKonu) {
             alert("Lütfen bir alt konu seçin!");
-            return;
+                return;
         }
 
         // Güncellenecek soru için bir kopyasını sakla (loading durumunda state sıfırlanabiliyor)
@@ -306,7 +306,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
             console.log("Yeni yol:", newPath);
             
             // Yeni konuma soruyu ekle
-            const newSoruRef = ref(database, newPath);
+        const newSoruRef = ref(database, newPath);
             const updatedSoru = {
                 soruMetni: guncellenecekSoru.soruMetni,
                 cevaplar: guncellenecekCevaplar,
@@ -373,7 +373,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
 
     if (loading) {
         return (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-60 p-4">
                 <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-11/12 max-w-5xl max-h-[calc(100vh-40px)] overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col">
                     <div className="p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
                         <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center">
@@ -407,7 +407,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     // Soru verisi yüklenmedi veya hatalı
     if (!soru) {
         return (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-60 p-4">
                 <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-11/12 max-w-5xl max-h-[calc(100vh-40px)] overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col">
                     <div className="p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
                         <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center">
@@ -442,7 +442,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
     }
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-60 p-4">
             <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-11/12 max-w-5xl max-h-[calc(100vh-40px)] overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col">
                 <div className="p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
                     <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center">
@@ -472,13 +472,13 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                                 <p className="mt-2 text-sm text-red-500 dark:text-red-400">
                                     Lütfen bir alt konu seçin. Bu alanın doldurulması zorunludur.
                                 </p>
-                            )}
+                        )}
                         </div>
 
                         <div>
                             <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
                                 Soru Metni
-                            </label>
+                    </label>
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
                                 <ReactQuill 
                                     theme="snow"
@@ -490,13 +490,13 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                                     style={{ height: '200px' }}
                                 />
                             </div>
-                        </div>
+                </div>
 
                         <div>
                             <div className="flex justify-between items-center mb-3">
                                 <label className="block text-base font-semibold text-gray-900 dark:text-white">
                                     Cevaplar
-                                </label>
+                </label>
                                 <button
                                     onClick={() => {
                                         setZenginMetinAktif(!zenginMetinAktif);
@@ -516,7 +516,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                                 </button>
                             </div>
                             <div className="space-y-4">
-                                {cevaplar.map((cevap, index) => (
+                    {cevaplar.map((cevap, index) => (
                                     <div key={index} className="flex items-start gap-4">
                                         <div className="flex-shrink-0 pt-3">
                                             <button
@@ -549,7 +549,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                                             ) : (
                                                 <input
                                                     type="text"
-                                                    value={cevap}
+                            value={cevap}
                                                     onChange={(e) => {
                                                         const newCevaplar = [...cevaplar];
                                                         newCevaplar[index] = e.target.value;
@@ -589,11 +589,11 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId }) => {
                         <div>
                             <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
                                 Soru Resmi (Opsiyonel)
-                            </label>
+                </label>
                             <div className="space-y-4">
                                 <div className="flex items-center gap-4">
                                     <div className="relative flex-1">
-                                        <input
+                    <input
                                             type="file"
                                             accept="image/*"
                                             onChange={handleResimYukle}

@@ -529,14 +529,10 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess
         try {
             // Artık modalı açıyoruz
             if (onUpdateClick && typeof onUpdateClick === 'function') {
-                // Sorunun tam referansını bulma
-                const soruRef = sorular.find(soru => soru.id === soruId);
-                if (soruRef) {
-                    onUpdateClick(soruId);
-                    return;
-                } else {
-                    throw new Error('Soru bulunamadı');
-                }
+                // Doğrudan soru ID'sini gönderiyoruz
+                console.log('Güncelleme modalını açmak için soru ID:', soruId);
+                onUpdateClick(soruId);
+                return;
             } else {
                 throw new Error('Güncelleme fonksiyonu tanımlanmamış');
             }
