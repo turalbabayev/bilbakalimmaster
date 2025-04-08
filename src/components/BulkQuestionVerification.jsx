@@ -310,22 +310,28 @@ const BulkQuestionVerification = ({ sorular }) => {
                 }
 
                 const data = await response.json();
-                let text;
+                const text = data.candidates[0].content.parts[0].text;
                 
-                if (model === 'gpt') {
-                    text = data.choices[0].message.content;
-                } else if (model === 'gemini') {
-                    text = data.candidates[0].content.parts[0].text;
-                }
-
                 // Gemini'nin önerdiği doğru cevabı al
                 const geminiDogruCevap = getGeminiDogruCevap(text);
-                const cevapUyumsuz = geminiDogruCevap && geminiDogruCevap !== soru.dogruCevap;
+                
+                // Sistemdeki cevabı şık harfine çevir (eğer içerik olarak geldiyse)
+                let sistemDogruCevapHarfi = soru.dogruCevap;
+                if (!/^[A-E]$/.test(sistemDogruCevapHarfi)) {
+                    // Eğer doğru cevap bir harf değilse, cevaplar içinde ara
+                    const index = soru.cevaplar.findIndex(c => c === soru.dogruCevap);
+                    if (index !== -1) {
+                        sistemDogruCevapHarfi = String.fromCharCode(65 + index);
+                    }
+                }
+
+                // Sadece şık harflerini karşılaştır
+                const cevapUyumsuz = geminiDogruCevap && geminiDogruCevap !== sistemDogruCevapHarfi;
 
                 yeniSonuclar.push({
                     soru: soru,
                     analiz: text,
-                    sistemDogruCevap: soru.dogruCevap,
+                    sistemDogruCevap: sistemDogruCevapHarfi, // Artık her zaman harf olacak
                     geminiDogruCevap: geminiDogruCevap,
                     cevapUyumsuz: cevapUyumsuz,
                     model: model
@@ -337,7 +343,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                     analiz: `Analiz sırasında bir hata oluştu: ${error.message}`,
                     sistemDogruCevap: soru.dogruCevap,
                     geminiDogruCevap: null,
-                    cevapUyumsuz: true,
+                    cevapUyumsuz: false,
                     model: model
                 });
             }
