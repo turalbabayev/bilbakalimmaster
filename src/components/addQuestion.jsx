@@ -15,6 +15,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [soruResmi, setSoruResmi] = useState(null);
     const [resimYukleniyor, setResimYukleniyor] = useState(false);
     const [zenginMetinAktif, setZenginMetinAktif] = useState(false);
+    const [dogruCevapSecimi, setDogruCevapSecimi] = useState(false);
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -40,6 +41,12 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
         'list', 'bullet',
         'align'
     ];
+
+    // HTML etiketlerini temizleme fonksiyonu
+    const stripHtml = (html) => {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        return doc.body.textContent || "";
+    };
 
     const handleResimYukle = async (e) => {
         const file = e.target.files[0];
@@ -164,15 +171,6 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
         }
     };
 
-    // Cevapları güncellemek için yardımcı fonksiyon
-    const handleCevapChange = (index, value) => {
-        setCevaplar(prevCevaplar => {
-            const newCevaplar = [...prevCevaplar];
-            newCevaplar[index] = value;
-            return newCevaplar;
-        });
-    };
-
     if (!isOpen) return null;
 
     return (
@@ -227,7 +225,14 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                     Cevaplar
                                 </label>
                                 <button
-                                    onClick={() => setZenginMetinAktif(!zenginMetinAktif)}
+                                    onClick={() => {
+                                        setZenginMetinAktif(!zenginMetinAktif);
+                                        if (zenginMetinAktif) {
+                                            // Basit editöre geçerken HTML etiketlerini temizle
+                                            const temizCevaplar = cevaplar.map(cevap => stripHtml(cevap));
+                                            setCevaplar(temizCevaplar);
+                                        }
+                                    }}
                                     className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
                                         zenginMetinAktif 
                                             ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' 
@@ -241,9 +246,16 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                 {cevaplar.map((cevap, index) => (
                                     <div key={index} className="flex items-start gap-4">
                                         <div className="flex-shrink-0 pt-3">
-                                            <span className="text-lg font-semibold text-gray-700 dark:text-gray-300">
-                                                {String.fromCharCode(65 + index)})
-                                            </span>
+                                            <button
+                                                onClick={() => setDogruCevap(String.fromCharCode(65 + index))}
+                                                className={`w-8 h-8 flex items-center justify-center rounded-lg font-medium transition-all duration-200 ${
+                                                    dogruCevap === String.fromCharCode(65 + index)
+                                                        ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 ring-2 ring-green-500'
+                                                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                                }`}
+                                            >
+                                                {String.fromCharCode(65 + index)}
+                                            </button>
                                         </div>
                                         <div className="flex-1">
                                             {zenginMetinAktif ? (
@@ -271,31 +283,17 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                                         setCevaplar(newCevaplar);
                                                     }}
                                                     placeholder={`${String.fromCharCode(65 + index)} şıkkının cevabını girin`}
-                                                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                                    className={`w-full px-4 py-3 rounded-xl border-2 ${
+                                                        dogruCevap === String.fromCharCode(65 + index)
+                                                            ? 'border-green-200 dark:border-green-800'
+                                                            : 'border-gray-200 dark:border-gray-700'
+                                                    } bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200`}
                                                 />
                                             )}
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
-                                Doğru Cevap
-                            </label>
-                            <select
-                                value={dogruCevap}
-                                onChange={(e) => setDogruCevap(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                            >
-                                <option value="">Doğru cevabı seçin</option>
-                                {cevaplar.map((_, index) => (
-                                    <option key={index} value={String.fromCharCode(65 + index)}>
-                                        {String.fromCharCode(65 + index)}
-                                    </option>
-                                ))}
-                            </select>
                         </div>
 
                         <div>
