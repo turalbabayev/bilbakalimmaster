@@ -249,7 +249,24 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
         });
 
         const buffer = await Packer.toBlob(doc);
-        saveAs(buffer, `sorular_${new Date().toISOString().split('T')[0]}.docx`);
+        
+        // Dosya adını oluştur
+        const konuAdi = altDalId 
+            ? `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/baslik`
+            : `konular/${konuId}/altkonular/${altKonuId}/baslik`;
+        
+        const konuRef = ref(database, konuAdi);
+        const konuSnapshot = await get(konuRef);
+        const konuBaslik = konuSnapshot.exists() ? konuSnapshot.val() : "Bilinmeyen Konu";
+        
+        const indirmeTipiMetni = indirmeTipi === "tum" ? "tum-aciklamalar-dahil" : "sadece-cevaplar";
+        const indirmeMiktariMetni = indirmeMiktari === "secili" 
+            ? `secili-${seciliSoruSayisi()}-soru` 
+            : `ilk-${indirmeMiktari}-soru`;
+        
+        const dosyaAdi = `${konuBaslik}-${indirmeMiktariMetni}-${indirmeTipiMetni}.docx`;
+        
+        saveAs(buffer, dosyaAdi);
     };
 
     if (!isOpen) return null;
