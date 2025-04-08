@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const BulkQuestionVerification = ({ sorular }) => {
     const [sonuclar, setSonuclar] = useState([]);
     const [yukleniyor, setYukleniyor] = useState(false);
+
+    useEffect(() => {
+        // Component yüklendiğinde API anahtarını kontrol et
+        const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+        console.log('API Key (useEffect):', apiKey);
+    }, []);
 
     const sorulariDogrula = async () => {
         setYukleniyor(true);
@@ -33,7 +39,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                 `;
 
                 const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
-                console.log('API Key:', apiKey); // Debug için
+                console.log('API Key (sorulariDogrula):', apiKey);
 
                 if (!apiKey) {
                     throw new Error('API anahtarı bulunamadı. Lütfen .env.local dosyasını kontrol edin.');
