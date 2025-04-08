@@ -79,6 +79,13 @@ function QuestionContent() {
         });
     };
 
+    // HTML etiketlerini temizleme fonksiyonu
+    const stripHtml = (html) => {
+        if (!html) return "";
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        return doc.body.textContent || "";
+    };
+
     return (
         <Layout>
             <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
@@ -106,15 +113,15 @@ function QuestionContent() {
                                 </svg>
                                 JSON'dan İçe Aktar
                             </button>
-                            <button
+                        <button
                                 className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-md transition-all duration-200 flex items-center"
-                                onClick={() => setIsModalOpen(true)}
-                            >
+                            onClick={() => setIsModalOpen(true)}
+                        >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                                     <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
                                 </svg>
-                                Soru Ekle
-                            </button>
+                            Soru Ekle
+                        </button>
                         </div>
                     </div>
                     {Object.keys(altKonular).length > 0 ? (
@@ -248,7 +255,7 @@ function QuestionContent() {
                                                                                                 {soru.dogruCevap} Şıkkı 
                                                                                                 {soru.cevaplar && Array.isArray(soru.cevaplar) && soru.cevaplar[soru.dogruCevap.charCodeAt(0) - 65] && (
                                                                                                     <span className="ml-2 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
-                                                                                                        ({soru.cevaplar[soru.dogruCevap.charCodeAt(0) - 65]})
+                                                                                                        ({stripHtml(soru.cevaplar[soru.dogruCevap.charCodeAt(0) - 65])})
                                                                                                     </span>
                                                                                                 )}
                                                                                             </>
@@ -258,7 +265,7 @@ function QuestionContent() {
                                                                                                     <>
                                                                                                         {String.fromCharCode(65 + soru.cevaplar.indexOf(soru.dogruCevap))} Şıkkı
                                                                                                         <span className="ml-2 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
-                                                                                                            ({soru.dogruCevap})
+                                                                                                            ({stripHtml(soru.dogruCevap)})
                                                                                                         </span>
                                                                                                     </>
                                                                                                 )}
@@ -291,7 +298,7 @@ function QuestionContent() {
                                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                                                                             <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                                                                         </svg>
-                                                                        Güncelle
+                                                                    Güncelle
                                                                     </div>
                                                                 </button>
                                                                 <button
@@ -346,9 +353,9 @@ function QuestionContent() {
                 currentKonuId={id}
                 altKonular={altKonular}
             />
-            <UpdateQuestion
-                isOpen={isUpdateModalOpen}
-                onClose={() => setIsUpdateModalOpen(false)}
+                <UpdateQuestion
+                    isOpen={isUpdateModalOpen}
+                    onClose={() => setIsUpdateModalOpen(false)}
                 konuId={id}
                 altKonuId={selectedSoruRef ? selectedSoruRef.split("/")[3] : ""}
                 soruId={selectedSoruRef ? selectedSoruRef.split("/")[5] : ""}
