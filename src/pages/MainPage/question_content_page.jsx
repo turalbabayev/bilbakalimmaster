@@ -9,6 +9,7 @@ import ImportQuestionsFromDocx from "../../components/ImportQuestionsFromDocx";
 import ImportQuestionsFromJSON from "../../components/ImportQuestionsFromJSON";
 import BulkDeleteQuestions from "../../components/BulkDeleteQuestions";
 import BulkDownloadQuestions from "../../components/BulkDownloadQuestions";
+import BulkQuestionVerification from "../../components/BulkQuestionVerification";
 import { useParams, useNavigate } from "react-router-dom";
 import { database } from "../../firebase";
 import { ref, onValue } from "firebase/database";
@@ -27,6 +28,7 @@ function QuestionContent() {
     const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
     const [selectedAltKonuId, setSelectedAltKonuId] = useState(null);
     const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false);
+    const [isBulkVerificationOpen, setIsBulkVerificationOpen] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -132,6 +134,18 @@ function QuestionContent() {
                                             </span>
                                             {altKonu.sorular && Object.keys(altKonu.sorular).length > 0 && (
                                                 <>
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedAltKonuId(key);
+                                                            setIsBulkVerificationOpen(true);
+                                                        }}
+                                                        className="text-white bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-lg text-sm font-medium flex items-center space-x-1"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        <span>Toplu Doğrulama</span>
+                                                    </button>
                                                     <button
                                                         onClick={() => {
                                                             setSelectedAltKonuId(key);
@@ -364,6 +378,32 @@ function QuestionContent() {
                     konuId={id}
                     altKonuId={selectedAltKonuId}
                 />
+            )}
+            {isBulkVerificationOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-11/12 max-w-5xl max-h-[calc(100vh-40px)] overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col">
+                        <div className="p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+                            <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center">
+                                Toplu Soru Doğrulama
+                            </h2>
+                        </div>
+                        
+                        <div className="p-8 overflow-y-auto flex-1">
+                            <BulkQuestionVerification 
+                                sorular={Object.values(altKonular[selectedAltKonuId]?.sorular || {})} 
+                            />
+                        </div>
+                        
+                        <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex justify-end">
+                            <button
+                                onClick={() => setIsBulkVerificationOpen(false)}
+                                className="px-6 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                            >
+                                Kapat
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </Layout>
     );
