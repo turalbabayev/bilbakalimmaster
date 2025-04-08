@@ -175,8 +175,10 @@ function QuestionContent() {
                 for (const soruKey of Object.keys(altKonu.sorular)) {
                     const soru = altKonu.sorular[soruKey];
                     
-                    // ID eşleşiyor mu kontrol et
-                    if (soru.id === soruId) {
+                    // ID eşleşiyor mu kontrol et ve id alanı varsa kullan, yoksa soruKey'i kullan
+                    const soruIdToCheck = soru.id || soruKey;
+                    
+                    if (soruIdToCheck === soruId) {
                         soruRef = `konular/${id}/altkonular/${altKonuKey}/sorular/${soruKey}`;
                         console.log('Soru bulundu:', soruRef);
                         return soruRef;
@@ -190,6 +192,11 @@ function QuestionContent() {
     };
 
     const handleUpdateFromBulkVerification = (soruId) => {
+        console.log('Güncelleme isteği geldi, soru ID:', soruId);
+        console.log('Tüm sorular:', Object.values(altKonular).flatMap(altKonu => 
+            altKonu.sorular ? Object.entries(altKonu.sorular).map(([key, soru]) => ({key, ...soru})) : []
+        ));
+        
         const soruRef = findSoruRefById(soruId);
         if (soruRef) {
             console.log('Bulundu, güncelleme modalı açılıyor:', soruRef);

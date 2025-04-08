@@ -525,13 +525,18 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess
         });
     };
 
-    const handleDogruCevapGuncelle = async (soruId, yeniCevap) => {
+    const handleDogruCevapGuncelle = async (soru, yeniCevap) => {
         try {
             // Artık modalı açıyoruz
             if (onUpdateClick && typeof onUpdateClick === 'function') {
-                // Doğrudan soru ID'sini gönderiyoruz
-                console.log('Güncelleme modalını açmak için soru ID:', soruId);
-                onUpdateClick(soruId);
+                // Sorunun ID'sini kontrol edelim ve doğru şekilde gönderelim
+                console.log('Güncelleme talep edilen soru:', soru.id);
+                
+                // Eğer doğru belirlenmişse sorunun ID'sini, yoksa sorunun kendisini gönder
+                const idToUse = typeof soru.id === 'string' ? soru.id : (soru.id || soru);
+                console.log('Kullanılacak ID:', idToUse);
+                
+                onUpdateClick(idToUse);
                 return;
             } else {
                 throw new Error('Güncelleme fonksiyonu tanımlanmamış');
@@ -872,7 +877,7 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess
                                             </span>
                                             {sonuc.cevapUyumsuz && (
                                                 <button
-                                                    onClick={() => handleDogruCevapGuncelle(sonuc.soru.id, sonuc.geminiDogruCevap)}
+                                                    onClick={() => handleDogruCevapGuncelle(sonuc.soru, sonuc.geminiDogruCevap)}
                                                     className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors flex items-center space-x-2"
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
