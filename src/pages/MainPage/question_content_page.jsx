@@ -16,7 +16,7 @@ import { ref, onValue, update, get } from "firebase/database";
 
 function QuestionContent() {
     const { id } = useParams();
-    const [altKonular, setAltKonular] = useState([]);
+    const [altKonular, setAltKonular] = useState({});
     const [baslik, setBaslik] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -36,7 +36,7 @@ function QuestionContent() {
         const unsubscribe = onValue(konuRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                setAltKonular(data.altkonular || []);
+                setAltKonular(data.altkonular || {});
                 setBaslik(data.baslik || "Başlık Yok");
             }
         });
@@ -44,18 +44,36 @@ function QuestionContent() {
     }, [id]);
 
     const refreshQuestions = useCallback(() => {
-        const konuRef = ref(database, `konular/${id}`);
-        get(konuRef).then((snapshot) => {
-            if (snapshot.exists()) {
-                const data = snapshot.val();
-                setAltKonular(data.altkonular || []);
-                setBaslik(data.baslik || "Başlık Yok");
-                console.log('Sorular başarıyla yenilendi');
-            } else {
-                console.log('Konu bulunamadı');
+        console.log('Sorular yenilenmeye başladı...');
+        
+        return new Promise((resolve, reject) => {
+            try {
+                // Mevcut dinleyiciyi kaldır ve yeniden ekle
+                const konuRef = ref(database, `konular/${id}`);
+                
+                // Taze veri almak için get kullan
+                get(konuRef)
+                    .then((snapshot) => {
+                        if (snapshot.exists()) {
+                            const data = snapshot.val();
+                            console.log('Alınan taze veri:', data);
+                            setAltKonular(data.altkonular || {});
+                            setBaslik(data.baslik || "Başlık Yok");
+                            console.log('Veriler başarıyla güncellendi');
+                            resolve(true);
+                        } else {
+                            console.log('Konu bulunamadı');
+                            resolve(false);
+                        }
+                    })
+                    .catch((error) => {
+                        console.error('Veri yenilenirken hata:', error);
+                        reject(error);
+                    });
+            } catch (error) {
+                console.error('refreshQuestions fonksiyonunda hata:', error);
+                reject(error);
             }
-        }).catch((error) => {
-            console.error('Veri yenilenirken hata:', error);
         });
     }, [id]);
 
@@ -121,13 +139,17 @@ function QuestionContent() {
         try {
             // Realtime Database güncelleme işlemi
             const updates = {};
-            updates[`${soruRef}/dogruCevap`] = yeniCevap;
+            updates[`/${soruRef}/dogruCevap`] = yeniCevap;
             
+            console.log('Güncelleme yapılıyor:', soruRef, 'Yeni değer:', yeniCevap);
             await update(ref(database), updates);
             console.log(`Doğru cevap güncellendi: ${soruRef} -> ${yeniCevap}`);
             
-            // Soruları yenile
-            refreshQuestions();
+            // Soruları hemen yenile
+            await refreshQuestions();
+            
+            // Konsolda mevcut verileri göster
+            console.log('Güncelleme sonrası altKonular:', altKonular);
             
             return true;
         } catch (error) {
