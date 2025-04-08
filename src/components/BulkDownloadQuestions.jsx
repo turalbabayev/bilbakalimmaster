@@ -66,6 +66,28 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
         return Object.values(selectedSorular).filter(Boolean).length;
     };
 
+    const handleIndirmeMiktariChange = (miktar) => {
+        setIndirmeMiktari(miktar);
+        
+        if (miktar === "secili") {
+            // Seçili modunda tüm seçimleri temizle
+            setSelectedSorular({});
+            setHepsiSecili(false);
+        } else {
+            // İlk N soruyu seç
+            const yeniSecimler = {};
+            const soruArray = Object.keys(sorular);
+            const secilenMiktar = parseInt(miktar);
+            
+            soruArray.forEach((soruId, index) => {
+                yeniSecimler[soruId] = index < secilenMiktar;
+            });
+            
+            setSelectedSorular(yeniSecimler);
+            setHepsiSecili(false);
+        }
+    };
+
     const createDocx = async () => {
         const seciliIDs = Object.entries(selectedSorular)
             .filter(([_, value]) => value)
@@ -249,107 +271,100 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                         </div>
                     ) : (
                         <>
-                            <div className="mb-6 flex flex-col space-y-4">
-                                <div className="flex items-center space-x-4">
-                                    <div className="flex items-center">
-                                        <input 
-                                            type="checkbox" 
-                                            id="selectAll"
-                                            checked={hepsiSecili}
-                                            onChange={handleHepsiToggle}
-                                            className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                        />
-                                        <label htmlFor="selectAll" className="ml-2 text-base font-medium text-gray-900 dark:text-gray-300">
-                                            Tüm Soruları Seç ({Object.keys(sorular).length})
+                            <div className="mb-8 space-y-6">
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">İndirme Tipi</h3>
+                                    <div className="flex space-x-4">
+                                        <label className="flex items-center space-x-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                value="tum"
+                                                checked={indirmeTipi === "tum"}
+                                                onChange={(e) => setIndirmeTipi(e.target.value)}
+                                                className="form-radio text-blue-600"
+                                            />
+                                            <span className="text-gray-700 dark:text-gray-300">Tüm İçerik</span>
+                                        </label>
+                                        <label className="flex items-center space-x-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                value="sadeceSorular"
+                                                checked={indirmeTipi === "sadeceSorular"}
+                                                onChange={(e) => setIndirmeTipi(e.target.value)}
+                                                className="form-radio text-blue-600"
+                                            />
+                                            <span className="text-gray-700 dark:text-gray-300">Sadece Sorular</span>
                                         </label>
                                     </div>
-                                    <div className="text-base font-medium text-gray-900 dark:text-gray-300">
-                                        {seciliSoruSayisi()} soru seçildi
+                                </div>
+                                
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">İndirme Miktarı</h3>
+                                    <div className="flex space-x-4">
+                                        <label className="flex items-center space-x-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                value="secili"
+                                                checked={indirmeMiktari === "secili"}
+                                                onChange={(e) => handleIndirmeMiktariChange(e.target.value)}
+                                                className="form-radio text-blue-600"
+                                            />
+                                            <span className="text-gray-700 dark:text-gray-300">Seçili Sorular</span>
+                                        </label>
+                                        <label className="flex items-center space-x-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                value="10"
+                                                checked={indirmeMiktari === "10"}
+                                                onChange={(e) => handleIndirmeMiktariChange(e.target.value)}
+                                                className="form-radio text-blue-600"
+                                            />
+                                            <span className="text-gray-700 dark:text-gray-300">İlk 10 Soru</span>
+                                        </label>
+                                        <label className="flex items-center space-x-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                value="20"
+                                                checked={indirmeMiktari === "20"}
+                                                onChange={(e) => handleIndirmeMiktariChange(e.target.value)}
+                                                className="form-radio text-blue-600"
+                                            />
+                                            <span className="text-gray-700 dark:text-gray-300">İlk 20 Soru</span>
+                                        </label>
                                     </div>
-                                </div>
-
-                                <div className="flex items-center space-x-4">
-                                    <label className="text-base font-medium text-gray-900 dark:text-gray-300">
-                                        İndirme Tipi:
-                                    </label>
-                                    <select
-                                        value={indirmeTipi}
-                                        onChange={(e) => setIndirmeTipi(e.target.value)}
-                                        className="rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"
-                                    >
-                                        <option value="tum">Tüm Sorular (Cevaplar ve Açıklamalar Dahil)</option>
-                                        <option value="sadeceSorular">Sadece Sorular ve Şıklar</option>
-                                    </select>
-                                </div>
-
-                                <div className="flex items-center space-x-4">
-                                    <label className="text-base font-medium text-gray-900 dark:text-gray-300">
-                                        İndirme Miktarı:
-                                    </label>
-                                    <select
-                                        value={indirmeMiktari}
-                                        onChange={(e) => setIndirmeMiktari(e.target.value)}
-                                        className="rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"
-                                    >
-                                        <option value="secili">Seçili Sorular</option>
-                                        <option value="10">İlk 10 Soru</option>
-                                        <option value="20">İlk 20 Soru</option>
-                                        <option value="30">İlk 30 Soru</option>
-                                        <option value="40">İlk 40 Soru</option>
-                                    </select>
                                 </div>
                             </div>
                             
-                            {Object.keys(sorular).length > 0 ? (
-                                <div className="space-y-4">
-                                    {Object.entries(sorular).map(([soruId, soru], index) => (
-                                        <div key={soruId} className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 flex items-start">
-                                            <input 
-                                                type="checkbox" 
-                                                id={`soru-${soruId}`}
-                                                checked={!!selectedSorular[soruId]}
-                                                onChange={() => handleSoruToggle(soruId)}
-                                                className="mt-1 w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                            />
-                                            <div className="ml-3 flex-1">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <label htmlFor={`soru-${soruId}`} className="text-base font-medium text-gray-900 dark:text-white">
-                                                        <span className="inline-flex items-center justify-center bg-blue-600 text-white font-semibold rounded-full w-6 h-6 mr-2 text-sm">
-                                                            {index + 1}
-                                                        </span>
-                                                        {soru.baslik && <span className="font-semibold mr-2">{soru.baslik}</span>}
-                                                        <span className="text-xs text-gray-500 dark:text-gray-400">ID: {soruId}</span>
-                                                    </label>
-                                                    {soru.siraNo && (
-                                                        <span className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs px-2 py-1 rounded-md">
-                                                            Sıra: {soru.siraNo}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="mb-2" dangerouslySetInnerHTML={{ __html: soru.soruMetni }} />
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                                                    {soru.cevaplar?.map((cevap, index) => (
-                                                        <div 
-                                                            key={index} 
-                                                            className={`p-2 text-sm rounded ${
-                                                                index === soru.dogruCevap || String.fromCharCode(65 + index) === soru.dogruCevap
-                                                                    ? "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300"
-                                                                    : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300"
-                                                            }`}
-                                                        >
-                                                            <span className="font-medium">{String.fromCharCode(65 + index)}:</span> {cevap}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-center py-8">
-                                    <p className="text-lg text-gray-500 dark:text-gray-400">Bu konu altında soru bulunamadı.</p>
-                                </div>
-                            )}
+                            <div className="mb-4 flex items-center justify-between">
+                                <label className="flex items-center space-x-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={hepsiSecili}
+                                        onChange={handleHepsiToggle}
+                                        className="form-checkbox text-blue-600"
+                                    />
+                                    <span className="text-gray-700 dark:text-gray-300">Tümünü Seç</span>
+                                </label>
+                                <span className="text-sm text-gray-500 dark:text-gray-400">
+                                    {seciliSoruSayisi()} soru seçildi
+                                </span>
+                            </div>
+                            
+                            <div className="space-y-2">
+                                {Object.entries(sorular).map(([soruId, soru], index) => (
+                                    <div key={soruId} className="flex items-center space-x-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedSorular[soruId] || false}
+                                            onChange={() => handleSoruToggle(soruId)}
+                                            className="form-checkbox text-blue-600"
+                                        />
+                                        <span className="text-gray-700 dark:text-gray-300">
+                                            {index + 1}. Soru: {soru.soruMetni.replace(/<[^>]*>/g, '').substring(0, 100)}...
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
                         </>
                     )}
                 </div>
@@ -357,32 +372,16 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                 <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex justify-end space-x-4">
                     <button
                         onClick={onClose}
-                        className="px-6 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 font-medium"
-                        disabled={loading}
+                        className="px-6 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                     >
                         İptal
                     </button>
                     <button
                         onClick={createDocx}
-                        className="px-6 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 font-medium flex items-center"
+                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                         disabled={loading || (indirmeMiktari === "secili" && seciliSoruSayisi() === 0)}
                     >
-                        {loading ? (
-                            <>
-                                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                İndiriliyor...
-                            </>
-                        ) : (
-                            <>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                                </svg>
-                                Seçili Soruları İndir
-                            </>
-                        )}
+                        {loading ? "İndiriliyor..." : "İndir"}
                     </button>
                 </div>
             </div>
