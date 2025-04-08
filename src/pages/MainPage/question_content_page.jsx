@@ -222,8 +222,8 @@ function QuestionContent() {
             console.log('Bulundu, güncelleme modalı açılıyor:', soruRef);
             setSelectedSoruRef(soruRef);
             
-            // Toplu doğrulama modalını kapat
-            setIsBulkVerificationOpen(false);
+            // Toplu doğrulama modalını geçici olarak gizle (kapatmıyoruz)
+            document.querySelector('.bulk-verification-modal')?.classList.add('hidden');
             
             // Biraz bekledikten sonra güncelleme modalını aç
             setTimeout(() => {
@@ -233,6 +233,20 @@ function QuestionContent() {
             console.error('Soru referansı bulunamadı:', soru);
             alert('Soru bulunamadı. Lütfen sayfayı yenileyip tekrar deneyin.');
         }
+    };
+
+    // Güncelleme tamamlandığında toplu doğrulama modalını tekrar göstermek için fonksiyon
+    const handleUpdateComplete = () => {
+        console.log('Güncelleme tamamlandı, toplu doğrulama modalı tekrar gösteriliyor');
+        
+        // Güncelleme modalını kapat
+        setIsUpdateModalOpen(false);
+        
+        // Toplu doğrulama modalını tekrar göster
+        document.querySelector('.bulk-verification-modal')?.classList.remove('hidden');
+        
+        // Verileri yenile
+        refreshQuestions();
     };
 
     return (
@@ -504,11 +518,16 @@ function QuestionContent() {
             />
                 <UpdateQuestion
                     isOpen={isUpdateModalOpen}
-                    onClose={() => setIsUpdateModalOpen(false)}
-                konuId={id}
-                altKonuId={selectedSoruRef ? selectedSoruRef.split("/")[3] : ""}
-                soruId={selectedSoruRef ? selectedSoruRef.split("/")[5] : ""}
-            />
+                    onClose={() => {
+                        setIsUpdateModalOpen(false);
+                        // Güncelleme modalı kapandığında toplu doğrulama modalını tekrar göster
+                        document.querySelector('.bulk-verification-modal')?.classList.remove('hidden');
+                    }}
+                    onUpdateComplete={handleUpdateComplete}
+                    konuId={id}
+                    altKonuId={selectedSoruRef ? selectedSoruRef.split("/")[3] : ""}
+                    soruId={selectedSoruRef ? selectedSoruRef.split("/")[5] : ""}
+                />
             <ChangeQuestionOrder
                 isOpen={isOrderModalOpen}
                 onClose={() => setIsOrderModalOpen(false)}
@@ -536,7 +555,7 @@ function QuestionContent() {
                 />
             )}
             {isBulkVerificationOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4 bulk-verification-modal">
                     <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-11/12 max-w-5xl max-h-[calc(100vh-40px)] overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col">
                         <div className="p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
                             <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center">
