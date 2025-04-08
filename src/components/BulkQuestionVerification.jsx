@@ -32,47 +32,28 @@ const BulkQuestionVerification = ({ sorular }) => {
                     Detaylı bir analiz yap ve sonuçları maddeler halinde belirt.
                 `;
 
-                const response = await fetch(
-                    `https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent?key=${process.env.REACT_APP_GEMINI_API_KEY}`,
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            contents: [{
-                                role: "user",
-                                parts: [{
-                                    text: prompt
-                                }]
-                            }],
-                            generationConfig: {
-                                temperature: 0.7,
-                                topK: 40,
-                                topP: 0.95,
-                                maxOutputTokens: 1024,
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-3.5-turbo",
+                        messages: [
+                            {
+                                role: "system",
+                                content: "Sen bir eğitim uzmanısın ve soruları analiz ediyorsun. Soruların mantıklı olup olmadığını, cevapların doğruluğunu ve tekrar edip etmediğini kontrol ediyorsun."
                             },
-                            safetySettings: [
-                                {
-                                    category: "HARM_CATEGORY_HARASSMENT",
-                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                                },
-                                {
-                                    category: "HARM_CATEGORY_HATE_SPEECH",
-                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                                },
-                                {
-                                    category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                                },
-                                {
-                                    category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                                }
-                            ]
-                        })
-                    }
-                );
+                            {
+                                role: "user",
+                                content: prompt
+                            }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 1000
+                    })
+                });
 
                 if (!response.ok) {
                     const errorData = await response.json();
@@ -80,7 +61,7 @@ const BulkQuestionVerification = ({ sorular }) => {
                 }
 
                 const data = await response.json();
-                const text = data.candidates[0].content.parts[0].text;
+                const text = data.choices[0].message.content;
 
                 yeniSonuclar.push({
                     soru: soru,
