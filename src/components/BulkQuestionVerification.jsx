@@ -274,7 +274,12 @@ const BulkQuestionVerification = ({ sorular }) => {
                             new Paragraph({
                                 children: [
                                     new TextRun({
-                                        text: `${sonuc.sistemDogruCevap}) ${sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65]}`,
+                                        text: `${sonuc.sistemDogruCevap}) `,
+                                        bold: true,
+                                        color: "0000FF",
+                                    }),
+                                    new TextRun({
+                                        text: sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65],
                                         bold: true,
                                         color: "0000FF",
                                     }),
@@ -458,27 +463,44 @@ const BulkQuestionVerification = ({ sorular }) => {
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
                     <div className="flex flex-col items-center">
                         <div className="text-2xl font-bold mb-4 text-purple-600 dark:text-purple-400">
-                            Sorular Analiz Ediliyor
+                            {aktifModel === 'gpt' ? 'GPT Analiz Yapıyor' : 'Gemini AI Analiz Yapıyor'}
                         </div>
                         
-                        <div className="relative w-64 h-64 mb-6">
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="w-32 h-32 border-4 border-purple-200 dark:border-purple-800 rounded-full animate-spin"></div>
+                        {aktifModel === 'gpt' ? (
+                            <div className="relative w-64 h-64 mb-6">
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="w-32 h-32 border-4 border-purple-200 dark:border-purple-800 rounded-full animate-spin"></div>
+                                </div>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="w-24 h-24 border-4 border-purple-300 dark:border-purple-700 rounded-full animate-spin-slow"></div>
+                                </div>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="w-16 h-16 border-4 border-purple-400 dark:border-purple-600 rounded-full animate-spin-slower"></div>
+                                </div>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="text-4xl animate-bounce">🧠</span>
+                                </div>
                             </div>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="w-24 h-24 border-4 border-purple-300 dark:border-purple-700 rounded-full animate-spin-slow"></div>
+                        ) : (
+                            <div className="relative w-64 h-64 mb-6">
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="w-32 h-32 border-4 border-blue-200 dark:border-blue-800 rounded-full animate-spin"></div>
+                                </div>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="w-24 h-24 border-4 border-blue-300 dark:border-blue-700 rounded-full animate-spin-slow"></div>
+                                </div>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="w-16 h-16 border-4 border-blue-400 dark:border-blue-600 rounded-full animate-spin-slower"></div>
+                                </div>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="text-4xl animate-bounce">🤖</span>
+                                </div>
                             </div>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="w-16 h-16 border-4 border-purple-400 dark:border-purple-600 rounded-full animate-spin-slower"></div>
-                            </div>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <span className="text-4xl animate-bounce">🧠</span>
-                            </div>
-                        </div>
+                        )}
 
                         <div className="text-center space-y-2">
                             <p className="text-gray-600 dark:text-gray-400 italic">
-                                GPT düşünüyor... 🤔
+                                {aktifModel === 'gpt' ? 'GPT düşünüyor... 🤔' : 'Gemini düşünüyor... 🤔'}
                             </p>
                             <div className="flex justify-center space-x-2">
                                 <span className="animate-bounce">🔍</span>
@@ -570,10 +592,14 @@ const BulkQuestionVerification = ({ sorular }) => {
                                     
                                     <div className="mt-4 bg-blue-50 dark:bg-blue-900 p-4 rounded-lg border-l-4 border-blue-500">
                                         <p className="font-semibold text-blue-900 dark:text-blue-100">Sistemdeki Doğru Cevap:</p>
-                                        <p className="text-blue-700 dark:text-blue-300 mt-1">
-                                            <span className="bg-blue-200 dark:bg-blue-800 px-2 py-1 rounded-md font-bold mr-2">{sonuc.sistemDogruCevap}</span>
-                                            {sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65]}
-                                        </p>
+                                        <div className="flex items-center mt-2">
+                                            <span className="bg-blue-200 dark:bg-blue-800 px-3 py-1 rounded-full font-bold mr-2">
+                                                {sonuc.sistemDogruCevap}
+                                            </span>
+                                            <span className="text-blue-700 dark:text-blue-300">
+                                                {sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65]}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
