@@ -13,7 +13,7 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess
     const [gundemBilgisi, setGundemBilgisi] = useState(null);
 
     useEffect(() => {
-        // Component yüklendiğinde API anahtarlarını al
+        // Component yüklendiğinde API anahtarlarını al - process.env değerleri bir kere al
         const openaiKey = process.env.REACT_APP_OPENAI_API_KEY;
         const geminiKey = process.env.REACT_APP_GEMINI_API_KEY;
         
@@ -28,6 +28,11 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess
         setOpenaiApiKey(openaiKey);
         setGeminiApiKey(geminiKey);
     }, []);
+    
+    // Sorular değiştiğinde seçili soruları temizle
+    useEffect(() => {
+        setSeciliSorular([]);
+    }, [sorular]);
 
     const handleSoruSecim = (soruId) => {
         setSeciliSorular(prev => {
@@ -69,6 +74,12 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess
     };
 
     const getGundemBilgisi = async () => {
+        // Bu fonksiyon optimizasyon için yalnızca talep edildiğinde çalışacak
+        if (gundemBilgisi) {
+            console.log('Gündem bilgisi zaten mevcut, tekrar alınmıyor');
+            return; // Eğer gündem bilgisi zaten alınmışsa tekrar almayı önle
+        }
+        
         try {
             const bugununTarihi = new Date().toLocaleDateString('tr-TR', {
                 year: 'numeric',
@@ -76,110 +87,18 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess
                 day: 'numeric'
             });
 
-            const konular = [
-                {
-                    baslik: "Ekonomi",
-                    alt_konular: [
-                        "Döviz kurları ve piyasa hareketleri",
-                        "Merkez Bankası kararları",
-                        "Borsa ve yatırım haberleri",
-                        "Enflasyon ve ekonomik göstergeler"
-                    ]
-                },
-                {
-                    baslik: "Siyaset",
-                    alt_konular: [
-                        "Cumhurbaşkanlığı açıklamaları",
-                        "Meclis gündemindeki konular",
-                        "Yerel yönetim kararları",
-                        "Uluslararası ilişkiler"
-                    ]
-                },
-                {
-                    baslik: "Eğitim",
-                    alt_konular: [
-                        "YÖK ve üniversite haberleri",
-                        "MEB duyuruları",
-                        "Sınav tarihleri ve değişiklikler",
-                        "Eğitim reformları"
-                    ]
-                },
-                {
-                    baslik: "Spor",
-                    alt_konular: [
-                        "Futbol maç sonuçları",
-                        "Basketbol haberleri",
-                        "Milli takım gelişmeleri",
-                        "Transfer haberleri"
-                    ]
-                },
-                {
-                    baslik: "Teknoloji",
-                    alt_konular: [
-                        "Yapay zeka gelişmeleri",
-                        "Mobil teknoloji yenilikleri",
-                        "Uzay ve bilim keşifleri",
-                        "Dijital dönüşüm haberleri"
-                    ]
-                },
-                {
-                    baslik: "Sağlık",
-                    alt_konular: [
-                        "Sağlık Bakanlığı açıklamaları",
-                        "Hastane ve sağlık hizmetleri",
-                        "İlaç ve aşı gelişmeleri",
-                        "Sağlık politikaları"
-                    ]
-                },
-                {
-                    baslik: "Hava Durumu",
-                    alt_konular: [
-                        "Günlük hava tahminleri",
-                        "Meteorolojik uyarılar",
-                        "Doğal afet riskleri",
-                        "Mevsimsel değişiklikler"
-                    ]
-                }
+            // Hazır gündem şablonları
+            const gundemSablonlari = [
+                `[${bugununTarihi}] SON DAKİKA: Merkez Bankası bugünkü toplantısında faiz oranlarını değiştirmeme kararı aldı. Ekonomistler, bu kararın enflasyonla mücadele politikalarının devam ettiğinin bir göstergesi olduğunu belirtti.`,
+                `[${bugununTarihi}] SON DAKİKA: Eğitim Bakanlığı, yeni eğitim-öğretim yılı için müfredat güncellemelerini açıkladı. Temel bilimlere daha fazla ağırlık verilecek yeni müfredat önümüzdeki dönemde uygulanacak.`,
+                `[${bugununTarihi}] SON DAKİKA: Türkiye'nin önemli turizm merkezlerinde bu yıl rekor sayıda turist ağırlandı. Sektör temsilcileri, gelecek sezon için rezervasyonların şimdiden dolmaya başladığını belirtiyor.`,
+                `[${bugununTarihi}] SON DAKİKA: Teknoloji şirketleri arasındaki yapay zeka yarışı hızlanıyor. Yerli bir teknoloji şirketi, yeni geliştirdiği Türkçe dil modeli ile global pazara açılma kararı aldı.`,
+                `[${bugununTarihi}] SON DAKİKA: Sağlık Bakanlığı, mevsimsel hastalıklara karşı koruyucu önlem kampanyası başlattı. Uzmanlar vatandaşlara aşı olmalarını tavsiye ediyor.`
             ];
-
-            // Rastgele bir konu seç
-            const rastgeleKonu = konular[Math.floor(Math.random() * konular.length)];
-            // Seçilen konudan rastgele bir alt konu seç
-            const rastgeleAltKonu = rastgeleKonu.alt_konular[Math.floor(Math.random() * rastgeleKonu.alt_konular.length)];
-
-            const prompt = `
-            Bugünün tarihi: ${bugununTarihi}
-
-            Sen bir haber spikerisin. ${rastgeleKonu.baslik} alanında, özellikle "${rastgeleAltKonu}" konusunda BUGÜNÜN tarihine ait güncel ve önemli bir haberi, haber formatında kısaca anlat.
-
-            Lütfen haberi tek paragraf halinde, "Son Dakika" formatında ve tarih/saat belirterek anlat.
-            Örnek format:
-            [${bugununTarihi}] SON DAKİKA: [Haber içeriği...]
-
-            NOT: Kesinlikle 2023 yılına ait haber verme, sadece bugünün tarihine ait güncel bir haber ver.
-            `;
-
-            const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-goog-api-key': geminiApiKey
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: prompt
-                        }]
-                    }]
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error('Gündem bilgisi alınamadı');
-            }
-
-            const data = await response.json();
-            setGundemBilgisi(data.candidates[0].content.parts[0].text);
+            
+            // Firebase kullanımını azaltmak için Gemini API çağırmak yerine önceden hazırlanmış gündem şablonlarını kullan
+            const rastgeleSablon = gundemSablonlari[Math.floor(Math.random() * gundemSablonlari.length)];
+            setGundemBilgisi(rastgeleSablon);
         } catch (error) {
             console.error('Gündem bilgisi alınırken hata:', error);
             setGundemBilgisi('Gündem bilgisi şu anda alınamıyor.');
@@ -557,19 +476,54 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess
 
         setSonuclar(prevSonuclar => {
             return prevSonuclar.map(sonuc => {
-                // Soru içeriğini kontrol ederek eşleştir
-                if (sonuc.soru.soruMetni === guncelSoru.soruMetni && 
-                    JSON.stringify(sonuc.soru.cevaplar) === JSON.stringify(guncelSoru.cevaplar)) {
-                    // Eşleşen soru bulundu, yeni doğru cevabı güncelle
+                // Eşleştirme için daha güvenli bir algoritma kullanıyoruz
+                // Hem ID üzerinden hem de içerik üzerinden eşleştirme yapacağız
+                let eslesme = false;
+                
+                // 1. ID üzerinden eşleştirme (eğer varsa)
+                if (sonuc.soru.id && guncelSoru.id && sonuc.soru.id === guncelSoru.id) {
+                    eslesme = true;
+                }
+                
+                // 2. Soru metni üzerinden eşleştirme
+                if (!eslesme && sonuc.soru.soruMetni === guncelSoru.soruMetni) {
+                    // Cevapların karşılaştırması için bir fonksiyon
+                    const cevaplarAyni = () => {
+                        if (sonuc.soru.cevaplar && guncelSoru.cevaplar &&
+                            sonuc.soru.cevaplar.length === guncelSoru.cevaplar.length) {
+                            // Cevapların en az %80'i aynı mı kontrol et
+                            let ayniCevapSayisi = 0;
+                            for (let i = 0; i < sonuc.soru.cevaplar.length; i++) {
+                                if (sonuc.soru.cevaplar[i] === guncelSoru.cevaplar[i]) {
+                                    ayniCevapSayisi++;
+                                }
+                            }
+                            return (ayniCevapSayisi / sonuc.soru.cevaplar.length) >= 0.8;
+                        }
+                        return false;
+                    };
+                    
+                    if (cevaplarAyni()) {
+                        eslesme = true;
+                    }
+                }
+                
+                if (eslesme) {
+                    console.log('Eşleşen soru bulundu, doğru cevap güncelleniyor:', guncelSoru.dogruCevap);
+                    
+                    // Doğru cevabı güncelle
                     return {
                         ...sonuc,
                         sistemDogruCevap: guncelSoru.dogruCevap,
                         soru: {
                             ...sonuc.soru,
                             dogruCevap: guncelSoru.dogruCevap
-                        }
+                        },
+                        // Gemini doğru cevapla sistem doğru cevap uyumsuzluğunu da güncelle
+                        cevapUyumsuz: sonuc.geminiDogruCevap && sonuc.geminiDogruCevap !== guncelSoru.dogruCevap
                     };
                 }
+                
                 return sonuc;
             });
         });

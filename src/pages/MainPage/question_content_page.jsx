@@ -36,56 +36,134 @@ function QuestionContent() {
     const bulkVerificationRef = useRef(null);
 
     useEffect(() => {
-        const konuRef = ref(database, `konular/${id}`);
-        const unsubscribe = onValue(konuRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                setAltKonular(data.altkonular || {});
-                setBaslik(data.baslik || "Başlık Yok");
+        // Sadece alt konu başlıklarını al, tüm soruları değil
+        const konuRef = ref(database, `konular/${id}/altkonular`);
+        
+        // Konu başlıklarını almak için once() kullan, bu sürekli dinlemez sadece bir kez veri çeker
+        get(konuRef).then((snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                if (data) {
+                    // Tüm alt konuları içeren basit bir obje oluştur
+                    const altKonularBaslik = {};
+                    Object.keys(data).forEach(key => {
+                        altKonularBaslik[key] = {
+                            baslik: data[key].baslik || "Başlık Yok",
+                            // Soru sayısını göstermek için sorular nesnesinin uzunluğunu al (tüm soruları almadan)
+                            sorular: data[key].sorular ? true : false
+                        };
+                    });
+                    
+                    // Sadece alt konu başlıklarını ve varsa soru var mı bilgisini set et
+                    setAltKonular(altKonularBaslik);
+                }
+            }
+        }).catch((error) => {
+            console.error("Alt konu listesi alınırken hata:", error);
+        });
+
+        // Konu başlığını al
+        const konuBaslikRef = ref(database, `konular/${id}/baslik`);
+        get(konuBaslikRef).then((snapshot) => {
+            if (snapshot.exists()) {
+                setBaslik(snapshot.val() || "Başlık Yok");
             }
         });
-        return () => unsubscribe();
+        
+        return () => {}; // Listener olmadığı için temizleme gerekmiyor
     }, [id]);
 
-    // Soruları yenileme fonksiyonu güncellendi - Promise döndürüyor
+    // Alt konu genişletildiğinde sorular için şimdi ayrı bir fonksiyon
+    const fetchSorularForAltKonu = (altKonuKey) => {
+        if (!altKonuKey) return;
+        
+        // Alt konu genişletildiğinde sadece o alt konunun sorularını al
+        const sorularRef = ref(database, `konular/${id}/altkonular/${altKonuKey}/sorular`);
+        
+        // Mevcut alt konular state'ini güncelle
+        setAltKonular(prevState => {
+            const yeniState = {...prevState};
+            // Yükleniyor durumunu göster
+            yeniState[altKonuKey] = {...yeniState[altKonuKey], sorularYukleniyor: true};
+            return yeniState;
+        });
+        
+        // Soruları sadece bir kere al, devamlı dinleme
+        get(sorularRef).then((snapshot) => {
+            if (snapshot.exists()) {
+                const sorular = snapshot.val();
+                
+                // Mevcut alt konular state'ini güncelle
+                setAltKonular(prevState => {
+                    const yeniState = {...prevState};
+                    yeniState[altKonuKey] = {
+                        ...yeniState[altKonuKey], 
+                        sorular: sorular,
+                        sorularYukleniyor: false
+                    };
+                    return yeniState;
+                });
+            } else {
+                // Sorular yoksa da yükleniyor durumunu kapat
+                setAltKonular(prevState => {
+                    const yeniState = {...prevState};
+                    yeniState[altKonuKey] = {
+                        ...yeniState[altKonuKey], 
+                        sorular: {},
+                        sorularYukleniyor: false
+                    };
+                    return yeniState;
+                });
+            }
+        }).catch(error => {
+            console.error(`${altKonuKey} için sorular alınırken hata:`, error);
+            // Hata durumunda da yükleniyor durumunu kapat
+            setAltKonular(prevState => {
+                const yeniState = {...prevState};
+                yeniState[altKonuKey] = {
+                    ...yeniState[altKonuKey], 
+                    sorularYukleniyor: false
+                };
+                return yeniState;
+            });
+        });
+    };
+
+    const toggleExpand = (altKonuKey) => {
+        setExpandedAltKonu((prev) => {
+            const yeni = prev === altKonuKey ? null : altKonuKey;
+            
+            // Eğer bir alt konu açılıyorsa ve soruları henüz yüklenmemişse
+            if (yeni && (!altKonular[yeni].sorular || altKonular[yeni].sorular === true)) {
+                fetchSorularForAltKonu(yeni);
+            }
+            
+            return yeni;
+        });
+    };
+    
+    // Soruları yenileme fonksiyonu - yalnızca seçili alt konunun sorularını yeniler
     const refreshQuestions = useCallback(() => {
         console.log('Sorular yenilenmeye başladı...');
         
         return new Promise((resolve, reject) => {
             try {
-                // Mevcut dinleyiciyi kaldır ve yeniden ekle
-                const konuRef = ref(database, `konular/${id}`);
+                // Eğer expanded bir alt konu varsa sadece onun sorularını yenile
+                if (expandedAltKonu) {
+                    fetchSorularForAltKonu(expandedAltKonu);
+                    resolve(true);
+                    return;
+                }
                 
-                // Taze veri almak için get kullan
-                get(konuRef)
-                    .then((snapshot) => {
-                        if (snapshot.exists()) {
-                            const data = snapshot.val();
-                            console.log('Alınan taze veri:', data);
-                            setAltKonular(data.altkonular || {});
-                            setBaslik(data.baslik || "Başlık Yok");
-                            console.log('Veriler başarıyla güncellendi');
-                            resolve(data); // Veriyi dışarı aktarıyoruz
-                        } else {
-                            console.log('Konu bulunamadı');
-                            resolve(null);
-                        }
-                    })
-                    .catch((error) => {
-                        console.error('Veri yenilenirken hata:', error);
-                        reject(error);
-                    });
+                // Eğer seçili bir alt konu yoksa başarılı döndür
+                resolve(true);
             } catch (error) {
                 console.error('refreshQuestions fonksiyonunda hata:', error);
                 reject(error);
             }
         });
-    }, [id]);
+    }, [expandedAltKonu, id]);
 
-    const toggleExpand = (altKonuKey) => {
-        setExpandedAltKonu((prev) => (prev === altKonuKey ? null : altKonuKey));
-    };
-    
     const toggleExpandBranch = (altKonuKey) => {
         navigate(`/question/${id}/${altKonuKey}`);
     };
@@ -202,24 +280,52 @@ function QuestionContent() {
         // Sorunun referansını bul
         let soruRef = null;
         
-        // Tüm alt konuları dolaş
-        outerLoop: for (const altKonuKey of Object.keys(altKonular)) {
-            const altKonu = altKonular[altKonuKey];
-            
-            // Alt konuda sorular varsa kontrol et
-            if (altKonu.sorular) {
-                // Tüm soruları dolaş
-                for (const soruKey of Object.keys(altKonu.sorular)) {
-                    const dbSoru = altKonu.sorular[soruKey];
-                    
-                    // Soru içeriği aynı mı kontrol et
-                    if (dbSoru.soruMetni === soru.soruMetni &&
-                        JSON.stringify(dbSoru.cevaplar) === JSON.stringify(soru.cevaplar)) {
-                        soruRef = `konular/${id}/altkonular/${altKonuKey}/sorular/${soruKey}`;
-                        console.log('Soru içeriğine göre bulundu:', soruRef);
-                        break outerLoop;
+        // Eğer soru nesnesi içinde doğrudan id varsa ve alt konu ID'si biliniyorsa kısa yol kullan
+        if (selectedAltKonuId && soru && soru.id) {
+            // Alt konuda sorular obje mi yoksa boolean mu?
+            if (altKonular[selectedAltKonuId].sorular && altKonular[selectedAltKonuId].sorular !== true) {
+                // Sorular içinde id'ye göre doğrudan ara
+                for (const soruKey of Object.keys(altKonular[selectedAltKonuId].sorular)) {
+                    const dbSoru = altKonular[selectedAltKonuId].sorular[soruKey];
+                    if (dbSoru.id === soru.id) {
+                        soruRef = `konular/${id}/altkonular/${selectedAltKonuId}/sorular/${soruKey}`;
+                        console.log('Soru ID üzerinden bulundu:', soruRef);
+                        break;
                     }
                 }
+            }
+        }
+        
+        // Yukarıdaki hızlı arama ile bulunamadıysa içerik üzerinden arama yap
+        if (!soruRef) {
+            // Eğer sadece bu alt konudaki sorular yüklüyse sadece burada ara
+            if (selectedAltKonuId && altKonular[selectedAltKonuId].sorular && altKonular[selectedAltKonuId].sorular !== true) {
+                for (const soruKey of Object.keys(altKonular[selectedAltKonuId].sorular)) {
+                    const dbSoru = altKonular[selectedAltKonuId].sorular[soruKey];
+                    // Soru içeriği eşleşiyor mu kontrol et
+                    if (dbSoru.soruMetni === soru.soruMetni) {
+                        soruRef = `konular/${id}/altkonular/${selectedAltKonuId}/sorular/${soruKey}`;
+                        console.log('Soru içeriğine göre bulundu:', soruRef);
+                        break;
+                    }
+                }
+            } 
+            
+            // Yine bulunamadıysa ve hiç yüklü soru yoksa, soruyu bulmak için database fetch yap
+            if (!soruRef && Object.keys(altKonular).length > 0) {
+                console.log('Soru yerel cachete bulunamadı, veritabanından yüklenecek...');
+                
+                // Toplu doğrulama modalını geçici olarak gizle 
+                document.querySelector('.bulk-verification-modal')?.classList.add('hidden');
+                
+                // Biraz bekledikten sonra güncelleme modalını aç
+                // Burada soruyu tam olarak bulamadık, ancak kullanıcı soruyu göreceği için güncelleme yapabilir
+                setTimeout(() => {
+                    alert('Soru tam olarak bulunamadı. Lütfen güncelleme ekranında değişikliklerinizi yapın.');
+                    setIsUpdateModalOpen(true);
+                }, 100);
+                
+                return;
             }
         }
         
@@ -227,7 +333,7 @@ function QuestionContent() {
             console.log('Bulundu, güncelleme modalı açılıyor:', soruRef);
             setSelectedSoruRef(soruRef);
             
-            // Toplu doğrulama modalını geçici olarak gizle (kapatmıyoruz)
+            // Toplu doğrulama modalını geçici olarak gizle
             document.querySelector('.bulk-verification-modal')?.classList.add('hidden');
             
             // Biraz bekledikten sonra güncelleme modalını aç
@@ -248,52 +354,43 @@ function QuestionContent() {
         setIsUpdateModalOpen(false);
         
         // Daha sonra, verileri yenileyip bulk verification modalını güncelle
+        // Toplu doğrulama modalını tekrar göster
+        document.querySelector('.bulk-verification-modal')?.classList.remove('hidden');
+        
         // Kısa bir gecikme ekleyerek veritabanı işlemlerinin tamamlanmasını sağlayalım
         setTimeout(() => {
-            // Soruları yenile
-            refreshQuestions().then(() => {
-                console.log("Sorular başarıyla yenilendi.");
-                
-                // Bulk verification modalı açıksa ve referansı varsa, güncel soruyu gönder
-                if (isBulkVerificationOpen && bulkVerificationRef.current) {
-                    // Güncel soruyu veritabanından direkt olarak al
-                    try {
-                        const db = getDatabase();
-                        const konuRef = ref(db, `konular/${id}/altkonular/${selectedAltKonuId}/sorular/${selectedSoruRef.split("/")[5]}`);
-                        
-                        get(konuRef).then((snapshot) => {
-                            if (snapshot.exists()) {
-                                const guncelSorular = snapshot.val();
-                                
-                                // Güncellenen soruyu ID veya içerik üzerinden bul
-                                const guncelSoru = Object.values(guncelSorular).find(soru => 
-                                    soru.id === updatedQuestion.id || 
-                                    (soru.soruMetni === updatedQuestion.soruMetni && 
-                                    JSON.stringify(soru.cevaplar) === JSON.stringify(updatedQuestion.cevaplar))
-                                );
-                                
-                                if (guncelSoru) {
-                                    console.log("Güncel soru bulundu, bulk verification modalı güncelleniyor:", guncelSoru);
-                                    bulkVerificationRef.current.updateSonucWithGuncelSoru(guncelSoru);
-                                } else {
-                                    console.log("Güncellenen soru veritabanında bulunamadı.");
-                                }
+            // Eğer bir alt konu açıksa, sadece o alt konunun sorularını yenile
+            if (expandedAltKonu) {
+                fetchSorularForAltKonu(expandedAltKonu);
+            }
+            
+            // Güncelleme yapılan soruyu sadece doğrudan al, tüm veriyi çekme
+            if (selectedSoruRef && bulkVerificationRef.current && isBulkVerificationOpen) {
+                try {
+                    // Sadece güncellenen soruyu al
+                    const guncelSoruRef = ref(database, selectedSoruRef);
+                    
+                    get(guncelSoruRef).then((snapshot) => {
+                        if (snapshot.exists()) {
+                            const guncelSoru = snapshot.val();
+                            
+                            if (guncelSoru) {
+                                console.log("Güncel soru bulundu, bulk verification modalı güncelleniyor:", guncelSoru);
+                                bulkVerificationRef.current.updateSonucWithGuncelSoru(guncelSoru);
                             } else {
-                                console.log("Konu verileri bulunamadı.");
+                                console.log("Güncel soru boş geldi.");
                             }
-                        }).catch(error => {
-                            console.error("Güncel soru verileri alınırken hata:", error);
-                        });
-                    } catch (error) {
-                        console.error("Bulk verification güncelleme hatası:", error);
-                    }
-                } else {
-                    console.log("Bulk verification modalı açık değil veya referans bulunamadı.");
+                        } else {
+                            console.log("Güncel soru bulunamadı.");
+                        }
+                    }).catch(error => {
+                        console.error("Güncel soru verileri alınırken hata:", error);
+                    });
+                } catch (error) {
+                    console.error("Bulk verification güncelleme hatası:", error);
                 }
-            }).catch(error => {
-                console.error("Sorular yenilenirken hata:", error);
-            });
-        }, 500); // 500ms bekle
+            }
+        }, 300); // 300ms bekle
     };
 
     return (
@@ -347,14 +444,24 @@ function QuestionContent() {
                                         </h2>
                                         <div className="flex items-center space-x-4">
                                             <span className="text-gray-500 dark:text-gray-400 text-sm font-medium bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
-                                                {altKonu.sorular ? Object.keys(altKonu.sorular).length : 0} Soru
+                                                {altKonu.sorular && altKonu.sorular !== true 
+                                                    ? Object.keys(altKonu.sorular).length 
+                                                    : '?'} Soru
                                             </span>
-                                            {altKonu.sorular && Object.keys(altKonu.sorular).length > 0 && (
+                                            {altKonu.sorular && (
                                                 <>
                                                     <button
                                                         onClick={() => {
+                                                            // Önce soruları yükle, sonra modali aç
                                                             setSelectedAltKonuId(key);
-                                                            setIsBulkVerificationOpen(true);
+                                                            if (altKonu.sorular === true) {
+                                                                fetchSorularForAltKonu(key);
+                                                                setTimeout(() => {
+                                                                    setIsBulkVerificationOpen(true);
+                                                                }, 500);
+                                                            } else {
+                                                                setIsBulkVerificationOpen(true);
+                                                            }
                                                         }}
                                                         className="text-white bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-lg text-sm font-medium flex items-center space-x-1"
                                                     >
@@ -366,7 +473,14 @@ function QuestionContent() {
                                                     <button
                                                         onClick={() => {
                                                             setSelectedAltKonuId(key);
-                                                            setIsBulkDeleteOpen(true);
+                                                            if (altKonu.sorular === true) {
+                                                                fetchSorularForAltKonu(key);
+                                                                setTimeout(() => {
+                                                                    setIsBulkDeleteOpen(true);
+                                                                }, 500);
+                                                            } else {
+                                                                setIsBulkDeleteOpen(true);
+                                                            }
                                                         }}
                                                         className="text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg text-sm font-medium flex items-center space-x-1"
                                                     >
@@ -378,7 +492,14 @@ function QuestionContent() {
                                                     <button
                                                         onClick={() => {
                                                             setSelectedAltKonuId(key);
-                                                            setIsBulkDownloadOpen(true);
+                                                            if (altKonu.sorular === true) {
+                                                                fetchSorularForAltKonu(key);
+                                                                setTimeout(() => {
+                                                                    setIsBulkDownloadOpen(true);
+                                                                }, 500);
+                                                            } else {
+                                                                setIsBulkDownloadOpen(true);
+                                                            }
                                                         }}
                                                         className="text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-lg text-sm font-medium flex items-center space-x-1"
                                                     >
@@ -406,134 +527,146 @@ function QuestionContent() {
                                         </div>
                                     </div>
                                     {expandedAltKonu === key && (
-                                        <ul className="space-y-5 mt-6">
-                                            {altKonu.sorular ? (
-                                                sortedQuestions(altKonu.sorular).map(([soruKey, soru], index) => (
-                                                    <li key={soruKey} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg shadow-sm flex flex-col transition-all duration-200 hover:shadow-md">
-                                                        <div className="flex justify-between items-start">
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="flex flex-col p-6">
-                                                                    <div className="flex flex-col space-y-1">
-                                                                        <h3 className="text-lg font-semibold mb-2">
-                                                                            {index + 1}. Soru: 
-                                                                        </h3>
-                                                                        {soru.soruResmi && (
-                                                                            <div className="mb-4">
-                                                                                <img 
-                                                                                    src={soru.soruResmi} 
-                                                                                    alt="Soru resmi" 
-                                                                                    className="max-w-full h-auto rounded-lg shadow-md"
-                                                                                />
-                                                                            </div>
-                                                                        )}
-                                                                        <div dangerouslySetInnerHTML={{ __html: soru.soruMetni }} />
-                                                                        <div className="ml-4 space-y-1">
-                                                                            {soru.cevaplar &&
-                                                                                soru.cevaplar.map((cevap, cevapIndex) => {
-                                                                                    // Doğru cevap kontrolü
-                                                                                    const isCorrect = 
-                                                                                        // Yeni format (A, B, C, D, E)
-                                                                                        (/^[A-E]$/.test(soru.dogruCevap) && String.fromCharCode(65 + cevapIndex) === soru.dogruCevap) ||
-                                                                                        // Eski format (cevabın kendisi)
-                                                                                        (!(/^[A-E]$/.test(soru.dogruCevap)) && cevap === soru.dogruCevap);
-                                                                                    
-                                                                                    return (
-                                                                                        <div 
-                                                                                            key={cevapIndex}
-                                                                                            className={`p-2 rounded-md ${
-                                                                                                isCorrect
-                                                                                                    ? "bg-green-100 dark:bg-green-900/70 text-green-800 dark:text-green-200"
-                                                                                                    : "bg-gray-50 dark:bg-gray-700"
-                                                                                            }`}
-                                                                                        >
-                                                                                            <span className="font-bold mr-2">
-                                                                                                {String.fromCharCode(65 + cevapIndex)}:
-                                                                                            </span>
-                                                                                            <span dangerouslySetInnerHTML={{ __html: cevap }} />
-                                                                                        </div>
-                                                                                    );
-                                                                                })}
-                                                                        </div>
-                                                                        {/* Doğru cevap göstergesi */}
-                                                                        <div className="mt-3 mb-1">
-                                                                            <p className="text-sm font-medium text-green-600 dark:text-green-400">
-                                                                                Doğru Cevap: 
-                                                                                {soru.dogruCevap ? (
-                                                                                    <span>
-                                                                                        {/^[A-E]$/.test(soru.dogruCevap) ? (
-                                                                                            <>
-                                                                                                {soru.dogruCevap} Şıkkı 
-                                                                                                {soru.cevaplar && Array.isArray(soru.cevaplar) && soru.cevaplar[soru.dogruCevap.charCodeAt(0) - 65] && (
-                                                                                                    <span className="ml-2 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
-                                                                                                        ({stripHtml(soru.cevaplar[soru.dogruCevap.charCodeAt(0) - 65])})
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </>
-                                                                                        ) : (
-                                                                                            <>
-                                                                                                {soru.cevaplar && Array.isArray(soru.cevaplar) && (
-                                                                                                    <>
-                                                                                                        {String.fromCharCode(65 + soru.cevaplar.indexOf(soru.dogruCevap))} Şıkkı
-                                                                                                        <span className="ml-2 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
-                                                                                                            ({stripHtml(soru.dogruCevap)})
-                                                                                                        </span>
-                                                                                                    </>
-                                                                                                )}
-                                                                                            </>
-                                                                                        )}
-                                                                                    </span>
-                                                                                ) : "Belirtilmemiş"}
-                                                                            </p>
-                                                                        </div>
-                                                                        {soru.aciklama && (
-                                                                            <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900 rounded-md">
-                                                                                <span className="font-semibold">Açıklama: </span>
-                                                                                <div dangerouslySetInnerHTML={{ __html: soru.aciklama }} />
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="mt-4 flex justify-end text-gray-500 dark:text-gray-400 space-x-4 text-sm">
-                                                                        <p className="flex items-center"><span className="mr-1">⚠️</span> {soru.report || 0}</p>
-                                                                        <p className="flex items-center"><span className="mr-1">👍</span> {soru.liked || 0}</p>
-                                                                        <p className="flex items-center"><span className="mr-1">👎</span> {soru.unliked || 0}</p>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex flex-col space-y-2 ml-4">
-                                                                <button
-                                                                    className="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200"
-                                                                    onClick={() => handleUpdateClick(`konular/${id}/altkonular/${key}/sorular/${soruKey}`)}
-                                                                >
-                                                                    <div className="flex items-center">
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                                                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                                                        </svg>
-                                                                    Güncelle
-                                                                    </div>
-                                                                </button>
-                                                                <button
-                                                                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200"
-                                                                    onClick={() => handleChangeOrderClick(`konular/${id}/altkonular/${key}/sorular/${soruKey}`)}
-                                                                >
-                                                                    <div className="flex items-center">
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                                                            <path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8zM12 15a1 1 0 100-2H6.414l1.293-1.293a1 1 0 10-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L6.414 15H12z" />
-                                                                        </svg>
-                                                                        Takas Et
-                                                                    </div>
-                                                                </button>
-                                                                <DeleteQuestion
-                                                                    soruRef={`konular/${id}/altkonular/${key}/sorular/${soruKey}`}
-                                                                    onDelete={refreshQuestions}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </li>
-                                                ))
+                                        <>
+                                            {altKonu.sorularYukleniyor ? (
+                                                <div className="flex justify-center py-12">
+                                                    <div className="w-12 h-12 border-4 border-t-indigo-500 border-indigo-200 rounded-full animate-spin"></div>
+                                                </div>
                                             ) : (
-                                                <li className="text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">Soru bulunamadı.</li>
+                                                <ul className="space-y-5 mt-6">
+                                                    {altKonu.sorular && altKonu.sorular !== true ? (
+                                                        Object.keys(altKonu.sorular).length > 0 ? (
+                                                            sortedQuestions(altKonu.sorular).map(([soruKey, soru], index) => (
+                                                                <li key={soruKey} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg shadow-sm flex flex-col transition-all duration-200 hover:shadow-md">
+                                                                    <div className="flex justify-between items-start">
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <div className="flex flex-col p-6">
+                                                                                <div className="flex flex-col space-y-1">
+                                                                                    <h3 className="text-lg font-semibold mb-2">
+                                                                                        {index + 1}. Soru: 
+                                                                                    </h3>
+                                                                                    {soru.soruResmi && (
+                                                                                        <div className="mb-4">
+                                                                                            <img 
+                                                                                                src={soru.soruResmi} 
+                                                                                                alt="Soru resmi" 
+                                                                                                className="max-w-full h-auto rounded-lg shadow-md"
+                                                                                            />
+                                                                                        </div>
+                                                                                    )}
+                                                                                    <div dangerouslySetInnerHTML={{ __html: soru.soruMetni }} />
+                                                                                    <div className="ml-4 space-y-1">
+                                                                                        {soru.cevaplar &&
+                                                                                            soru.cevaplar.map((cevap, cevapIndex) => {
+                                                                                                // Doğru cevap kontrolü
+                                                                                                const isCorrect = 
+                                                                                                    // Yeni format (A, B, C, D, E)
+                                                                                                    (/^[A-E]$/.test(soru.dogruCevap) && String.fromCharCode(65 + cevapIndex) === soru.dogruCevap) ||
+                                                                                                    // Eski format (cevabın kendisi)
+                                                                                                    (!(/^[A-E]$/.test(soru.dogruCevap)) && cevap === soru.dogruCevap);
+                                                                                                
+                                                                                                return (
+                                                                                                    <div 
+                                                                                                        key={cevapIndex}
+                                                                                                        className={`p-2 rounded-md ${
+                                                                                                            isCorrect
+                                                                                                                ? "bg-green-100 dark:bg-green-900/70 text-green-800 dark:text-green-200"
+                                                                                                                : "bg-gray-50 dark:bg-gray-700"
+                                                                                                        }`}
+                                                                                                    >
+                                                                                                        <span className="font-bold mr-2">
+                                                                                                            {String.fromCharCode(65 + cevapIndex)}:
+                                                                                                        </span>
+                                                                                                        <span dangerouslySetInnerHTML={{ __html: cevap }} />
+                                                                                                    </div>
+                                                                                                );
+                                                                                            })}
+                                                                                    </div>
+                                                                                    {/* Doğru cevap göstergesi */}
+                                                                                    <div className="mt-3 mb-1">
+                                                                                        <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                                                                                            Doğru Cevap: 
+                                                                                            {soru.dogruCevap ? (
+                                                                                                <span>
+                                                                                                    {/^[A-E]$/.test(soru.dogruCevap) ? (
+                                                                                                        <>
+                                                                                                            {soru.dogruCevap} Şıkkı 
+                                                                                                            {soru.cevaplar && Array.isArray(soru.cevaplar) && soru.cevaplar[soru.dogruCevap.charCodeAt(0) - 65] && (
+                                                                                                                <span className="ml-2 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
+                                                                                                                    ({stripHtml(soru.cevaplar[soru.dogruCevap.charCodeAt(0) - 65])})
+                                                                                                                </span>
+                                                                                                            )}
+                                                                                                        </>
+                                                                                                    ) : (
+                                                                                                        <>
+                                                                                                            {soru.cevaplar && Array.isArray(soru.cevaplar) && (
+                                                                                                                <>
+                                                                                                                    {String.fromCharCode(65 + soru.cevaplar.indexOf(soru.dogruCevap))} Şıkkı
+                                                                                                                    <span className="ml-2 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
+                                                                                                                        ({stripHtml(soru.dogruCevap)})
+                                                                                                                    </span>
+                                                                                                                </>
+                                                                                                            )}
+                                                                                                        </>
+                                                                                                    )}
+                                                                                                </span>
+                                                                                            ) : "Belirtilmemiş"}
+                                                                                        </p>
+                                                                                    </div>
+                                                                                    {soru.aciklama && (
+                                                                                        <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900 rounded-md">
+                                                                                            <span className="font-semibold">Açıklama: </span>
+                                                                                            <div dangerouslySetInnerHTML={{ __html: soru.aciklama }} />
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className="mt-4 flex justify-end text-gray-500 dark:text-gray-400 space-x-4 text-sm">
+                                                                                    <p className="flex items-center"><span className="mr-1">⚠️</span> {soru.report || 0}</p>
+                                                                                    <p className="flex items-center"><span className="mr-1">👍</span> {soru.liked || 0}</p>
+                                                                                    <p className="flex items-center"><span className="mr-1">👎</span> {soru.unliked || 0}</p>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex flex-col space-y-2 ml-4">
+                                                                            <button
+                                                                                className="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+                                                                                onClick={() => handleUpdateClick(`konular/${id}/altkonular/${key}/sorular/${soruKey}`)}
+                                                                            >
+                                                                                <div className="flex items-center">
+                                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                                                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                                                                    </svg>
+                                                                                Güncelle
+                                                                                </div>
+                                                                            </button>
+                                                                            <button
+                                                                                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+                                                                                onClick={() => handleChangeOrderClick(`konular/${id}/altkonular/${key}/sorular/${soruKey}`)}
+                                                                            >
+                                                                                <div className="flex items-center">
+                                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                                                                        <path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8zM12 15a1 1 0 100-2H6.414l1.293-1.293a1 1 0 10-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L6.414 15H12z" />
+                                                                                    </svg>
+                                                                                Takas Et
+                                                                                </div>
+                                                                            </button>
+                                                                            <DeleteQuestion
+                                                                                soruRef={`konular/${id}/altkonular/${key}/sorular/${soruKey}`}
+                                                                                onDelete={refreshQuestions}
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                </li>
+                                                            ))
+                                                        ) : (
+                                                            <li className="text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">Bu alt konuda hiç soru bulunamadı.</li>
+                                                        )
+                                                    ) : (
+                                                        <li className="text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">Sorular yüklenemedi.</li>
+                                                    )}
+                                                </ul>
                                             )}
-                                        </ul>
+                                        </>
                                     )}
                                 </div>
                             ))}
