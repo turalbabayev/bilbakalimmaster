@@ -2,7 +2,7 @@ import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'rea
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle } from 'docx';
 
-const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess, onUpdateClick }, ref) => {
+const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess, onUpdateClick, onDeleteClick }, ref) => {
     const [sonuclar, setSonuclar] = useState([]);
     const [yukleniyor, setYukleniyor] = useState(false);
     const [openaiApiKey, setOpenaiApiKey] = useState(null);
@@ -463,6 +463,25 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess
         }
     };
 
+    const handleSoruSil = async (soru) => {
+        try {
+            if (onDeleteClick && typeof onDeleteClick === 'function') {
+                console.log('Silme talep edilen soru:', soru);
+                
+                // Kullanıcıya silme işlemini onaylatma
+                if (window.confirm(`"${stripHtml(soru.soruMetni).substring(0, 50)}..." sorusunu silmek istediğinize emin misiniz?`)) {
+                    onDeleteClick(soru);
+                }
+                return;
+            } else {
+                throw new Error('Silme fonksiyonu tanımlanmamış');
+            }
+        } catch (error) {
+            console.error('Soru silinirken hata:', error);
+            alert(`Soru silinirken bir hata oluştu: ${error.message}`);
+        }
+    };
+
     // HTML etiketlerini temizleme fonksiyonu
     const stripHtml = (html) => {
         if (!html) return "";
@@ -854,15 +873,26 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess
                                                 <h4 className="text-sm font-semibold text-green-800 dark:text-green-200 mb-2">
                                                     Sistem Doğru Cevabı:
                                                 </h4>
-                                                <button
-                                                    onClick={() => handleDogruCevapGuncelle(sonuc.soru, sonuc.geminiDogruCevap)}
-                                                    className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors flex items-center space-x-2"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                                    </svg>
-                                                    <span>Soruyu Güncelle</span>
-                                                </button>
+                                                <div className="flex space-x-2">
+                                                    <button
+                                                        onClick={() => handleDogruCevapGuncelle(sonuc.soru, sonuc.geminiDogruCevap)}
+                                                        className="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors flex items-center space-x-1"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                                        </svg>
+                                                        <span>Soruyu Güncelle</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleSoruSil(sonuc.soru)}
+                                                        className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center space-x-1"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                        </svg>
+                                                        <span>Soruyu Sil</span>
+                                                    </button>
+                                                </div>
                                             </div>
                                             <div className="flex items-center space-x-2">
                                                 <span className="text-green-600 dark:text-green-400 font-medium">
