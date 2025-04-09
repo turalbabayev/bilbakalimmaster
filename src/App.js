@@ -11,6 +11,7 @@ import { AuthProvider } from './context/AuthContext';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   return (
@@ -35,6 +36,16 @@ function App() {
             draggable
             pauseOnHover
             theme="colored"
+          />
+          <Toaster 
+            position="top-right"
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: '#333',
+                color: '#fff',
+              },
+            }}
           />
         </Router>
     </AuthProvider>
