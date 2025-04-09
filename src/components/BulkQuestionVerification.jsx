@@ -465,11 +465,29 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess
 
     const handleSoruSil = async (soru) => {
         try {
+            if (!soru) {
+                throw new Error('Geçersiz soru verisi: Soru nesnesi bulunamadı');
+            }
+            
+            // Soru verisini kontrol et
+            if (!soru.soruMetni) {
+                throw new Error('Geçersiz soru verisi: Soru metni bulunamadı');
+            }
+            
+            // Emin olmak için soru ID'sini elle ayarlayalım
+            if (!soru.id) {
+                // Eğer ID yoksa, sorunun içeriğinden bir ID oluşturalım
+                const hash = Math.random().toString(36).substring(2, 15);
+                console.log('Soru ID bulunamadı, geçici ID oluşturuluyor:', hash);
+                soru.id = hash;
+            }
+            
             if (onDeleteClick && typeof onDeleteClick === 'function') {
                 console.log('Silme talep edilen soru:', soru);
                 
                 // Kullanıcıya silme işlemini onaylatma
-                if (window.confirm(`"${stripHtml(soru.soruMetni).substring(0, 50)}..." sorusunu silmek istediğinize emin misiniz?`)) {
+                const soruMetniOzet = stripHtml(soru.soruMetni || '').substring(0, 50);
+                if (window.confirm(`"${soruMetniOzet}..." sorusunu silmek istediğinize emin misiniz?`)) {
                     onDeleteClick(soru);
                 }
                 return;
