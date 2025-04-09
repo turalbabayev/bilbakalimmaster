@@ -847,28 +847,78 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess
                                         </div>
                                     </div>
                                     
-                                    <div className="mt-4 bg-blue-50 dark:bg-blue-900 p-4 rounded-lg border-l-4 border-blue-500">
-                                        <p className="font-semibold text-blue-900 dark:text-blue-100">Sistemdeki Doğru Cevap:</p>
-                                        <div className="flex items-center justify-between mt-2">
-                                            <span className={`${
-                                                sonuc.cevapUyumsuz 
-                                                    ? 'text-red-700 dark:text-red-300' 
-                                                    : 'text-blue-700 dark:text-blue-300'
-                                            }`}>
-                                                {sonuc.sistemDogruCevap}) {stripHtml(sonuc.soru.cevaplar[sonuc.sistemDogruCevap.charCodeAt(0) - 65])}
-                                            </span>
-                                            {sonuc.cevapUyumsuz && (
-                                                <button
-                                                    onClick={() => handleDogruCevapGuncelle(sonuc.soru, sonuc.geminiDogruCevap)}
-                                                    className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors flex items-center space-x-2"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                                    </svg>
-                                                    <span>Soruyu Güncelle</span>
-                                                </button>
-                                            )}
+                                    <div className="mt-4 space-y-4">
+                                        {/* Sistem Doğru Cevabı */}
+                                        <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                                            <h4 className="text-sm font-semibold text-green-800 dark:text-green-200 mb-2">
+                                                Sistem Doğru Cevabı:
+                                            </h4>
+                                            <div className="flex items-center space-x-2">
+                                                <span className="text-green-600 dark:text-green-400 font-medium">
+                                                    {sonuc.soru.dogruCevap ? (
+                                                        <>
+                                                            {/^[A-E]$/.test(sonuc.soru.dogruCevap) ? (
+                                                                <>
+                                                                    {sonuc.soru.dogruCevap} Şıkkı
+                                                                    {sonuc.soru.cevaplar && Array.isArray(sonuc.soru.cevaplar) && sonuc.soru.cevaplar[sonuc.soru.dogruCevap.charCodeAt(0) - 65] && (
+                                                                        <span className="ml-2 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
+                                                                            ({stripHtml(sonuc.soru.cevaplar[sonuc.soru.dogruCevap.charCodeAt(0) - 65])})
+                                                                        </span>
+                                                                    )}
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    {sonuc.soru.cevaplar && Array.isArray(sonuc.soru.cevaplar) && (
+                                                                        <>
+                                                                            {String.fromCharCode(65 + sonuc.soru.cevaplar.indexOf(sonuc.soru.dogruCevap))} Şıkkı
+                                                                            <span className="ml-2 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
+                                                                                ({stripHtml(sonuc.soru.dogruCevap)})
+                                                                            </span>
+                                                                        </>
+                                                                    )}
+                                                                </>
+                                                            )}
+                                                        </>
+                                                    ) : "Belirtilmemiş"}
+                                                </span>
+                                            </div>
                                         </div>
+
+                                        {/* Sistem Açıklaması */}
+                                        {sonuc.soru.aciklama && (
+                                            <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                                                <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">
+                                                    Sistem Açıklaması:
+                                                </h4>
+                                                <div className="text-blue-700 dark:text-blue-300 text-sm">
+                                                    <div dangerouslySetInnerHTML={{ __html: sonuc.soru.aciklama }} />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* GPT Analizi */}
+                                        {sonuc.gptAnaliz && (
+                                            <div className="bg-purple-50 dark:bg-purple-900/30 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
+                                                <h4 className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-2">
+                                                    GPT Analizi:
+                                                </h4>
+                                                <div className="text-purple-700 dark:text-purple-300 text-sm">
+                                                    <div dangerouslySetInnerHTML={{ __html: sonuc.gptAnaliz }} />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Gemini Analizi */}
+                                        {sonuc.geminiAnaliz && (
+                                            <div className="bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                                                <h4 className="text-sm font-semibold text-indigo-800 dark:text-indigo-200 mb-2">
+                                                    Gemini Analizi:
+                                                </h4>
+                                                <div className="text-indigo-700 dark:text-indigo-300 text-sm">
+                                                    <div dangerouslySetInnerHTML={{ __html: sonuc.geminiAnaliz }} />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
