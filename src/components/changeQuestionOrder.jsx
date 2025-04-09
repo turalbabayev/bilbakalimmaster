@@ -29,10 +29,20 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId, 
                 const base = pathParts.join('/');
                 setBasePath(base);
                 
+                console.log('Mevcut soru referansı:', soruRefPath);
+                console.log('Temel yol:', base);
+                console.log('Soru anahtarı:', currentKey);
+                
                 // Mevcut soruyu yükle
                 const currentQuestionRef = ref(database, soruRefPath);
                 const currentSnapshot = await get(currentQuestionRef);
+                
+                if (!currentSnapshot.exists()) {
+                    throw new Error('Mevcut soru bulunamadı!');
+                }
+                
                 const currentQuestion = currentSnapshot.val();
+                console.log('Mevcut soru:', currentQuestion);
                 
                 if (currentQuestion) {
                     setCurrentQuestionNumber(currentQuestion.soruNumarasi || 0);
@@ -42,7 +52,13 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId, 
                 // Tüm soruları yükle
                 const allQuestionsRef = ref(database, base);
                 const allQuestionsSnapshot = await get(allQuestionsRef);
+                
+                if (!allQuestionsSnapshot.exists()) {
+                    throw new Error('Sorular listesi bulunamadı!');
+                }
+                
                 const allQuestionsData = allQuestionsSnapshot.val() || {};
+                console.log('Tüm sorular:', allQuestionsData);
                 
                 // Soruları sırala ve ayarla
                 const questionsArray = Object.entries(allQuestionsData).map(([key, question]) => ({
@@ -51,22 +67,24 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId, 
                 })).sort((a, b) => (a.soruNumarasi || 999) - (b.soruNumarasi || 999));
                 
                 setAllQuestions(questionsArray);
+                console.log('Sorular dizisi:', questionsArray);
                 
             } catch (error) {
                 console.error("Sorular yüklenirken hata oluştu:", error);
-                alert("Sorular yüklenirken bir hata oluştu!");
+                alert("Sorular yüklenirken bir hata oluştu: " + error.message);
+                onClose(); // Hata durumunda modalı kapat
             } finally {
                 setIsLoading(false);
             }
         };
         
         loadCurrentQuestion();
-    }, [isOpen, soruRefPath, konuId, altKonuId, altDalId]);
+    }, [isOpen, soruRefPath, konuId, altKonuId, altDalId, onClose]);
     
     const handleSwapQuestions = async () => {
         // Hedef numara geçerli değilse işlemi iptal et
-        if (targetQuestionNumber <= 0 || targetQuestionNumber > allQuestions.length) {
-            alert(`Lütfen 1 ile ${allQuestions.length} arasında bir numara girin.`);
+        if (targetQuestionNumber <= 0) {
+            alert(`Lütfen geçerli bir sıra numarası girin.`);
             return;
         }
         
@@ -80,23 +98,34 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId, 
         setIsSubmitting(true);
         
         try {
+            console.log('Takas başlatılıyor...');
+            console.log('Hedef soru numarası:', targetQuestionNumber);
+            console.log('Mevcut soru numarası:', currentQuestionNumber);
+            
             // Hedef soru numarasına sahip olan soruyu bul
             const targetQuestion = allQuestions.find(q => q.soruNumarasi === targetQuestionNumber);
             
             if (!targetQuestion) {
-                alert(`${targetQuestionNumber} numaralı soru bulunamadı.`);
-                setIsSubmitting(false);
-                return;
+                throw new Error(`${targetQuestionNumber} numaralı soru bulunamadı.`);
             }
+            
+            console.log('Hedef soru bulundu:', targetQuestion);
             
             // Sadece iki sorunun sıra numaralarını değiştir (takas/swap)
             const updates = {};
+            
+            // Geçerlilik kontrolü
+            if (!basePath || !currentSoruKey || !targetQuestion.id) {
+                throw new Error("Gerekli bilgiler eksik! Lütfen sayfayı yenileyip tekrar deneyin.");
+            }
             
             // Mevcut sorunun numarasını hedef numaraya güncelle
             updates[`${basePath}/${currentSoruKey}/soruNumarasi`] = targetQuestionNumber;
             
             // Hedef sorunun numarasını mevcut numaraya güncelle
             updates[`${basePath}/${targetQuestion.id}/soruNumarasi`] = currentQuestionNumber;
+            
+            console.log('Güncellenecek veriler:', updates);
             
             // Tüm güncellemeleri tek seferde yap
             await update(ref(database), updates);
@@ -105,7 +134,7 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId, 
             onClose();
         } catch (error) {
             console.error("Soru sırası güncellenirken hata oluştu:", error);
-            alert("Soru sırası güncellenirken bir hata oluştu!");
+            alert(`Soru sırası güncellenirken bir hata oluştu: ${error.message}`);
         } finally {
             setIsSubmitting(false);
         }
