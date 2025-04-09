@@ -6,11 +6,39 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId, 
     const [allQuestions, setAllQuestions] = useState([]);
     const [currentQuestionNumber, setCurrentQuestionNumber] = useState(0);
     const [targetQuestionNumber, setTargetQuestionNumber] = useState(0);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentSoruKey, setCurrentSoruKey] = useState("");
     const [basePath, setBasePath] = useState("");
     const [error, setError] = useState(null);
+    const [testData, setTestData] = useState(null);
+    
+    useEffect(() => {
+        if (!isOpen) return;
+        
+        console.log("Modal açıldı, referans:", soruRefPath);
+        
+        // Yapay gecikme - gerçek uygulama ile benzer deneyim için
+        const timer = setTimeout(() => {
+            setTestData({
+                currentNumber: 3,
+                questions: [
+                    { id: "q1", soruNumarasi: 1, soruMetni: "Test soru 1" },
+                    { id: "q2", soruNumarasi: 2, soruMetni: "Test soru 2" },
+                    { id: "q3", soruNumarasi: 3, soruMetni: "Test soru 3 (seçili)" },
+                    { id: "q4", soruNumarasi: 4, soruMetni: "Test soru 4" },
+                    { id: "q5", soruNumarasi: 5, soruMetni: "Test soru 5" }
+                ]
+            });
+            setIsLoading(false);
+        }, 1000);
+        
+        return () => {
+            clearTimeout(timer);
+            setIsLoading(true);
+            setTestData(null);
+        };
+    }, [isOpen, soruRefPath]);
     
     useEffect(() => {
         if (!isOpen) return;
@@ -80,161 +108,71 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId, 
         
     }, [isOpen, soruRefPath, onClose]);
     
-    const handleSwapQuestions = async () => {
-        if (targetQuestionNumber <= 0) {
-            alert("Lütfen geçerli bir soru numarası seçin");
-            return;
-        }
-        
-        if (targetQuestionNumber === currentQuestionNumber) {
-            alert("Lütfen farklı bir soru numarası seçin");
-            return;
-        }
-        
-        setIsSubmitting(true);
-        
-        try {
-            // Hedef soru numarasına sahip olan soruyu bul
-            const targetQuestion = allQuestions.find(q => q.soruNumarasi === targetQuestionNumber);
-            
-            if (!targetQuestion) {
-                throw new Error(`${targetQuestionNumber} numaralı soru bulunamadı`);
-            }
-            
-            // Sadece iki sorunun sıra numaralarını değiştir (takas/swap)
-            const updates = {};
-            
-            // Mevcut sorunun numarasını hedef numaraya güncelle
-            updates[`${basePath}/${currentSoruKey}/soruNumarasi`] = targetQuestionNumber;
-            
-            // Hedef sorunun numarasını mevcut numaraya güncelle
-            updates[`${basePath}/${targetQuestion.id}/soruNumarasi`] = currentQuestionNumber;
-            
-            // Tüm güncellemeleri tek seferde yap
-            await update(ref(database), updates);
-            
-            alert("Soru sıraları başarıyla takas edildi.");
-            onClose();
-        } catch (error) {
-            console.error("Soru sırası değiştirme hatası:", error);
-            alert(`Hata: ${error.message}`);
-        } finally {
-            setIsSubmitting(false);
-        }
+    const handleSwapQuestions = () => {
+        alert("Test modu: Sıralama değiştirildi gibi davranıyoruz");
+        onClose();
     };
     
     if (!isOpen) return null;
     
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg p-6 border border-gray-200 dark:border-gray-700">
-                <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white border-b pb-3 border-gray-200 dark:border-gray-700">
-                    Soru Sırasını Değiştir
-                </h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                <h2 className="text-xl font-bold mb-4 pb-2 border-b">Soru Sıralaması Değiştir (TEST)</h2>
                 
                 {isLoading ? (
-                    <div className="flex justify-center items-center h-40">
-                        <svg className="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+                    <div className="py-10 flex flex-col items-center">
+                        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                        <p>Yükleniyor...</p>
                     </div>
-                ) : error ? (
-                    <div className="flex flex-col items-center justify-center h-40">
-                        <div className="text-red-500 text-xl mb-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mb-2 mx-auto" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
+                ) : testData ? (
+                    <div>
+                        <div className="mb-4">
+                            <p className="font-medium">Mevcut Soru: #{testData.currentNumber}</p>
                         </div>
-                        <p className="text-red-600 dark:text-red-400 text-center font-medium">
-                            {error}
-                        </p>
-                        <div className="mt-4">
-                            <button 
-                                onClick={() => window.location.reload()} 
-                                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                            >
-                                Sayfayı Yenile
-                            </button>
+                        
+                        <div className="mb-4">
+                            <label className="block mb-2">Takas Edilecek Soru:</label>
+                            <select className="w-full p-2 border rounded">
+                                {testData.questions.map(q => 
+                                    <option key={q.id} value={q.soruNumarasi}>#{q.soruNumarasi} - {q.soruMetni}</option>
+                                )}
+                            </select>
+                        </div>
+                        
+                        <div className="bg-gray-100 p-3 rounded mb-4">
+                            <h3 className="font-medium mb-2">Tüm Sorular:</h3>
+                            <ul className="space-y-1">
+                                {testData.questions.map(q => (
+                                    <li key={q.id} className={`p-2 rounded ${q.soruNumarasi === testData.currentNumber ? 'bg-blue-100' : ''}`}>
+                                        <span className="font-medium">#{q.soruNumarasi}</span> - {q.soruMetni}
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
                     </div>
                 ) : (
-                    <div className="space-y-5">
-                        <div>
-                            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                                Mevcut Soru Numarası:
-                            </label>
-                            <input
-                                type="number"
-                                value={currentQuestionNumber}
-                                disabled
-                                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-                            />
-                        </div>
-                        
-                        <div>
-                            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                                Takas Edilecek Soru Numarası:
-                            </label>
-                            <input
-                                type="number"
-                                value={targetQuestionNumber}
-                                onChange={(e) => setTargetQuestionNumber(Number(e.target.value))}
-                                min="1"
-                                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-all"
-                            />
-                        </div>
-                        
-                        {allQuestions.length > 0 && (
-                            <div className="mt-4 bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-lg">
-                                <h3 className="font-medium text-indigo-800 dark:text-indigo-300 mb-2">Mevcut Soru Sıralaması:</h3>
-                                <div className="max-h-40 overflow-y-auto pr-2">
-                                    <ul className="space-y-1.5">
-                                        {allQuestions.map((question) => (
-                                            <li 
-                                                key={question.id} 
-                                                className={`text-sm py-1 px-2 rounded ${
-                                                    question.id === currentSoruKey
-                                                    ? 'bg-indigo-100 dark:bg-indigo-800/50 font-medium' 
-                                                    : question.soruNumarasi === targetQuestionNumber
-                                                    ? 'bg-amber-100 dark:bg-amber-800/30 font-medium'
-                                                    : ''
-                                                }`}
-                                            >
-                                                <span className="font-medium mr-2">#{question.soruNumarasi || '?'}</span>
-                                                {(question.soruMetni || "").substring(0, 60)}
-                                                {question.soruMetni?.length > 60 ? '...' : ''}
-                                                {question.id === currentSoruKey ? 
-                                                    <span className="ml-1 text-indigo-600 dark:text-indigo-400">(seçili)</span>
-                                                    : question.soruNumarasi === targetQuestionNumber ?
-                                                    <span className="ml-1 text-amber-600 dark:text-amber-400">(takas edilecek)</span>
-                                                    : null
-                                                }
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            </div>
-                        )}
+                    <div className="py-10 text-center text-red-500">
+                        <p>Veri yüklenemedi!</p>
                     </div>
                 )}
                 
-                <div className="flex justify-end space-x-4 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <button
-                        className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-5 py-2.5 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all font-medium"
+                <div className="flex justify-end space-x-3 pt-3 border-t mt-4">
+                    <button 
                         onClick={onClose}
-                        disabled={isSubmitting}
+                        className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
                     >
                         İptal
                     </button>
                     <button
-                        className={`bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white px-5 py-2.5 rounded-lg shadow-sm hover:shadow transition-all font-medium ${
-                            isSubmitting ? "opacity-70 cursor-not-allowed" : ""
-                        }`}
-                        onClick={handleSwapQuestions}
-                        disabled={isSubmitting || isLoading || allQuestions.length === 0}
+                        onClick={() => {
+                            alert("Test: Soru sıralaması değiştirildi");
+                            onClose();
+                        }}
+                        disabled={isLoading || !testData}
+                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
                     >
-                        {isSubmitting ? "İşleniyor..." : "Soruları Takas Et"}
+                        Sıralamayı Değiştir
                     </button>
                 </div>
             </div>
