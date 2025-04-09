@@ -12,8 +12,9 @@ import BulkDownloadQuestions from "../../components/BulkDownloadQuestions";
 import BulkQuestionVerification from "../../components/BulkQuestionVerification";
 import { useParams, useNavigate } from "react-router-dom";
 import { database } from "../../firebase";
-import { ref, onValue, update, get } from "firebase/database";
+import { ref, onValue, update, get, remove, push, set, child, off } from "firebase/database";
 import { getDatabase } from "firebase/database";
+import { toast } from "react-hot-toast";
 
 function QuestionContent() {
     const { id } = useParams();
@@ -42,8 +43,8 @@ function QuestionContent() {
         // Konu başlıklarını almak için once() kullan, bu sürekli dinlemez sadece bir kez veri çeker
         get(konuRef).then((snapshot) => {
             if (snapshot.exists()) {
-                const data = snapshot.val();
-                if (data) {
+            const data = snapshot.val();
+            if (data) {
                     // Tüm alt konuları içeren basit bir obje oluştur
                     const altKonularBaslik = {};
                     Object.keys(data).forEach(key => {
@@ -163,7 +164,7 @@ function QuestionContent() {
             }
         });
     }, [expandedAltKonu, id]);
-
+    
     const toggleExpandBranch = (altKonuKey) => {
         navigate(`/question/${id}/${altKonuKey}`);
     };
@@ -393,6 +394,43 @@ function QuestionContent() {
         }, 300); // 300ms bekle
     };
 
+    // Soru silme fonksiyonu
+    const handleDeleteSoru = async (soru) => {
+        try {
+            // Sorunun referansını bul
+            const soruRef = findSoruRefById(soru.id);
+            
+            if (!soruRef) {
+                throw new Error('Soru referansı bulunamadı');
+            }
+            
+            // Firebase'den soruyu sil
+            const soruDbRef = ref(database, soruRef);
+            await remove(soruDbRef);
+            
+            // UI'ı güncelle
+            setAltKonular(prevAltKonular => {
+                const newAltKonular = { ...prevAltKonular };
+                
+                // Sorunun hangi alt konuya ait olduğunu bul
+                Object.keys(newAltKonular).forEach(altKonuId => {
+                    if (newAltKonular[altKonuId].sorular && newAltKonular[altKonuId].sorular[soru.id]) {
+                        // Soruyu alt konudan sil
+                        const { [soru.id]: _, ...geriyeKalanSorular } = newAltKonular[altKonuId].sorular;
+                        newAltKonular[altKonuId].sorular = geriyeKalanSorular;
+                    }
+                });
+                
+                return newAltKonular;
+            });
+            
+            toast.success('Soru başarıyla silindi');
+        } catch (error) {
+            console.error('Soru silinirken hata:', error);
+            toast.error(`Soru silinirken bir hata oluştu: ${error.message}`);
+        }
+    };
+
     return (
         <Layout>
             <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
@@ -538,8 +576,8 @@ function QuestionContent() {
                                                         Object.keys(altKonu.sorular).length > 0 ? (
                                                             sortedQuestions(altKonu.sorular).map(([soruKey, soru], index) => (
                                                                 <li key={soruKey} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg shadow-sm flex flex-col transition-all duration-200 hover:shadow-md">
-                                                                    <div className="flex justify-between items-start">
-                                                                        <div className="flex-1 min-w-0">
+                                                        <div className="flex justify-between items-start">
+                                                            <div className="flex-1 min-w-0">
                                                                             <div className="flex flex-col p-6">
                                                                                 <div className="flex flex-col space-y-1">
                                                                                     <h3 className="text-lg font-semibold mb-2">
@@ -626,17 +664,17 @@ function QuestionContent() {
                                                                                     <p className="flex items-center"><span className="mr-1">👎</span> {soru.unliked || 0}</p>
                                                                                 </div>
                                                                             </div>
-                                                                        </div>
-                                                                        <div className="flex flex-col space-y-2 ml-4">
-                                                                            <button
+                                                            </div>
+                                                            <div className="flex flex-col space-y-2 ml-4">
+                                                                <button
                                                                                 className="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200"
-                                                                                onClick={() => handleUpdateClick(`konular/${id}/altkonular/${key}/sorular/${soruKey}`)}
-                                                                            >
+                                                                    onClick={() => handleUpdateClick(`konular/${id}/altkonular/${key}/sorular/${soruKey}`)}
+                                                                >
                                                                                 <div className="flex items-center">
                                                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                                                                                         <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                                                                                     </svg>
-                                                                                Güncelle
+                                                                    Güncelle
                                                                                 </div>
                                                                             </button>
                                                                             <button
@@ -649,16 +687,16 @@ function QuestionContent() {
                                                                                     </svg>
                                                                                 Takas Et
                                                                                 </div>
-                                                                            </button>
-                                                                            <DeleteQuestion
-                                                                                soruRef={`konular/${id}/altkonular/${key}/sorular/${soruKey}`}
-                                                                                onDelete={refreshQuestions}
-                                                                            />
-                                                                        </div>
-                                                                    </div>
-                                                                </li>
-                                                            ))
-                                                        ) : (
+                                                                </button>
+                                                                <DeleteQuestion
+                                                                    soruRef={`konular/${id}/altkonular/${key}/sorular/${soruKey}`}
+                                                                    onDelete={refreshQuestions}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </li>
+                                                ))
+                                            ) : (
                                                             <li className="text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">Bu alt konuda hiç soru bulunamadı.</li>
                                                         )
                                                     ) : (
@@ -750,6 +788,7 @@ function QuestionContent() {
                                 onSoruGuncelle={handleSoruDogruCevapGuncelle}
                                 onGuncellemeSuccess={refreshQuestions}
                                 onUpdateClick={handleUpdateFromBulkVerification}
+                                onDeleteClick={handleDeleteSoru}
                             />
                         </div>
                         
