@@ -10,6 +10,7 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId, 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentSoruKey, setCurrentSoruKey] = useState("");
     const [basePath, setBasePath] = useState("");
+    const [error, setError] = useState(null);
     
     useEffect(() => {
         if (!isOpen) return;
@@ -36,14 +37,21 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId, 
                     const soruKey = parts.pop();
                     const sorularPath = parts.join('/');
                     
+                    console.log("SoruRefPath:", soruRefPath);
+                    console.log("SoruKey:", soruKey);
+                    console.log("SorularPath:", sorularPath);
+                    
                     // 2. Aynı yolda bulunan diğer soruları al
                     const allSorusSnapshot = await get(child(dbRef, sorularPath));
                     
                     if (!allSorusSnapshot.exists()) {
-                        throw new Error("Sorular listesi bulunamadı");
+                        console.error("Sorular bulunamadı. Path:", sorularPath);
+                        console.error("Snapshot:", allSorusSnapshot);
+                        throw new Error(`Sorular listesi bulunamadı. Path: ${sorularPath}`);
                     }
                     
                     const allSorusData = allSorusSnapshot.val();
+                    console.log("AllSorusData:", Object.keys(allSorusData).length);
                     
                     // Dizi şeklinde dönüştür
                     const sorusArray = Object.entries(allSorusData).map(([key, soru]) => ({
@@ -57,13 +65,13 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId, 
                     setBasePath(sorularPath);
                     setCurrentQuestionNumber(currentSoru.soruNumarasi || 0);
                     setTargetQuestionNumber(currentSoru.soruNumarasi || 0);
+                    setError(null);
                     
                     console.log("Sorular başarıyla yüklendi", sorusArray.length);
                     
                 } catch (error) {
                     console.error("Sorular yüklenirken hata:", error);
-                    alert(`Sorular yüklenirken hata: ${error.message}`);
-                    onClose();
+                    setError(error.message || "Bilinmeyen bir hata oluştu");
                 } finally {
                     setIsLoading(false);
                 }
@@ -130,6 +138,25 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId, 
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
+                    </div>
+                ) : error ? (
+                    <div className="flex flex-col items-center justify-center h-40">
+                        <div className="text-red-500 text-xl mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mb-2 mx-auto" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <p className="text-red-600 dark:text-red-400 text-center font-medium">
+                            {error}
+                        </p>
+                        <div className="mt-4">
+                            <button 
+                                onClick={() => window.location.reload()} 
+                                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                            >
+                                Sayfayı Yenile
+                            </button>
+                        </div>
                     </div>
                 ) : (
                     <div className="space-y-5">
