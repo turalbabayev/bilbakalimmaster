@@ -19,12 +19,17 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId, 
             setIsLoading(true);
             
             try {
+                console.log('Modal açıldı, sorular yükleniyor... SoruRefPath:', soruRefPath);
+                
                 // Mevcut soru referansından soru ID'sini ve ana yolu al
                 const pathParts = soruRefPath.split('/');
                 const currentKey = pathParts.pop(); // Soru ID'si
                 setCurrentSoruKey(currentKey);
                 
-                // Temel yol - "konular/konuId/altkonular/altKonuId/sorular" veya 
+                // Firebase path'ini doğru şekilde oluştur
+                // Path "konular/konuId/altkonular/altKonuId/sorular/soruId" şeklinde olmalı
+                
+                // "konular/konuId/altkonular/altKonuId/sorular" veya 
                 // "konular/konuId/altkonular/altKonuId/altdallar/altDalId/sorular"
                 const base = pathParts.join('/');
                 setBasePath(base);
@@ -38,6 +43,7 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId, 
                 const currentSnapshot = await get(currentQuestionRef);
                 
                 if (!currentSnapshot.exists()) {
+                    console.error('Mevcut soru bulunamadı:', soruRefPath);
                     throw new Error('Mevcut soru bulunamadı!');
                 }
                 
@@ -49,25 +55,44 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId, 
                     setTargetQuestionNumber(currentQuestion.soruNumarasi || 0);
                 }
                 
-                // Tüm soruları yükle
+                // Tüm soruları yükle - burada path'in sonunda "sorular" olduğundan emin olalım
+                if (!base.endsWith('/sorular')) {
+                    console.error('Geçersiz temel yol, sorular kelimesi ile bitmiyor:', base);
+                    throw new Error('Geçersiz sorular yolu! Lütfen sayfayı yenileyip tekrar deneyin.');
+                }
+                
                 const allQuestionsRef = ref(database, base);
                 const allQuestionsSnapshot = await get(allQuestionsRef);
                 
                 if (!allQuestionsSnapshot.exists()) {
+                    console.error('Sorular bulunamadı:', base);
                     throw new Error('Sorular listesi bulunamadı!');
                 }
                 
                 const allQuestionsData = allQuestionsSnapshot.val() || {};
-                console.log('Tüm sorular:', allQuestionsData);
+                console.log('Tüm sorular:', Object.keys(allQuestionsData).length, 'adet soru bulundu');
+                
+                if (Object.keys(allQuestionsData).length === 0) {
+                    throw new Error('Bu kategoride hiç soru bulunamadı!');
+                }
                 
                 // Soruları sırala ve ayarla
                 const questionsArray = Object.entries(allQuestionsData).map(([key, question]) => ({
                     id: key,
                     ...question
-                })).sort((a, b) => (a.soruNumarasi || 999) - (b.soruNumarasi || 999));
+                }));
                 
-                setAllQuestions(questionsArray);
-                console.log('Sorular dizisi:', questionsArray);
+                if (questionsArray.length === 0) {
+                    throw new Error('Sorular dizisine dönüştürme başarısız!');
+                }
+                
+                // Sırala (soruNumarasi yoksa en sona koy)
+                const sortedQuestionsArray = questionsArray.sort((a, b) => 
+                    (a.soruNumarasi || 999) - (b.soruNumarasi || 999)
+                );
+                
+                setAllQuestions(sortedQuestionsArray);
+                console.log('Sorular dizisi:', sortedQuestionsArray.length, 'adet soru sıralandı');
                 
             } catch (error) {
                 console.error("Sorular yüklenirken hata oluştu:", error);
