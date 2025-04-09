@@ -245,26 +245,36 @@ function QuestionContent() {
     // Soru ID'sinden referansını bulan yardımcı fonksiyon
     const findSoruRefById = (soruId) => {
         console.log('Aranan soru ID:', soruId);
-        console.log('Mevcut alt konular:', altKonular);
         
-        let soruRef = null;
-        
-        // Tüm alt konuları dolaş
-        for (const altKonuKey of Object.keys(altKonular)) {
-            const altKonu = altKonular[altKonuKey];
+        // Eğer seçili alt konu varsa ve o alt konunun soruları yüklüyse öncelikle orada ara
+        if (selectedAltKonuId && altKonular[selectedAltKonuId]?.sorular && typeof altKonular[selectedAltKonuId].sorular === 'object') {
+            console.log('Seçili alt konuda aranıyor:', selectedAltKonuId);
             
-            // Alt konuda sorular varsa kontrol et
-            if (altKonu.sorular) {
-                // Tüm soruları dolaş
-                for (const soruKey of Object.keys(altKonu.sorular)) {
-                    const soru = altKonu.sorular[soruKey];
+            // Bu alt konudaki tüm soruları kontrol et
+            for (const soruKey of Object.keys(altKonular[selectedAltKonuId].sorular)) {
+                const soru = altKonular[selectedAltKonuId].sorular[soruKey];
+                
+                // Soru ID'si olarak key'i veya soru.id'yi kullan
+                if (soru.id === soruId || soruKey === soruId) {
+                    const soruRef = `konular/${id}/altkonular/${selectedAltKonuId}/sorular/${soruKey}`;
+                    console.log('Soru bulundu (seçili alt konuda):', soruRef);
+                    return soruRef;
+                }
+            }
+        }
+        
+        // Seçili alt konuda bulunamazsa tüm alt konularda ara
+        for (const altKonuKey of Object.keys(altKonular)) {
+            // Sorular yüklenmişse ve obje ise
+            if (altKonular[altKonuKey].sorular && typeof altKonular[altKonuKey].sorular === 'object') {
+                // Tüm soruları kontrol et
+                for (const soruKey of Object.keys(altKonular[altKonuKey].sorular)) {
+                    const soru = altKonular[altKonuKey].sorular[soruKey];
                     
-                    // ID eşleşiyor mu kontrol et ve id alanı varsa kullan, yoksa soruKey'i kullan
-                    const soruIdToCheck = soru.id || soruKey;
-                    
-                    if (soruIdToCheck === soruId) {
-                        soruRef = `konular/${id}/altkonular/${altKonuKey}/sorular/${soruKey}`;
-                        console.log('Soru bulundu:', soruRef);
+                    // Soru nesnesi içinde id varsa onu, yoksa key'i kullan
+                    if ((soru.id && soru.id === soruId) || soruKey === soruId) {
+                        const soruRef = `konular/${id}/altkonular/${altKonuKey}/sorular/${soruKey}`;
+                        console.log('Soru bulundu (genel aramada):', soruRef);
                         return soruRef;
                     }
                 }
@@ -397,6 +407,17 @@ function QuestionContent() {
     // Soru silme fonksiyonu
     const handleDeleteSoru = async (soru) => {
         try {
+            console.log('Silinecek soru:', soru);
+            
+            if (!soru || !soru.id) {
+                throw new Error('Geçersiz soru verisi');
+            }
+            
+            // Önce BulkQuestionVerification modalındaki soruyu silelim
+            if (bulkVerificationRef.current) {
+                bulkVerificationRef.current.removeSoruFromSonuclar(soru.id);
+            }
+            
             // Sorunun referansını bul
             const soruRef = findSoruRefById(soru.id);
             
@@ -408,23 +429,12 @@ function QuestionContent() {
             const soruDbRef = ref(database, soruRef);
             await remove(soruDbRef);
             
-            // UI'ı güncelle
-            setAltKonular(prevAltKonular => {
-                const newAltKonular = { ...prevAltKonular };
-                
-                // Sorunun hangi alt konuya ait olduğunu bul
-                Object.keys(newAltKonular).forEach(altKonuId => {
-                    if (newAltKonular[altKonuId].sorular && newAltKonular[altKonuId].sorular[soru.id]) {
-                        // Soruyu alt konudan sil
-                        const { [soru.id]: _, ...geriyeKalanSorular } = newAltKonular[altKonuId].sorular;
-                        newAltKonular[altKonuId].sorular = geriyeKalanSorular;
-                    }
-                });
-                
-                return newAltKonular;
-            });
-            
             toast.success('Soru başarıyla silindi');
+            
+            // Verileri yenile
+            if (expandedAltKonu) {
+                fetchSorularForAltKonu(expandedAltKonu);
+            }
         } catch (error) {
             console.error('Soru silinirken hata:', error);
             toast.error(`Soru silinirken bir hata oluştu: ${error.message}`);

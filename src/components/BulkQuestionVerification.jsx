@@ -550,9 +550,18 @@ const BulkQuestionVerification = ({ sorular, onSoruGuncelle, onGuncellemeSuccess
         console.log('Sonuçlar güncellendi');
     };
 
-    // Bu fonksiyonu dışarıya açık bir şekilde tanımlıyoruz
+    // useImperativeHandle ile bileşen dışından erişilebilecek metodları tanımla
     useImperativeHandle(ref, () => ({
-        updateSonucWithGuncelSoru
+        // Bu metod, güncel soruyu sonuçlar içinde bulup güncelleyecek
+        updateSonucWithGuncelSoru: (guncelSoru) => {
+            updateSonucWithGuncelSoru(guncelSoru);
+        },
+        // Silinen soruyu sonuçlardan kaldıracak metod
+        removeSoruFromSonuclar: (soruId) => {
+            setSonuclar(prevSonuclar => {
+                return prevSonuclar.filter(sonuc => sonuc.soru.id !== soruId);
+            });
+        }
     }));
 
     return (
