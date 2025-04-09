@@ -175,7 +175,18 @@ function QuestionContent() {
     };
 
     const handleChangeOrderClick = (soruRef) => {
+        console.log("Sıralama değiştirme modalı açılıyor, soruRef:", soruRef);
+        
+        // soruRef değerini kontrol et
+        if (!soruRef) {
+            console.error("soruRef değeri yok!");
+            return;
+        }
+        
+        // Soru referansını ayarla
         setSelectedSoruRef(soruRef);
+        
+        // Modalı aç
         setIsOrderModalOpen(true);
     };
 
@@ -759,7 +770,9 @@ function QuestionContent() {
             <ChangeQuestionOrder
                 isOpen={isOrderModalOpen}
                 onClose={() => setIsOrderModalOpen(false)}
-                soruRef={selectedSoruRef}
+                soruRefPath={selectedSoruRef}
+                konuId={id}
+                altKonuId={selectedSoruRef ? selectedSoruRef.split("/")[3] : ""}
             />
             {isBulkDeleteOpen && selectedAltKonuId && (
                 <BulkDeleteQuestions
