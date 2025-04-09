@@ -1,132 +1,111 @@
 import React, { useState, useEffect } from "react";
 import { database } from "../firebase";
-import { ref, get, update } from "firebase/database";
+import { ref, update, get } from "firebase/database";
 
-const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId }) => {
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [questions, setQuestions] = useState([]);
-    const [currentNumber, setCurrentNumber] = useState(0);
-    const [targetNumber, setTargetNumber] = useState(0);
-    const [currentKey, setCurrentKey] = useState("");
-    const [sorularPath, setSorularPath] = useState("");
+const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId, altDalId }) => {
+    const [allQuestions, setAllQuestions] = useState([]);
+    const [currentQuestionNumber, setCurrentQuestionNumber] = useState(0);
+    const [targetQuestionNumber, setTargetQuestionNumber] = useState(0);
+    const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [currentSoruKey, setCurrentSoruKey] = useState("");
+    const [basePath, setBasePath] = useState("");
     
-    // Modal açıldığında verileri yükle
     useEffect(() => {
         if (!isOpen || !soruRefPath) return;
         
-        const fetchData = async () => {
-            console.log("Veriler yükleniyor, soruRefPath:", soruRefPath);
-            setLoading(true);
-            setError(null);
+        // Mevcut sorunun verilerini yükle
+        const loadCurrentQuestion = async () => {
+            setIsLoading(true);
             
             try {
-                // 1. Mevcut soruyu yükle
-                const currentQuestionSnapshot = await get(ref(database, soruRefPath));
-                
-                if (!currentQuestionSnapshot.exists()) {
-                    throw new Error("Soru bulunamadı");
-                }
-                
-                const currentQuestion = currentQuestionSnapshot.val();
-                console.log("Mevcut soru:", currentQuestion);
-                
-                // 2. Path bilgilerini ayır
+                // Mevcut soru referansından soru ID'sini ve ana yolu al
                 const pathParts = soruRefPath.split('/');
-                const currentId = pathParts.pop(); // Son eleman soru ID'si
-                const questionsPath = pathParts.join('/'); // Geriye kalan path sorular koleksiyonu
+                const currentKey = pathParts.pop(); // Soru ID'si
+                setCurrentSoruKey(currentKey);
                 
-                console.log("Sorular path:", questionsPath);
-                console.log("Mevcut soru ID:", currentId);
+                // Temel yol - "konular/konuId/altkonular/altKonuId/sorular" veya 
+                // "konular/konuId/altkonular/altKonuId/altdallar/altDalId/sorular"
+                const base = pathParts.join('/');
+                setBasePath(base);
                 
-                // 3. Tüm soruları yükle
-                const allQuestionsSnapshot = await get(ref(database, questionsPath));
+                // Mevcut soruyu yükle
+                const currentQuestionRef = ref(database, soruRefPath);
+                const currentSnapshot = await get(currentQuestionRef);
+                const currentQuestion = currentSnapshot.val();
                 
-                if (!allQuestionsSnapshot.exists()) {
-                    throw new Error("Sorular koleksiyonu bulunamadı");
+                if (currentQuestion) {
+                    setCurrentQuestionNumber(currentQuestion.soruNumarasi || 0);
+                    setTargetQuestionNumber(currentQuestion.soruNumarasi || 0);
                 }
                 
-                // 4. Soruları diziye dönüştür
-                const allQuestionsObj = allQuestionsSnapshot.val();
-                const questionsArray = Object.keys(allQuestionsObj).map(key => ({
+                // Tüm soruları yükle
+                const allQuestionsRef = ref(database, base);
+                const allQuestionsSnapshot = await get(allQuestionsRef);
+                const allQuestionsData = allQuestionsSnapshot.val() || {};
+                
+                // Soruları sırala ve ayarla
+                const questionsArray = Object.entries(allQuestionsData).map(([key, question]) => ({
                     id: key,
-                    ...allQuestionsObj[key]
-                }));
+                    ...question
+                })).sort((a, b) => (a.soruNumarasi || 999) - (b.soruNumarasi || 999));
                 
-                // 5. Soruları sırala
-                questionsArray.sort((a, b) => 
-                    (a.soruNumarasi || 999) - (b.soruNumarasi || 999)
-                );
+                setAllQuestions(questionsArray);
                 
-                console.log("Toplam soru sayısı:", questionsArray.length);
-                
-                // 6. State'leri güncelle
-                setQuestions(questionsArray);
-                setCurrentNumber(currentQuestion.soruNumarasi || 0);
-                setTargetNumber(currentQuestion.soruNumarasi || 0);
-                setCurrentKey(currentId);
-                setSorularPath(questionsPath);
-                setLoading(false);
-                
-            } catch (err) {
-                console.error("Veri yükleme hatası:", err);
-                setError(err.message);
-                setLoading(false);
+            } catch (error) {
+                console.error("Sorular yüklenirken hata oluştu:", error);
+                alert("Sorular yüklenirken bir hata oluştu!");
+            } finally {
+                setIsLoading(false);
             }
         };
         
-        fetchData();
-        
-        // Cleanup
-        return () => {
-            setLoading(true);
-            setQuestions([]);
-            setError(null);
-        };
-    }, [isOpen, soruRefPath]);
+        loadCurrentQuestion();
+    }, [isOpen, soruRefPath, konuId, altKonuId, altDalId]);
     
-    // Soru değiştirme işlemi
-    const handleSwapOrder = async () => {
-        if (currentNumber === targetNumber) {
-            alert("Lütfen farklı bir soru numarası seçin");
+    const handleSwapQuestions = async () => {
+        // Hedef numara geçerli değilse işlemi iptal et
+        if (targetQuestionNumber <= 0 || targetQuestionNumber > allQuestions.length) {
+            alert(`Lütfen 1 ile ${allQuestions.length} arasında bir numara girin.`);
             return;
         }
         
-        if (loading || isSubmitting || !questions.length) {
+        // Aynı numara seçildiyse işlemi iptal et
+        if (targetQuestionNumber === currentQuestionNumber) {
+            alert("Aynı numara seçildi, değişiklik yapılmadı.");
+            onClose();
             return;
         }
         
         setIsSubmitting(true);
         
         try {
-            // Hedef soruyu bul
-            const targetQuestion = questions.find(q => q.soruNumarasi === targetNumber);
+            // Hedef soru numarasına sahip olan soruyu bul
+            const targetQuestion = allQuestions.find(q => q.soruNumarasi === targetQuestionNumber);
             
             if (!targetQuestion) {
-                throw new Error(`${targetNumber} numaralı soru bulunamadı`);
+                alert(`${targetQuestionNumber} numaralı soru bulunamadı.`);
+                setIsSubmitting(false);
+                return;
             }
             
-            console.log("Değiştirilecek sorular:", {
-                "mevcut": { id: currentKey, sıra: currentNumber },
-                "hedef": { id: targetQuestion.id, sıra: targetNumber }
-            });
-            
-            // Firebase güncellemelerini hazırla
+            // Sadece iki sorunun sıra numaralarını değiştir (takas/swap)
             const updates = {};
-            updates[`${sorularPath}/${currentKey}/soruNumarasi`] = targetNumber;
-            updates[`${sorularPath}/${targetQuestion.id}/soruNumarasi`] = currentNumber;
             
-            // Güncelleme işlemini gerçekleştir
+            // Mevcut sorunun numarasını hedef numaraya güncelle
+            updates[`${basePath}/${currentSoruKey}/soruNumarasi`] = targetQuestionNumber;
+            
+            // Hedef sorunun numarasını mevcut numaraya güncelle
+            updates[`${basePath}/${targetQuestion.id}/soruNumarasi`] = currentQuestionNumber;
+            
+            // Tüm güncellemeleri tek seferde yap
             await update(ref(database), updates);
             
-            console.log("Soru sırası değiştirildi");
-            alert("Soru sırası başarıyla değiştirildi");
+            alert("Soru sıraları başarıyla takas edildi.");
             onClose();
-            
-        } catch (err) {
-            console.error("Sıralama değiştirme hatası:", err);
-            alert("Hata: " + err.message);
+        } catch (error) {
+            console.error("Soru sırası güncellenirken hata oluştu:", error);
+            alert("Soru sırası güncellenirken bir hata oluştu!");
         } finally {
             setIsSubmitting(false);
         }
@@ -135,88 +114,114 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId }
     if (!isOpen) return null;
     
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-                <h2 className="text-xl font-bold mb-4 pb-2 border-b">
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg p-6 border border-gray-200 dark:border-gray-700">
+                <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white border-b pb-3 border-gray-200 dark:border-gray-700">
                     Soru Sırasını Değiştir
                 </h2>
                 
-                {loading ? (
-                    <div className="py-10 flex flex-col items-center">
-                        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                        <p>Yükleniyor...</p>
+                {isLoading ? (
+                    <div className="flex justify-center items-center h-40">
+                        <svg className="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
                     </div>
-                ) : error ? (
-                    <div className="py-10 text-center text-red-500">
-                        <div className="text-3xl mb-2">⚠️</div>
-                        <p className="font-medium mb-4">{error}</p>
-                    </div>
-                ) : questions.length > 0 ? (
-                    <div>
-                        <div className="mb-4">
-                            <p className="font-medium">Mevcut Soru: #{currentNumber}</p>
+                ) : (
+                    <div className="space-y-5">
+                        <div>
+                            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                                Mevcut Soru Numarası:
+                            </label>
+                            <input
+                                type="number"
+                                value={currentQuestionNumber}
+                                disabled
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                            />
                         </div>
                         
-                        <div className="mb-4">
-                            <label className="block mb-2">Takas Edilecek Soru:</label>
-                            <select 
-                                className="w-full p-2 border rounded"
-                                value={targetNumber}
-                                onChange={(e) => setTargetNumber(Number(e.target.value))}
-                            >
-                                {questions.map(q => (
-                                    <option key={q.id} value={q.soruNumarasi}>
-                                        #{q.soruNumarasi} - {(q.soruMetni || "").slice(0, 30)}
-                                        {q.soruMetni?.length > 30 ? "..." : ""}
-                                    </option>
-                                ))}
-                            </select>
+                        <div>
+                            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                                Takas Edilecek Soru Numarası:
+                            </label>
+                            <input
+                                type="number"
+                                value={targetQuestionNumber}
+                                onChange={(e) => setTargetQuestionNumber(Number(e.target.value))}
+                                min="1"
+                                max={allQuestions.length}
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-all"
+                            />
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                Bu kategori için olası soru numaraları: 1 - {allQuestions.length}
+                            </p>
                         </div>
                         
-                        <div className="bg-gray-50 p-3 rounded mb-4">
-                            <h3 className="font-medium mb-2">Tüm Sorular:</h3>
-                            <div className="max-h-60 overflow-y-auto">
-                                <ul className="space-y-1">
-                                    {questions.map(q => (
+                        <div className="mt-4 bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-lg">
+                            <h3 className="font-medium text-indigo-800 dark:text-indigo-300 mb-2">Mevcut Soru Sıralaması:</h3>
+                            <div className="max-h-40 overflow-y-auto pr-2">
+                                <ul className="space-y-1.5">
+                                    {allQuestions.map((question) => (
                                         <li 
-                                            key={q.id} 
-                                            className={`p-2 rounded ${q.id === currentKey ? 'bg-blue-100' : ''} ${q.soruNumarasi === targetNumber && q.id !== currentKey ? 'bg-yellow-100' : ''}`}
+                                            key={question.id} 
+                                            className={`text-sm py-1 px-2 rounded ${
+                                                question.id === currentSoruKey
+                                                ? 'bg-indigo-100 dark:bg-indigo-800/50 font-medium' 
+                                                : question.soruNumarasi === targetQuestionNumber
+                                                ? 'bg-amber-100 dark:bg-amber-800/30 font-medium'
+                                                : ''
+                                            }`}
                                         >
-                                            <span className="font-medium">#{q.soruNumarasi}</span> - 
-                                            {(q.soruMetni || "").slice(0, 40)}
-                                            {q.soruMetni?.length > 40 ? "..." : ""}
-                                            
-                                            {q.id === currentKey && (
-                                                <span className="ml-1 text-blue-600 text-xs">(seçili)</span>
-                                            )}
-                                            {q.soruNumarasi === targetNumber && q.id !== currentKey && (
-                                                <span className="ml-1 text-yellow-600 text-xs">(hedef)</span>
-                                            )}
+                                            <span className="font-medium mr-2">#{question.soruNumarasi || '?'}</span>
+                                            {question.soruMetni?.substring(0, 60)}
+                                            {question.soruMetni?.length > 60 ? '...' : ''}
+                                            {question.id === currentSoruKey ? 
+                                                <span className="ml-1 text-indigo-600 dark:text-indigo-400">(seçili)</span>
+                                                : question.soruNumarasi === targetQuestionNumber ?
+                                                <span className="ml-1 text-amber-600 dark:text-amber-400">(takas edilecek)</span>
+                                                : null
+                                            }
                                         </li>
                                     ))}
                                 </ul>
                             </div>
                         </div>
-                    </div>
-                ) : (
-                    <div className="py-10 text-center text-gray-500">
-                        <p>Soru bulunamadı</p>
+                        
+                        <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
+                            <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                                <strong>Not:</strong> Bu işlem sadece iki sorunun sıra numaralarını takas edecektir. Diğer soruların sıra numaraları değişmeyecektir.
+                            </p>
+                        </div>
                     </div>
                 )}
                 
-                <div className="flex justify-end space-x-3 pt-3 border-t mt-4">
-                    <button 
+                <div className="flex justify-end space-x-4 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                        className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-5 py-2.5 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all font-medium"
                         onClick={onClose}
-                        className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                        disabled={isSubmitting}
                     >
                         İptal
                     </button>
                     <button
-                        onClick={handleSwapOrder}
-                        disabled={loading || isSubmitting || !questions.length || currentNumber === targetNumber}
-                        className={`px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 ${isSubmitting ? 'opacity-70' : ''}`}
+                        className={`bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white px-5 py-2.5 rounded-lg shadow-sm hover:shadow transition-all font-medium flex items-center justify-center ${
+                            isSubmitting ? "opacity-70 cursor-not-allowed" : ""
+                        }`}
+                        onClick={handleSwapQuestions}
+                        disabled={isSubmitting || isLoading}
                     >
-                        {isSubmitting ? "İşleniyor..." : "Sıralamayı Değiştir"}
+                        {isSubmitting ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Güncelleniyor...
+                            </>
+                        ) : (
+                            "Soruları Takas Et"
+                        )}
                     </button>
                 </div>
             </div>
