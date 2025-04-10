@@ -258,14 +258,14 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
         if (!soru) {
             console.error("Güncellenecek soru bulunamadı!");
             setIsSaving(false);
-            return;
-        }
+                return;
+            }
 
         // Alt konu seçimi kontrolü ekle
-        if (!selectedAltKonu) {
+            if (!selectedAltKonu) {
             alert("Lütfen bir alt konu seçin!");
             setIsSaving(false);
-            return;
+                return;
         }
 
         // Güncellenecek soru için bir kopyasını sakla (loading durumunda state sıfırlanabiliyor)
@@ -312,7 +312,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
             console.log("Yeni yol:", newPath);
             
             // Yeni konuma soruyu ekle
-            const newSoruRef = ref(database, newPath);
+        const newSoruRef = ref(database, newPath);
             const updatedSoru = {
                 soruMetni: guncellenecekSoru.soruMetni,
                 cevaplar: guncellenecekCevaplar,
@@ -437,29 +437,29 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                                 <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
                                     Alt Konu Seçin
                                 </label>
-                                <select
-                                    value={selectedAltKonu}
-                                    onChange={(e) => setSelectedAltKonu(e.target.value)}
+                            <select
+                                value={selectedAltKonu}
+                                onChange={(e) => setSelectedAltKonu(e.target.value)}
                                     className={`w-full px-4 py-3 rounded-xl border-2 ${!selectedAltKonu ? 'border-red-400 dark:border-red-600' : 'border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200`}
-                                >
+                            >
                                     <option value="">Alt konu seçin</option>
                                     {Object.entries(altKonular).map(([key, altKonu]) => (
-                                        <option key={key} value={key}>
+                                    <option key={key} value={key}>
                                             {altKonu.baslik}
-                                        </option>
-                                    ))}
-                                </select>
+                                    </option>
+                                ))}
+                            </select>
                                 {!selectedAltKonu && (
                                     <p className="mt-2 text-sm text-red-500 dark:text-red-400">
                                         Lütfen bir alt konu seçin. Bu alanın doldurulması zorunludur.
                                     </p>
-                                )}
+                        )}
                             </div>
 
                             <div>
                                 <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
                                     Soru Metni
-                                </label>
+                    </label>
                                 <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
                                     <ReactQuill 
                                         theme="snow"
@@ -471,13 +471,13 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                                         style={{ height: '200px' }}
                                     />
                                 </div>
-                            </div>
+                </div>
 
                             <div>
                                 <div className="flex justify-between items-center mb-3">
                                     <label className="block text-base font-semibold text-gray-900 dark:text-white">
                                         Cevaplar
-                                    </label>
+                </label>
                                     <button
                                         onClick={(e) => {
                                             e.preventDefault();
@@ -498,7 +498,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                                     </button>
                                 </div>
                                 <div className="space-y-4">
-                                    {cevaplar.map((cevap, index) => (
+                    {cevaplar.map((cevap, index) => (
                                         <div key={index} className="flex items-start gap-4">
                                             <div className="flex-shrink-0 pt-3">
                                                 <button
@@ -534,7 +534,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                                                 ) : (
                                                     <input
                                                         type="text"
-                                                        value={cevap}
+                            value={cevap}
                                                         onChange={(e) => {
                                                             const newCevaplar = [...cevaplar];
                                                             newCevaplar[index] = e.target.value;
@@ -574,11 +574,11 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                             <div>
                                 <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
                                     Soru Resmi (Opsiyonel)
-                                </label>
+                </label>
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-4">
                                         <div className="relative flex-1">
-                                            <input
+                    <input
                                                 type="file"
                                                 accept="image/*"
                                                 onChange={handleResimYukle}
@@ -614,13 +614,13 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                     </div>
 
                     <div className="p-8 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex justify-end gap-4">
-                        <button
+                    <button
                             onClick={onClose}
                             className="px-6 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 font-medium"
-                        >
+                    >
                             İptal
-                        </button>
-                        <button
+                    </button>
+                    <button
                             type="submit"
                             className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center ml-4"
                             disabled={isSaving}
@@ -641,8 +641,8 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                                     Güncelle
                                 </div>
                             )}
-                        </button>
-                    </div>
+                    </button>
+                </div>
                 </form>
             </div>
         </div>

@@ -770,7 +770,7 @@ function QuestionContent() {
             <ChangeQuestionOrder
                 isOpen={isOrderModalOpen}
                 onClose={() => setIsOrderModalOpen(false)}
-                soruRefPath={selectedSoruRef}
+                    soruRefPath={selectedSoruRef}
                 konuId={id}
                 altKonuId={selectedSoruRef ? selectedSoruRef.split("/")[3] : ""}
             />
