@@ -74,13 +74,15 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
             setSelectedSorular({});
             setHepsiSecili(false);
         } else {
-            // İlk N soruyu seç
+            // İlk N soruyu seç (sıralı olarak)
             const yeniSecimler = {};
-            const soruArray = Object.keys(sorular);
+            // Önce sıralı sorular listesini al
+            const siralanmisSorular = sortedQuestions(sorular);
             const secilenMiktar = parseInt(miktar);
             
-            soruArray.forEach((soruId, index) => {
-                yeniSecimler[soruId] = index < secilenMiktar;
+            // Sadece ilk N sıralı soruyu seç
+            siralanmisSorular.slice(0, secilenMiktar).forEach(([soruId]) => {
+                yeniSecimler[soruId] = true;
             });
             
             setSelectedSorular(yeniSecimler);
@@ -101,9 +103,11 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                 return acc;
             }, {});
         } else {
+            // İlk N soruyu al (sıralı olarak)
             const miktar = parseInt(indirmeMiktari);
-            const soruArray = Object.entries(sorular);
-            indirilecekSorular = soruArray
+            const siralanmisSorular = sortedQuestions(sorular);
+            
+            indirilecekSorular = siralanmisSorular
                 .slice(0, miktar)
                 .reduce((acc, [id, soru]) => {
                     acc[id] = soru;
@@ -279,6 +283,16 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
         saveAs(buffer, dosyaAdi);
     };
 
+    // Soruları sıralama fonksiyonu - UI'da kullanmak için
+    const sortedQuestions = (questions) => {
+        if (!questions) return [];
+        return Object.entries(questions).sort((a, b) => {
+            const numA = a[1].soruNumarasi || 0;
+            const numB = b[1].soruNumarasi || 0;
+            return numA - numB;
+        });
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -398,7 +412,7 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                             </div>
                             
                             <div className="space-y-4">
-                                {Object.entries(sorular).map(([soruId, soru], index) => (
+                                {sortedQuestions(sorular).map(([soruId, soru], index) => (
                                     <div key={soruId} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800">
                                         <div className="flex items-start space-x-3">
                                             <input
@@ -410,7 +424,7 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                                             <div className="flex-1">
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                                                        {index + 1}. Soru
+                                                        {index + 1}. Soru {soru.soruNumarasi ? `(No: ${soru.soruNumarasi})` : ''}
                                                     </span>
                                                     <span className="text-sm text-gray-500 dark:text-gray-400">
                                                         Doğru Cevap: {soru.dogruCevap}
