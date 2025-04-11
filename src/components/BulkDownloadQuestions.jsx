@@ -111,9 +111,16 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                 }, {});
         }
 
+        // Soruları soru numarasına göre sıralama
+        const sortedSorular = Object.entries(indirilecekSorular).sort((a, b) => {
+            const numA = a[1].soruNumarasi || 0;
+            const numB = b[1].soruNumarasi || 0;
+            return numA - numB;
+        });
+
         const children = [];
         
-        Object.entries(indirilecekSorular).forEach(([soruId, soru], index) => {
+        sortedSorular.forEach(([soruId, soru], index) => {
             // Soru başlığı
             children.push(
                 new Paragraph({
@@ -230,7 +237,7 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
             }
 
             // Sayfa sonu (son soru hariç)
-            if (index < Object.keys(indirilecekSorular).length - 1) {
+            if (index < sortedSorular.length - 1) {
                 children.push(
                     new Paragraph({
                         children: [
