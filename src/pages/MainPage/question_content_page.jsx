@@ -750,6 +750,11 @@ function QuestionContent() {
                             setIsUpdateModalOpen(false);
                             setSelectedSoruRef(null);
                         }}
+                        konuId={id}
+                        altKonular={altKonular}
+                        currentKonuId={id}
+                        onUpdate={handleUpdateComplete}
+                        selectedAltKonuId={selectedAltKonuId}
                     />
                 </>
             )}
