@@ -226,7 +226,7 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
                         3. Bu formatın dışına ASLA çıkma ve başka bir şey ekleme.
                         `;
 
-                        response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent', {
+                        response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -238,9 +238,29 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
                                         text: prompt
                                     }]
                                 }],
+                                safetySettings: [
+                                    {
+                                        category: "HARM_CATEGORY_HARASSMENT",
+                                        threshold: "BLOCK_NONE"
+                                    },
+                                    {
+                                        category: "HARM_CATEGORY_HATE_SPEECH",
+                                        threshold: "BLOCK_NONE"
+                                    },
+                                    {
+                                        category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                                        threshold: "BLOCK_NONE"
+                                    },
+                                    {
+                                        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                                        threshold: "BLOCK_NONE"
+                                    }
+                                ],
                                 generationConfig: {
                                     temperature: 0.7,
-                                    maxOutputTokens: 500
+                                    maxOutputTokens: 500,
+                                    topP: 0.8,
+                                    topK: 40
                                 }
                             })
                         });
