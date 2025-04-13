@@ -744,38 +744,10 @@ function QuestionContent() {
                             setSelectedSoruRef(null);
                             refreshQuestions();
                         }}
-                        soruRef={selectedSoruRef}
-                        onUpdateSuccess={() => {
-                            refreshQuestions();
-                            setIsUpdateModalOpen(false);
-                            setSelectedSoruRef(null);
-                        }}
                         konuId={id}
-                        altKonular={altKonular}
-                        currentKonuId={id}
-                        onUpdate={handleUpdateComplete}
-                        selectedAltKonuId={selectedAltKonuId}
-                        expandedAltKonu={expandedAltKonu}
-                        refreshQuestions={refreshQuestions}
-                        handleSoruDogruCevapGuncelle={handleSoruDogruCevapGuncelle}
-                        handleUpdateFromBulkVerification={handleUpdateFromBulkVerification}
-                        handleDeleteSoru={handleDeleteSoru}
-                        baslik={baslik}
-                        altKonuBaslik={altKonular[expandedAltKonu]?.baslik}
                         altKonuId={expandedAltKonu}
-                        sorular={altKonular[expandedAltKonu]?.sorular}
-                        onSoruGuncelle={handleSoruDogruCevapGuncelle}
-                        onGuncellemeSuccess={refreshQuestions}
-                        onDeleteClick={handleDeleteSoru}
-                        soru={altKonular[expandedAltKonu]?.sorular?.[selectedSoruRef.split('/').pop()]}
-                        selectedSoru={altKonular[expandedAltKonu]?.sorular?.[selectedSoruRef.split('/').pop()]}
-                        closeModal={() => {
-                            setIsUpdateModalOpen(false);
-                            setSelectedSoruRef(null);
-                            refreshQuestions();
-                        }}
-                        updatePath={selectedSoruRef}
-                        itemType="Soru"
+                        soruId={selectedSoruRef.split('/').pop()}
+                        onUpdateComplete={handleUpdateComplete}
                     />
                 </>
             )}
