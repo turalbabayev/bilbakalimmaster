@@ -7,22 +7,24 @@ import QuestionContent from './pages/MainPage/question_content_page';
 import SubbranchContent from './pages/MainPage/subbranch_content';
 import AnnouncementPage from './pages/MainPage/announcement_page';
 import ProtectedRouter from './routes/ProtectedRoute';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   return (
     <AuthProvider>
-       <Router>
-          <Routes>
-            <Route path='/' element={<LoginPage />} />
-            <Route path='/home' element={<ProtectedRouter><HomePage /></ProtectedRouter>} />
-            <Route path='/question' element={<ProtectedRouter><QuestionsPage /></ProtectedRouter>} />
-            <Route path='/question/:id' element={<ProtectedRouter><QuestionContent /></ProtectedRouter>}/>
-            <Route path='/question/:konuId/:altKonuId' element={<ProtectedRouter><SubbranchContent/></ProtectedRouter>} />
-            <Route path='/announcements' element={<ProtectedRouter><AnnouncementPage /></ProtectedRouter>} />
-          </Routes>
-        </Router>
+      <Router>
+        <Toaster position="top-right" />
+        <Routes>
+          <Route path='/' element={<LoginPage />} />
+          <Route path='/home' element={<ProtectedRouter><HomePage /></ProtectedRouter>} />
+          <Route path='/question' element={<ProtectedRouter><QuestionsPage /></ProtectedRouter>} />
+          <Route path='/question/:id' element={<ProtectedRouter><QuestionContent /></ProtectedRouter>}/>
+          <Route path='/question/:konuId/:altKonuId' element={<ProtectedRouter><SubbranchContent/></ProtectedRouter>} />
+          <Route path='/announcements' element={<ProtectedRouter><AnnouncementPage /></ProtectedRouter>} />
+        </Routes>
+      </Router>
     </AuthProvider>
   );
 }
