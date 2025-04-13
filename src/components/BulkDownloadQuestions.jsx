@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { db } from "../firebase";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { saveAs } from "file-saver";
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType } from "docx";
+import { Document, Packer, Paragraph, TextRun } from "docx";
 import { toast } from 'react-toastify';
 
 const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) => {
@@ -10,8 +10,8 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
     const [sorular, setSorular] = useState([]);
     const [selectedSorular, setSelectedSorular] = useState({});
     const [hepsiSecili, setHepsiSecili] = useState(false);
-    const [indirmeTipi, setIndirmeTipi] = useState("tum"); // "tum" veya "sadeceSorular"
-    const [indirmeMiktari, setIndirmeMiktari] = useState("secili"); // "secili", "10", "20", "30", "40"
+    const [indirmeTipi, setIndirmeTipi] = useState("tum");
+    const [indirmeMiktari, setIndirmeMiktari] = useState("secili");
 
     React.useEffect(() => {
         const fetchQuestions = async () => {
@@ -38,6 +38,8 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                 setSorular(soruData);
                 setSelectedSorular({});
                 setHepsiSecili(false);
+                
+                console.log("Sorular yüklendi:", soruData.length);
             } catch (error) {
                 console.error("Sorular yüklenirken hata oluştu:", error);
                 toast.error("Sorular yüklenirken bir hata oluştu!");
@@ -76,15 +78,12 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
         setIndirmeMiktari(miktar);
         
         if (miktar === "secili") {
-            // Seçili modunda tüm seçimleri temizle
             setSelectedSorular({});
             setHepsiSecili(false);
         } else {
-            // İlk N soruyu seç
             const yeniSecimler = {};
             const secilenMiktar = parseInt(miktar);
             
-            // Sadece ilk N soruyu seç
             sorular.slice(0, secilenMiktar).forEach(soru => {
                 yeniSecimler[soru.id] = true;
             });
@@ -95,112 +94,133 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
     };
 
     const createDocx = async () => {
-        const seciliIDs = Object.entries(selectedSorular)
-            .filter(([_, value]) => value)
-            .map(([key]) => key);
-
-        let indirilecekSorular = [];
-        
-        if (indirmeMiktari === "secili") {
-            indirilecekSorular = sorular.filter(soru => seciliIDs.includes(soru.id));
-        } else {
-            // İlk N soruyu al
-            const miktar = parseInt(indirmeMiktari);
-            indirilecekSorular = sorular.slice(0, miktar);
-        }
-
-        if (indirilecekSorular.length === 0) {
-            toast.warning("Lütfen indirilecek soruları seçin.");
-            return;
-        }
-
-        setLoading(true);
-
         try {
+            setLoading(true);
+            console.log("Doküman oluşturma başladı");
+
+            // Seçili soruları belirle
+            const seciliIDs = Object.entries(selectedSorular)
+                .filter(([_, value]) => value)
+                .map(([key]) => key);
+
+            let indirilecekSorular = [];
+            
+            if (indirmeMiktari === "secili") {
+                indirilecekSorular = sorular.filter(soru => seciliIDs.includes(soru.id));
+            } else {
+                const miktar = parseInt(indirmeMiktari);
+                indirilecekSorular = sorular.slice(0, miktar);
+            }
+
+            if (indirilecekSorular.length === 0) {
+                toast.warning("Lütfen indirilecek soruları seçin.");
+                setLoading(false);
+                return;
+            }
+
+            console.log("İndirilecek soru sayısı:", indirilecekSorular.length);
+
+            // Doküman içeriğini oluştur
             const children = [];
             
             // Başlık ekle
             children.push(
                 new Paragraph({
-                    text: "Soru Listesi",
-                    heading: 1,
-                    spacing: { after: 200 }
+                    children: [
+                        new TextRun({
+                            text: "Soru Listesi",
+                            bold: true,
+                            size: 32
+                        })
+                    ],
+                    spacing: { after: 400 }
                 })
             );
 
             // Her soru için
             for (const soru of indirilecekSorular) {
-                // Soru numarası ve metni
-                children.push(
-                    new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: `Soru ${soru.soruNumarasi || ""}`,
-                                bold: true,
-                                size: 28
-                            })
-                        ],
-                        spacing: { before: 400, after: 200 }
-                    })
-                );
-
-                children.push(
-                    new Paragraph({
-                        text: soru.soruMetni.replace(/<[^>]*>/g, ''),
-                        spacing: { after: 200 }
-                    })
-                );
-
-                // Şıklar
-                if (soru.cevaplar && Array.isArray(soru.cevaplar)) {
-                    for (let i = 0; i < soru.cevaplar.length; i++) {
-                        children.push(
-                            new Paragraph({
-                                children: [
-                                    new TextRun({
-                                        text: `${String.fromCharCode(65 + i)}) ${soru.cevaplar[i]}`,
-                                        bold: String.fromCharCode(65 + i) === soru.dogruCevap
-                                    })
-                                ],
-                                spacing: { after: 100 }
-                            })
-                        );
-                    }
-                }
-
-                // Doğru cevap ve açıklama
-                if (indirmeTipi === "tum") {
+                try {
+                    // Soru numarası ve metni
                     children.push(
                         new Paragraph({
                             children: [
                                 new TextRun({
-                                    text: `Doğru Cevap: ${soru.dogruCevap}`,
+                                    text: `Soru ${soru.soruNumarasi || ""}`,
                                     bold: true,
-                                    color: "2b5797"
+                                    size: 28
                                 })
                             ],
-                            spacing: { before: 200, after: 100 }
+                            spacing: { before: 400, after: 200 }
                         })
                     );
 
-                    if (soru.aciklama) {
+                    children.push(
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: soru.soruMetni ? soru.soruMetni.replace(/<[^>]*>/g, '') : "",
+                                })
+                            ],
+                            spacing: { after: 200 }
+                        })
+                    );
+
+                    // Şıklar
+                    if (soru.cevaplar && Array.isArray(soru.cevaplar)) {
+                        for (let i = 0; i < soru.cevaplar.length; i++) {
+                            children.push(
+                                new Paragraph({
+                                    children: [
+                                        new TextRun({
+                                            text: `${String.fromCharCode(65 + i)}) ${soru.cevaplar[i] || ""}`,
+                                            bold: String.fromCharCode(65 + i) === soru.dogruCevap
+                                        })
+                                    ],
+                                    spacing: { after: 100 }
+                                })
+                            );
+                        }
+                    }
+
+                    // Doğru cevap ve açıklama
+                    if (indirmeTipi === "tum") {
                         children.push(
                             new Paragraph({
                                 children: [
                                     new TextRun({
-                                        text: "Açıklama: ",
-                                        bold: true
-                                    }),
-                                    new TextRun({
-                                        text: soru.aciklama.replace(/<[^>]*>/g, '')
+                                        text: `Doğru Cevap: ${soru.dogruCevap || ""}`,
+                                        bold: true,
+                                        color: "2b5797"
                                     })
                                 ],
-                                spacing: { before: 100, after: 400 }
+                                spacing: { before: 200, after: 100 }
                             })
                         );
+
+                        if (soru.aciklama) {
+                            children.push(
+                                new Paragraph({
+                                    children: [
+                                        new TextRun({
+                                            text: "Açıklama: ",
+                                            bold: true
+                                        }),
+                                        new TextRun({
+                                            text: soru.aciklama.replace(/<[^>]*>/g, '')
+                                        })
+                                    ],
+                                    spacing: { before: 100, after: 400 }
+                                })
+                            );
+                        }
                     }
+                } catch (error) {
+                    console.error("Soru işlenirken hata:", error);
+                    continue;
                 }
             }
+
+            console.log("Doküman içeriği hazırlandı");
 
             // Dokümanı oluştur
             const doc = new Document({
@@ -210,15 +230,22 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                 }]
             });
 
+            console.log("Doküman oluşturuldu, indirme başlıyor");
+
             // Dokümanı indir
             const buffer = await Packer.toBuffer(doc);
-            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-            saveAs(blob, 'sorular.docx');
+            const blob = new Blob([buffer], { 
+                type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+            });
             
+            const fileName = `sorular_${new Date().toISOString().split('T')[0]}.docx`;
+            saveAs(blob, fileName);
+            
+            console.log("Doküman indirildi");
             toast.success('Sorular başarıyla indirildi!');
         } catch (error) {
             console.error("Doküman oluşturulurken hata:", error);
-            toast.error("Doküman oluşturulurken bir hata oluştu!");
+            toast.error("Doküman oluşturulurken bir hata oluştu: " + error.message);
         } finally {
             setLoading(false);
         }
