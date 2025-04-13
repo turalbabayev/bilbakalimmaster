@@ -494,30 +494,48 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
 
             // Kullanıcıya silme işlemini onaylatma
             const soruMetniOzet = stripHtml(soru.soruMetni || '').substring(0, 50);
-            if (window.confirm(`"${soruMetniOzet}..." sorusunu silmek istediğinize emin misiniz?`)) {
-                // Sorunun Firestore'daki yolunu belirle
-                const soruPath = altDalId 
-                    ? `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/sorular/${soru.id}`
-                    : `konular/${konuId}/altkonular/${altKonuId}/sorular/${soru.id}`;
-
-                const soruRef = doc(db, soruPath);
-                
-                await deleteDoc(soruRef);
-                
-                toast.success('Soru başarıyla silindi!');
-                
-                // Sonuçlardan soruyu kaldır
-                setSonuclar(prevSonuclar => 
-                    prevSonuclar.filter(sonuc => sonuc.soru.id !== soru.id)
-                );
-
-                if (onDeleteClick) {
-                    onDeleteClick(soru);
-                }
+            if (!window.confirm(`"${soruMetniOzet}..." sorusunu silmek istediğinize emin misiniz?`)) {
+                return; // Kullanıcı iptal ettiyse işlemi sonlandır
             }
+
+            console.log('Soru silme başladı:', {
+                konuId,
+                altKonuId,
+                altDalId,
+                soruId: soru.id
+            });
+
+            // Sorunun Firestore'daki yolunu belirle
+            let soruPath;
+            if (altDalId) {
+                soruPath = `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/sorular/${soru.id}`;
+            } else {
+                soruPath = `konular/${konuId}/altkonular/${altKonuId}/sorular/${soru.id}`;
+            }
+
+            console.log('Silinecek sorunun yolu:', soruPath);
+            
+            const soruRef = doc(db, soruPath);
+            
+            // Firestore'dan soruyu sil
+            await deleteDoc(soruRef);
+            
+            console.log('Soru başarıyla silindi');
+            toast.success('Soru başarıyla silindi!');
+            
+            // Sonuçlardan soruyu kaldır
+            setSonuclar(prevSonuclar => 
+                prevSonuclar.filter(sonuc => sonuc.soru.id !== soru.id)
+            );
+
+            // Parent componente bildir
+            if (onDeleteClick) {
+                onDeleteClick(soru);
+            }
+
         } catch (error) {
             console.error('Soru silinirken hata:', error);
-            toast.error('Soru silinirken bir hata oluştu!');
+            toast.error(`Soru silinirken bir hata oluştu: ${error.message}`);
         }
     };
 
