@@ -761,6 +761,12 @@ function QuestionContent() {
                         handleUpdateFromBulkVerification={handleUpdateFromBulkVerification}
                         handleDeleteSoru={handleDeleteSoru}
                         baslik={baslik}
+                        altKonuBaslik={altKonular[expandedAltKonu]?.baslik}
+                        altKonuId={expandedAltKonu}
+                        sorular={altKonular[expandedAltKonu]?.sorular}
+                        onSoruGuncelle={handleSoruDogruCevapGuncelle}
+                        onGuncellemeSuccess={refreshQuestions}
+                        onDeleteClick={handleDeleteSoru}
                     />
                 </>
             )}
