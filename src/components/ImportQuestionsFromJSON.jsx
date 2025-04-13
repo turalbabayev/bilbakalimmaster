@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { database } from "../firebase";
-import { ref, push, get } from "firebase/database";
+import { db } from "../firebase";
+import { collection, getDocs, addDoc, query, orderBy } from "firebase/firestore";
+import { toast } from 'react-toastify';
 
 const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [selectedAltKonu, setSelectedAltKonu] = useState("");
@@ -26,12 +27,12 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
 
     const importQuestions = async () => {
         if (!selectedAltKonu) {
-            alert("Lütfen soruların ekleneceği alt konuyu seçin.");
+            toast.warning("Lütfen soruların ekleneceği alt konuyu seçin.");
             return;
         }
         
         if (!jsonFile) {
-            alert("Lütfen bir JSON dosyası seçin.");
+            toast.warning("Lütfen bir JSON dosyası seçin.");
             return;
         }
         
@@ -182,16 +183,11 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
                             throw new Error("Geçerli soru bulunamadı. JSON formatını kontrol edin.");
                         }
                         
-                        // Firebase'e soruları ekle
-                        const soruRef = ref(
-                            database,
-                            `konular/${currentKonuId}/altkonular/${selectedAltKonu}/sorular`
-                        );
-                        
-                        // Mevcut soru sayısını al
-                        const snapshot = await get(soruRef);
-                        const sorular = snapshot.val() || {};
-                        const mevcutSoruSayisi = Object.keys(sorular).length;
+                        // Firestore'dan mevcut soru sayısını al
+                        const soruRef = collection(db, "konular", currentKonuId, "altkonular", selectedAltKonu, "sorular");
+                        const q = query(soruRef, orderBy("soruNumarasi", "desc"));
+                        const querySnapshot = await getDocs(q);
+                        const mevcutSoruSayisi = querySnapshot.empty ? 0 : (querySnapshot.docs[0].data().soruNumarasi || 0);
                         
                         // Başarıyla eklenen soru sayısı
                         let basariliEklenen = 0;
@@ -213,7 +209,7 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
                                     soruNumarasi: mevcutSoruSayisi + i + 1
                                 };
                                 
-                                await push(soruRef, newQuestion);
+                                await addDoc(soruRef, newQuestion);
                                 basariliEklenen++;
                             } catch (error) {
                                 console.error(`Soru #${i + 1} eklenirken hata:`, error);
@@ -233,33 +229,33 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
                         });
                         
                         if (basariliEklenen > 0) {
-                            alert(`${basariliEklenen} soru başarıyla eklendi.`);
+                            toast.success(`${basariliEklenen} soru başarıyla eklendi.`);
                         } else {
-                            alert("Hiçbir soru eklenemedi.");
+                            toast.error("Hiçbir soru eklenemedi.");
                         }
                     } catch (error) {
                         console.error("Dosya işleme hatası:", error);
-                        alert(`Dosya işlenirken bir hata oluştu: ${error.message}`);
+                        toast.error(`Dosya işlenirken bir hata oluştu: ${error.message}`);
                     } finally {
                         setIsUploading(false);
                     }
                 } catch (error) {
                     console.error("JSON dönüştürme hatası:", error);
-                    alert(`JSON dosyası işlenirken bir hata oluştu: ${error.message}`);
+                    toast.error(`JSON dosyası işlenirken bir hata oluştu: ${error.message}`);
                     setIsUploading(false);
                 }
             };
             
             reader.onerror = (error) => {
                 console.error("Dosya okuma hatası:", error);
-                alert("Dosya okunamadı.");
+                toast.error("Dosya okunamadı.");
                 setIsUploading(false);
             };
             
             reader.readAsText(jsonFile);
         } catch (error) {
             console.error("İçe aktarma hatası:", error);
-            alert(`İçe aktarma sırasında bir hata oluştu: ${error.message}`);
+            toast.error(`İçe aktarma sırasında bir hata oluştu: ${error.message}`);
             setIsUploading(false);
         }
     };
