@@ -226,7 +226,7 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
                         3. Bu formatın dışına ASLA çıkma ve başka bir şey ekleme.
                         `;
 
-                        response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
+                        response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -237,20 +237,38 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
                                     parts: [{
                                         text: prompt
                                     }]
-                                }]
+                                }],
+                                generationConfig: {
+                                    temperature: 0.7,
+                                    maxOutputTokens: 500
+                                }
                             })
                         });
 
                         if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
+                            const errorText = await response.text();
+                            console.error('Gemini API Hatası:', errorText);
+                            throw new Error(`Gemini API Hatası (${response.status}): ${errorText}`);
                         }
 
                         const data = await response.json();
+                        
+                        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
+                            throw new Error('Gemini API geçersiz yanıt döndürdü');
+                        }
+
                         const analiz = data.candidates[0].content.parts[0].text;
 
-                        // Doğru cevabı bul
+                        if (!analiz) {
+                            throw new Error('Gemini API analiz sonucu döndürmedi');
+                        }
+
                         const dogruCevapMatch = analiz.match(/Doğru Cevap Şıkkı: (A|B|C|D|E) ✅/);
                         const sistemDogruCevap = dogruCevapMatch ? dogruCevapMatch[1] : null;
+
+                        if (!sistemDogruCevap) {
+                            console.warn('Doğru cevap formatı bulunamadı, ham analiz:', analiz);
+                        }
 
                         yeniSonuclar.push({
                             soru,
