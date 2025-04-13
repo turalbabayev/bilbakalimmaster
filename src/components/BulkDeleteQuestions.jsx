@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { db } from "../firebase";
-import { collection, getDocs, deleteDoc, doc, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, query, orderBy, updateDoc } from "firebase/firestore";
 import { toast } from 'react-toastify';
 
 const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) => {
@@ -99,8 +99,29 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
                 const soruRef = doc(db, ...soruBasePath, soruId);
                 await deleteDoc(soruRef);
             }
+
+            // Kalan soruların numaralarını güncelle
+            const soruRef = collection(db, ...soruBasePath);
+            const q = query(soruRef, orderBy("soruNumarasi", "asc"));
+            const querySnapshot = await getDocs(q);
             
-            toast.success(`${seciliIDs.length} adet soru başarıyla silindi.`);
+            let yeniNumara = 1;
+            const updatePromises = [];
+            
+            querySnapshot.forEach((doc) => {
+                if (!seciliIDs.includes(doc.id)) { // Sadece silinmemiş soruları güncelle
+                    const soruRef = doc.ref;
+                    updatePromises.push(updateDoc(soruRef, {
+                        soruNumarasi: yeniNumara
+                    }));
+                    yeniNumara++;
+                }
+            });
+
+            // Tüm güncelleme işlemlerini bekle
+            await Promise.all(updatePromises);
+            
+            toast.success(`${seciliIDs.length} adet soru başarıyla silindi ve sıralama güncellendi.`);
             onClose(true); // true ile başarılı işlemi bildir
         } catch (error) {
             console.error("Sorular silinirken hata oluştu:", error);
