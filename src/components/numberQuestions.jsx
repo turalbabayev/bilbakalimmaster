@@ -1,180 +1,139 @@
-import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
-import { toast } from 'react-hot-toast';
+import React, { useState } from "react";
+import { database } from "../firebase";
+import { ref, get, update } from "firebase/database";
 
 const NumberQuestions = ({ isOpen, onClose }) => {
-    const [konular, setKonular] = useState([]);
-    const [selectedKonu, setSelectedKonu] = useState('');
-    const [selectedAltKonu, setSelectedAltKonu] = useState('');
-    const [selectedAltDal, setSelectedAltDal] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [status, setStatus] = useState("idle"); // idle, running, success, error
+    const [log, setLog] = useState([]);
 
-    useEffect(() => {
-        const fetchKonular = async () => {
-            try {
-                const konularSnapshot = await getDocs(collection(db, 'konular'));
-                const konularData = konularSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                setKonular(konularData);
-            } catch (error) {
-                console.error('Konular yüklenirken hata:', error);
-                toast.error('Konular yüklenirken bir hata oluştu!');
-            }
-        };
-
-        if (isOpen) {
-            fetchKonular();
-            setSelectedKonu('');
-            setSelectedAltKonu('');
-            setSelectedAltDal('');
-        }
-    }, [isOpen]);
+    const addLog = (message) => {
+        setLog((prev) => [...prev, message]);
+    };
 
     const handleNumberQuestions = async () => {
-        if (!selectedKonu || !selectedAltKonu || !selectedAltDal) {
-            toast.error('Lütfen bir konu, alt konu ve alt dal seçin!');
-            return;
-        }
+        setStatus("running");
+        setLog(["Soruları numaralandırma işlemi başlatılıyor..."]);
 
-        setLoading(true);
         try {
-            const konuRef = doc(db, 'konular', selectedKonu);
-            const selectedKonuData = konular.find(k => k.id === selectedKonu);
-            const altKonuData = selectedKonuData.altkonular[selectedAltKonu];
-            const altDalData = altKonuData.altdallar[selectedAltDal];
-            
-            if (!altDalData.sorular) {
-                toast.error('Bu alt dalda soru bulunmamaktadır!');
+            // Tüm konuları al
+            addLog("Konular alınıyor...");
+            const konularRef = ref(database, 'konular');
+            const konularSnapshot = await get(konularRef);
+            const konular = konularSnapshot.val();
+
+            if (!konular) {
+                addLog("Konular bulunamadı!");
+                setStatus("error");
                 return;
             }
 
-            const sorular = Object.entries(altDalData.sorular);
-            const yeniSorular = {};
-            
-            sorular.forEach(([_, soru], index) => {
-                const yeniSoruNumarasi = (index + 1).toString().padStart(3, '0');
-                yeniSorular[yeniSoruNumarasi] = soru;
-            });
-
-            const updatedAltDal = {
-                ...altDalData,
-                sorular: yeniSorular
-            };
-
-            const updatedAltKonu = {
-                ...altKonuData,
-                altdallar: {
-                    ...altKonuData.altdallar,
-                    [selectedAltDal]: updatedAltDal
+            // Her konu için
+            for (const konuId in konular) {
+                const konu = konular[konuId];
+                addLog(`Konu: ${konu.baslik} (${konuId}) işleniyor...`);
+                
+                // Alt konular varsa
+                if (konu.altkonular) {
+                    // Her alt konu için
+                    for (const altKonuId in konu.altkonular) {
+                        const altKonu = konu.altkonular[altKonuId];
+                        addLog(`Alt Konu: ${altKonu.baslik} (${altKonuId}) işleniyor...`);
+                        
+                        // Alt konunun soruları varsa
+                        if (altKonu.sorular) {
+                            let soruNumarasi = 1;
+                            addLog(`${altKonu.baslik} için sorular numaralandırılıyor...`);
+                            
+                            // Her soru için numara ata
+                            for (const soruId in altKonu.sorular) {
+                                const soruPath = `konular/${konuId}/altkonular/${altKonuId}/sorular/${soruId}`;
+                                await update(ref(database, soruPath), { soruNumarasi: soruNumarasi });
+                                addLog(`${soruPath} için soruNumarasi = ${soruNumarasi} atandı.`);
+                                soruNumarasi++;
+                            }
+                        }
+                        
+                        // Alt dallar varsa
+                        if (altKonu.altdallar) {
+                            // Her alt dal için
+                            for (const altDalId in altKonu.altdallar) {
+                                const altDal = altKonu.altdallar[altDalId];
+                                addLog(`Alt Dal: ${altDal.baslik} (${altDalId}) işleniyor...`);
+                                
+                                // Alt dalın soruları varsa
+                                if (altDal.sorular) {
+                                    let soruNumarasi = 1;
+                                    addLog(`${altDal.baslik} için sorular numaralandırılıyor...`);
+                                    
+                                    // Her soru için numara ata
+                                    for (const soruId in altDal.sorular) {
+                                        const soruPath = `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/sorular/${soruId}`;
+                                        await update(ref(database, soruPath), { soruNumarasi: soruNumarasi });
+                                        addLog(`${soruPath} için soruNumarasi = ${soruNumarasi} atandı.`);
+                                        soruNumarasi++;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-            };
-
-            await updateDoc(konuRef, {
-                [`altkonular.${selectedAltKonu}`]: updatedAltKonu
-            });
-
-            toast.success('Sorular başarıyla numaralandırıldı!');
-            onClose();
+            }
+            
+            addLog('Tüm sorular başarıyla numaralandırıldı!');
+            setStatus("success");
         } catch (error) {
-            console.error('Sorular numaralandırılırken hata:', error);
-            toast.error('Sorular numaralandırılırken bir hata oluştu!');
-        } finally {
-            setLoading(false);
+            addLog(`Sorular numaralandırılırken bir hata oluştu: ${error.message}`);
+            console.error('Sorular numaralandırılırken bir hata oluştu:', error);
+            setStatus("error");
         }
     };
-
-    const selectedKonuData = konular.find(k => k.id === selectedKonu);
-    const altKonular = selectedKonuData?.altkonular || {};
-    const selectedAltKonuData = altKonular[selectedAltKonu];
-    const altDallar = selectedAltKonuData?.altdallar || {};
 
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
-                <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Soruları Numaralandır</h2>
-                <div className="mb-4">
-                    <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
-                        Ana Konu
-                    </label>
-                    <select
-                        value={selectedKonu}
-                        onChange={(e) => {
-                            setSelectedKonu(e.target.value);
-                            setSelectedAltKonu('');
-                            setSelectedAltDal('');
-                        }}
-                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                        disabled={loading}
-                    >
-                        <option value="">Konu seçin</option>
-                        {konular.map((konu) => (
-                            <option key={konu.id} value={konu.id}>
-                                {konu.baslik}
-                            </option>
-                        ))}
-                    </select>
+            <div className="bg-white rounded-lg shadow-lg w-3/4 p-6 max-h-[80vh] overflow-hidden flex flex-col">
+                <h2 className="text-xl font-bold mb-4">Soruları Numaralandır</h2>
+                
+                <div className="flex-1 overflow-y-auto mb-4 bg-gray-100 p-3 rounded-md text-sm h-96">
+                    {log.length > 0 ? (
+                        log.map((message, index) => (
+                            <div key={index} className="mb-1">
+                                {message}
+                            </div>
+                        ))
+                    ) : (
+                        <p>Soruları numaralandırma işlemi başlatıldığında loglar burada gösterilecek.</p>
+                    )}
                 </div>
-                <div className="mb-4">
-                    <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
-                        Alt Konu
-                    </label>
-                    <select
-                        value={selectedAltKonu}
-                        onChange={(e) => {
-                            setSelectedAltKonu(e.target.value);
-                            setSelectedAltDal('');
-                        }}
-                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                        disabled={!selectedKonu || loading}
-                    >
-                        <option value="">Alt konu seçin</option>
-                        {Object.entries(altKonular).map(([id, altkonu]) => (
-                            <option key={id} value={id}>
-                                {altkonu.baslik}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-                <div className="mb-4">
-                    <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
-                        Alt Dal
-                    </label>
-                    <select
-                        value={selectedAltDal}
-                        onChange={(e) => setSelectedAltDal(e.target.value)}
-                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                        disabled={!selectedKonu || !selectedAltKonu || loading}
-                    >
-                        <option value="">Alt dal seçin</option>
-                        {Object.entries(altDallar).map(([id, altdal]) => (
-                            <option key={id} value={id}>
-                                {altdal.baslik}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-                <div className="flex justify-end gap-4">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                        disabled={loading}
-                    >
-                        İptal
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleNumberQuestions}
-                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                        disabled={!selectedKonu || !selectedAltKonu || !selectedAltDal || loading}
-                    >
-                        {loading ? 'Numaralandırılıyor...' : 'Numaralandır'}
-                    </button>
+                
+                <div className="flex justify-end space-x-4">
+                    {status === "idle" && (
+                        <button
+                            className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+                            onClick={handleNumberQuestions}
+                        >
+                            Numaralandırmayı Başlat
+                        </button>
+                    )}
+                    
+                    {status === "running" && (
+                        <button
+                            className="bg-gray-400 text-white px-4 py-2 rounded-md cursor-not-allowed"
+                            disabled
+                        >
+                            İşlem Devam Ediyor...
+                        </button>
+                    )}
+                    
+                    {(status === "success" || status === "error") && (
+                        <button
+                            className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
+                            onClick={onClose}
+                        >
+                            Kapat
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

@@ -8,105 +8,58 @@ import ExportSubbranchToDocx from "../../components/ExportSubbranchToDocx";
 import BulkDeleteQuestions from "../../components/BulkDeleteQuestions";
 import BulkDownloadQuestions from "../../components/BulkDownloadQuestions";
 import { useParams } from "react-router-dom";
-import { db } from "../../firebase";
-import { doc, getDoc, collection, query, orderBy, onSnapshot, deleteDoc, updateDoc } from "firebase/firestore";
-import { toast } from "react-hot-toast";
+import { database } from "../../firebase";
+import { ref, onValue, get, set, remove } from "firebase/database";
 
 function SubbranchContent() {
     const { konuId, altKonuId } = useParams();
     const [selectedAltDal, setSelectedAltDal] = useState(null);
     const [altKonular, setAltKonular] = useState({});
     const [altDallar, setAltDallar] = useState({});
-    const [sorular, setSorular] = useState([]);
+    const [sorular, setSorular] = useState({});
     const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
     const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
     const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!konuId || !altKonuId || !selectedAltDal) {
-            setLoading(false);
-            return;
-        }
-
-        const fetchSorular = async () => {
-            try {
-                const konuRef = doc(db, "konular", konuId);
-                const konuDoc = await getDoc(konuRef);
-                
-                if (!konuDoc.exists()) {
-                    throw new Error("Konu bulunamadı!");
-                }
-
-                const konuData = konuDoc.data();
-                const altKonular = konuData.altkonular || {};
-                const subbranches = altKonular[altKonuId]?.subbranches || {};
-                const questions = subbranches[selectedAltDal]?.questions || {};
-
-                // Soruları diziye çevir ve sırala
-                const soruArray = Object.entries(questions).map(([id, soru]) => ({
-                    id,
-                    ...soru
-                })).sort((a, b) => (a.soruNumarasi || 0) - (b.soruNumarasi || 0));
-
-                setSorular(soruArray);
-            } catch (error) {
-                console.error("Hata:", error);
-                toast.error("Sorular yüklenirken bir hata oluştu!");
-            } finally {
+        const altKonuRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}`);
+        
+        const unsubscribe = onValue(altKonuRef, (snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                setAltKonular(data);
+                setAltDallar(data.altdallar || {});
+                setLoading(false);
+            } else {
                 setLoading(false);
             }
-        };
+        });
 
-        fetchSorular();
-    }, [konuId, altKonuId, selectedAltDal]);
+        return () => unsubscribe();
+    }, [konuId, altKonuId]);
 
-    const soruSil = async (soruId) => {
-        if (!window.confirm("Bu soruyu silmek istediğinizden emin misiniz?")) {
-            return;
-        }
-
-        try {
-            const konuRef = doc(db, "konular", konuId);
-            const konuDoc = await getDoc(konuRef);
-            
-            if (!konuDoc.exists()) {
-                throw new Error("Konu bulunamadı!");
+    const refreshQuestions = async () => {
+        if (selectedAltDal) {
+            const soruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/altdallar/${selectedAltDal}/sorular`);
+            const snapshot = await get(soruRef);
+            if (snapshot.exists()) {
+                setSorular(snapshot.val());
+            } else {
+                setSorular({});
             }
+        }
+    };
 
-            const konuData = konuDoc.data();
-            const altKonular = konuData.altkonular || {};
-            const subbranches = altKonular[altKonuId]?.subbranches || {};
-            const questions = subbranches[selectedAltDal]?.questions || {};
-
-            // Soruyu sil
-            delete questions[soruId];
-
-            // Firestore'u güncelle
-            const updatedSubbranches = {
-                ...subbranches,
-                [selectedAltDal]: {
-                    ...subbranches[selectedAltDal],
-                    questions
-                }
-            };
-
-            const updatedAltKonular = {
-                ...altKonular,
-                [altKonuId]: {
-                    ...altKonular[altKonuId],
-                    subbranches: updatedSubbranches
-                }
-            };
-
-            await updateDoc(konuRef, {
-                altkonular: updatedAltKonular
-            });
-
-            toast.success("Soru başarıyla silindi!");
-        } catch (error) {
-            console.error("Hata:", error);
-            toast.error("Soru silinirken bir hata oluştu!");
+    const handleDeleteQuestion = async (soruId) => {
+        if (window.confirm("Bu soruyu silmek istediğinizden emin misiniz?")) {
+            try {
+                const soruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/altdallar/${selectedAltDal}/sorular/${soruId}`);
+                await remove(soruRef);
+                refreshQuestions();
+            } catch (error) {
+                console.error("Soru silinirken hata oluştu:", error);
+            }
         }
     };
 
@@ -126,22 +79,6 @@ function SubbranchContent() {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
                 </div>
             </Layout>
-        );
-    }
-
-    if (!konuId || !altKonuId || !selectedAltDal) {
-        return (
-            <div className="text-center text-gray-600 dark:text-gray-400 py-8">
-                Lütfen bir alt dal seçin.
-            </div>
-        );
-    }
-
-    if (sorular.length === 0) {
-        return (
-            <div className="text-center text-gray-600 dark:text-gray-400 py-8">
-                Bu alt dalda henüz soru bulunmuyor.
-            </div>
         );
     }
 
@@ -268,7 +205,7 @@ function SubbranchContent() {
                                                             )}
                                                         </div>
                                                         <button
-                                                            onClick={() => soruSil(soruKey)}
+                                                            onClick={() => handleDeleteQuestion(soruKey)}
                                                             className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
                                                         >
                                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -293,6 +230,7 @@ function SubbranchContent() {
                         isOpen={isAddQuestionOpen}
                         onClose={() => {
                             setIsAddQuestionOpen(false);
+                            refreshQuestions();
                         }}
                         konuId={konuId}
                         altKonuId={altKonuId}
@@ -305,9 +243,7 @@ function SubbranchContent() {
                         isOpen={isBulkDeleteOpen}
                         onClose={(refreshNeeded) => {
                             setIsBulkDeleteOpen(false);
-                            if (refreshNeeded) {
-                                // Burada yeni soruları yüklemek için bir işlem yapılabilir
-                            }
+                            if (refreshNeeded) refreshQuestions();
                         }}
                         konuId={konuId}
                         altKonuId={altKonuId}

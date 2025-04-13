@@ -11,8 +11,9 @@ import BulkDeleteQuestions from "../../components/BulkDeleteQuestions";
 import BulkDownloadQuestions from "../../components/BulkDownloadQuestions";
 import BulkQuestionVerification from "../../components/BulkQuestionVerification";
 import { useParams, useNavigate } from "react-router-dom";
-import { db } from "../../firebase";
-import { collection, doc, getDoc, getDocs, query, where, updateDoc, deleteDoc, addDoc, onSnapshot } from "firebase/firestore";
+import { database } from "../../firebase";
+import { ref, onValue, update, get, remove, push, set, child, off } from "firebase/database";
+import { getDatabase } from "firebase/database";
 import { toast } from "react-hot-toast";
 
 function QuestionContent() {
@@ -22,81 +23,111 @@ function QuestionContent() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isImportJSONModalOpen, setIsImportJSONModalOpen] = useState(false);
-    const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+    const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false); // Güncelleme modali için state
     const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
     const [selectedSoruRef, setSelectedSoruRef] = useState(null);
-    const [expandedAltKonu, setExpandedAltKonu] = useState(null);
+    const [expandedAltKonu, setExpandedAltKonu] = useState(null); // Açık olan alt konuyu takip eder
     const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
     const [selectedAltKonuId, setSelectedAltKonuId] = useState(null);
     const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false);
     const [isBulkVerificationOpen, setIsBulkVerificationOpen] = useState(false);
     const navigate = useNavigate();
 
+    // BulkQuestionVerification bileşenine ref tanımlıyoruz
     const bulkVerificationRef = useRef(null);
 
     useEffect(() => {
-        // Alt konuları al
-        const fetchAltKonular = async () => {
-            const altKonularRef = collection(db, `konular/${id}/altkonular`);
-            const unsubscribe = onSnapshot(altKonularRef, (snapshot) => {
-                const altKonularData = {};
-                snapshot.forEach(doc => {
-                    altKonularData[doc.id] = {
-                        baslik: doc.data().baslik || "Başlık Yok",
-                        sorular: true // Sorular daha sonra yüklenecek
-                    };
-                });
-                setAltKonular(altKonularData);
-            });
-
-            // Konu başlığını al
-            const konuRef = doc(db, 'konular', id);
-            const konuDoc = await getDoc(konuRef);
-            if (konuDoc.exists()) {
-                setBaslik(konuDoc.data().baslik || "Başlık Yok");
+        // Sadece alt konu başlıklarını al, tüm soruları değil
+        const konuRef = ref(database, `konular/${id}/altkonular`);
+        
+        // Konu başlıklarını almak için once() kullan, bu sürekli dinlemez sadece bir kez veri çeker
+        get(konuRef).then((snapshot) => {
+            if (snapshot.exists()) {
+            const data = snapshot.val();
+            if (data) {
+                    // Tüm alt konuları içeren basit bir obje oluştur
+                    const altKonularBaslik = {};
+                    Object.keys(data).forEach(key => {
+                        altKonularBaslik[key] = {
+                            baslik: data[key].baslik || "Başlık Yok",
+                            // Soru sayısını göstermek için sorular nesnesinin uzunluğunu al (tüm soruları almadan)
+                            sorular: data[key].sorular ? true : false
+                        };
+                    });
+                    
+                    // Sadece alt konu başlıklarını ve varsa soru var mı bilgisini set et
+                    setAltKonular(altKonularBaslik);
+                }
             }
+        }).catch((error) => {
+            console.error("Alt konu listesi alınırken hata:", error);
+        });
 
-            return () => unsubscribe();
-        };
-
-        fetchAltKonular();
+        // Konu başlığını al
+        const konuBaslikRef = ref(database, `konular/${id}/baslik`);
+        get(konuBaslikRef).then((snapshot) => {
+            if (snapshot.exists()) {
+                setBaslik(snapshot.val() || "Başlık Yok");
+            }
+        });
+        
+        return () => {}; // Listener olmadığı için temizleme gerekmiyor
     }, [id]);
 
-    const fetchSorularForAltKonu = async (altKonuKey) => {
+    // Alt konu genişletildiğinde sorular için şimdi ayrı bir fonksiyon
+    const fetchSorularForAltKonu = (altKonuKey) => {
         if (!altKonuKey) return;
-
-        setAltKonular(prevState => ({
-            ...prevState,
-            [altKonuKey]: { ...prevState[altKonuKey], sorularYukleniyor: true }
-        }));
-
-        try {
-            const sorularRef = collection(db, `konular/${id}/altkonular/${altKonuKey}/sorular`);
-            const snapshot = await getDocs(sorularRef);
-
-            const sorular = {};
-            snapshot.forEach(doc => {
-                sorular[doc.id] = { ...doc.data(), id: doc.id };
-            });
-
-            setAltKonular(prevState => ({
-                ...prevState,
-                [altKonuKey]: {
-                    ...prevState[altKonuKey],
-                    sorular,
-                    sorularYukleniyor: false
-                }
-            }));
-        } catch (error) {
+        
+        // Alt konu genişletildiğinde sadece o alt konunun sorularını al
+        const sorularRef = ref(database, `konular/${id}/altkonular/${altKonuKey}/sorular`);
+        
+        // Mevcut alt konular state'ini güncelle
+        setAltKonular(prevState => {
+            const yeniState = {...prevState};
+            // Yükleniyor durumunu göster
+            yeniState[altKonuKey] = {...yeniState[altKonuKey], sorularYukleniyor: true};
+            return yeniState;
+        });
+        
+        // Soruları sadece bir kere al, devamlı dinleme
+        get(sorularRef).then((snapshot) => {
+            if (snapshot.exists()) {
+                const sorular = snapshot.val();
+                
+                // Mevcut alt konular state'ini güncelle
+                setAltKonular(prevState => {
+                    const yeniState = {...prevState};
+                    yeniState[altKonuKey] = {
+                        ...yeniState[altKonuKey], 
+                        sorular: sorular,
+                        sorularYukleniyor: false
+                    };
+                    return yeniState;
+                });
+            } else {
+                // Sorular yoksa da yükleniyor durumunu kapat
+                setAltKonular(prevState => {
+                    const yeniState = {...prevState};
+                    yeniState[altKonuKey] = {
+                        ...yeniState[altKonuKey], 
+                        sorular: {},
+                        sorularYukleniyor: false
+                    };
+                    return yeniState;
+                });
+            }
+        }).catch(error => {
             console.error(`${altKonuKey} için sorular alınırken hata:`, error);
-            setAltKonular(prevState => ({
-                ...prevState,
-                [altKonuKey]: {
-                    ...prevState[altKonuKey],
+            // Hata durumunda da yükleniyor durumunu kapat
+            setAltKonular(prevState => {
+                const yeniState = {...prevState};
+                yeniState[altKonuKey] = {
+                    ...yeniState[altKonuKey], 
                     sorularYukleniyor: false
-                }
-            }));
-        }
+                };
+                return yeniState;
+            });
+        });
     };
 
     const toggleExpand = (altKonuKey) => {
@@ -206,7 +237,7 @@ function QuestionContent() {
             updates[`/${soruRef}/dogruCevap`] = yeniCevap;
             
             console.log('Güncelleme yapılıyor:', soruRef, 'Yeni değer:', yeniCevap);
-            await updateDoc(doc(db, soruRef), updates);
+            await update(ref(database), updates);
             console.log(`Doğru cevap güncellendi: ${soruRef} -> ${yeniCevap}`);
             
             // Soruları hemen yenile
@@ -338,55 +369,80 @@ function QuestionContent() {
     };
 
     // Soru güncelleme tamamlandığında çağrılacak fonksiyon
-    const handleUpdateComplete = async (updatedQuestion) => {
+    const handleUpdateComplete = (updatedQuestion) => {
         console.log("Soru güncellendi, veriler yenileniyor...");
         
+        // Önce modalları kapat
         setIsUpdateModalOpen(false);
         
+        // Daha sonra, verileri yenileyip bulk verification modalını güncelle
+        // Toplu doğrulama modalını tekrar göster
         document.querySelector('.bulk-verification-modal')?.classList.remove('hidden');
         
+        // Kısa bir gecikme ekleyerek veritabanı işlemlerinin tamamlanmasını sağlayalım
         setTimeout(() => {
+            // Eğer bir alt konu açıksa, sadece o alt konunun sorularını yenile
             if (expandedAltKonu) {
                 fetchSorularForAltKonu(expandedAltKonu);
             }
             
+            // Güncelleme yapılan soruyu sadece doğrudan al, tüm veriyi çekme
             if (selectedSoruRef && bulkVerificationRef.current && isBulkVerificationOpen) {
                 try {
-                    const [_, __, ___, altKonuId, ____, soruId] = selectedSoruRef.split('/');
-                    const soruRef = doc(db, `konular/${id}/altkonular/${altKonuId}/sorular/${soruId}`);
+                    // Sadece güncellenen soruyu al
+                    const guncelSoruRef = ref(database, selectedSoruRef);
                     
-                    getDoc(soruRef).then((snapshot) => {
+                    get(guncelSoruRef).then((snapshot) => {
                         if (snapshot.exists()) {
-                            const guncelSoru = { ...snapshot.data(), id: snapshot.id };
-                            console.log("Güncel soru bulundu, bulk verification modalı güncelleniyor:", guncelSoru);
-                            bulkVerificationRef.current.updateSonucWithGuncelSoru(guncelSoru);
+                            const guncelSoru = snapshot.val();
+                            
+                            if (guncelSoru) {
+                                console.log("Güncel soru bulundu, bulk verification modalı güncelleniyor:", guncelSoru);
+                                bulkVerificationRef.current.updateSonucWithGuncelSoru(guncelSoru);
+                            } else {
+                                console.log("Güncel soru boş geldi.");
+                            }
+                        } else {
+                            console.log("Güncel soru bulunamadı.");
                         }
+                    }).catch(error => {
+                        console.error("Güncel soru verileri alınırken hata:", error);
                     });
                 } catch (error) {
                     console.error("Bulk verification güncelleme hatası:", error);
                 }
             }
-        }, 300);
+        }, 300); // 300ms bekle
     };
 
     // Soru silme fonksiyonu
     const handleDeleteSoru = async (soru) => {
         try {
+            console.log('Silinecek soru:', soru);
+            
             if (!soru || !soru.id) {
                 throw new Error('Geçersiz soru verisi');
             }
             
+            // Önce BulkQuestionVerification modalındaki soruyu silelim
             if (bulkVerificationRef.current) {
                 bulkVerificationRef.current.removeSoruFromSonuclar(soru.id);
             }
             
-            const [altKonuId, soruId] = findSoruRefById(soru.id).split('/').slice(-2);
-            const soruRef = doc(db, `konular/${id}/altkonular/${altKonuId}/sorular/${soruId}`);
+            // Sorunun referansını bul
+            const soruRef = findSoruRefById(soru.id);
             
-            await deleteDoc(soruRef);
+            if (!soruRef) {
+                throw new Error('Soru referansı bulunamadı');
+            }
+            
+            // Firebase'den soruyu sil
+            const soruDbRef = ref(database, soruRef);
+            await remove(soruDbRef);
             
             toast.success('Soru başarıyla silindi');
             
+            // Verileri yenile
             if (expandedAltKonu) {
                 fetchSorularForAltKonu(expandedAltKonu);
             }

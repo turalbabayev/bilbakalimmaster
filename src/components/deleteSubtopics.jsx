@@ -1,133 +1,92 @@
-import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
-import { toast } from 'react-hot-toast';
+import React, { useState } from "react";
+import { database } from "../firebase";
+import { ref, remove } from "firebase/database";
 
-const DeleteSubtopics = ({ isOpen, onClose }) => {
-    const [konular, setKonular] = useState([]);
-    const [selectedKonu, setSelectedKonu] = useState('');
-    const [selectedAltKonu, setSelectedAltKonu] = useState('');
-    const [loading, setLoading] = useState(false);
+const DeleteSubtopics = ({ konular, closeModal }) => {
+    const [selectedTopic, setSelectedTopic] = useState("");
+    const [selectedSubtopic, setSelectedSubtopic] = useState("");
 
-    useEffect(() => {
-        const fetchKonular = async () => {
-            try {
-                const konularSnapshot = await getDocs(collection(db, 'konular'));
-                const konularData = konularSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                setKonular(konularData);
-            } catch (error) {
-                console.error('Konular yüklenirken hata:', error);
-                toast.error('Konular yüklenirken bir hata oluştu!');
-            }
-        };
-
-        if (isOpen) {
-            fetchKonular();
-            setSelectedKonu('');
-            setSelectedAltKonu('');
+    const handleDeleteSubtopic = () => {
+        if (!selectedTopic) {
+            alert("Bir konu seçmelisiniz!");
+            return;
         }
-    }, [isOpen]);
-
-    const handleDelete = async () => {
-        if (!selectedKonu || !selectedAltKonu) {
-            toast.error('Lütfen bir konu ve alt konu seçin!');
+        if (!selectedSubtopic) {
+            alert("Bir alt konu seçmelisiniz!");
             return;
         }
 
-        if (!window.confirm('Bu alt konuyu silmek istediğinizden emin misiniz?')) {
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const konuRef = doc(db, 'konular', selectedKonu);
-            const selectedKonuData = konular.find(k => k.id === selectedKonu);
-            
-            const updatedAltkonular = { ...selectedKonuData.altkonular };
-            delete updatedAltkonular[selectedAltKonu];
-            
-            await updateDoc(konuRef, {
-                altkonular: updatedAltkonular
+        const subtopicRef = ref(database, `konular/${selectedTopic}/altkonular/${selectedSubtopic}`);
+        remove(subtopicRef)
+            .then(() => {
+                alert("Alt konu başarıyla silindi.");
+                setSelectedTopic("");
+                setSelectedSubtopic("");
+                closeModal();
+            })
+            .catch((error) => {
+                console.error("Alt konu silinirken hata oluştu:", error);
+                alert("Alt konu silinemedi!");
             });
-
-            toast.success('Alt konu başarıyla silindi!');
-            setSelectedAltKonu('');
-            onClose();
-        } catch (error) {
-            console.error('Alt konu silinirken hata:', error);
-            toast.error('Alt konu silinirken bir hata oluştu!');
-        } finally {
-            setLoading(false);
-        }
     };
 
-    const selectedKonuData = konular.find(k => k.id === selectedKonu);
-    const altKonular = selectedKonuData?.altkonular || {};
-
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
-                <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Alt Konu Sil</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="bg-white rounded-lg p-6 shadow-lg max-w-md w-full">
+                <h3 className="text-xl font-semibold mb-4">Alt Konu Sil</h3>
                 <div className="mb-4">
-                    <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
-                        Ana Konu
+                    <label htmlFor="topic" className="block text-gray-700 mb-2">
+                        Konu Seçin
                     </label>
-                    <select
-                        value={selectedKonu}
-                        onChange={(e) => {
-                            setSelectedKonu(e.target.value);
-                            setSelectedAltKonu('');
-                        }}
-                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                        disabled={loading}
+                    <select 
+                        id="topic"
+                        value={selectedTopic}
+                        onChange={(e) => setSelectedTopic(e.target.value)}
+                        className="w-full p-2 border rounded"
                     >
-                        <option value="">Konu seçin</option>
+                        <option value="">Bir konu seçin</option>
                         {konular.map((konu) => (
-                            <option key={konu.id} value={konu.id}>
-                                {konu.baslik}
-                            </option>
+                            <option key={konu.id} value={konu.id}>{konu.baslik}</option>
                         ))}
                     </select>
                 </div>
-                <div className="mb-4">
-                    <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
-                        Alt Konu
-                    </label>
-                    <select
-                        value={selectedAltKonu}
-                        onChange={(e) => setSelectedAltKonu(e.target.value)}
-                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                        disabled={!selectedKonu || loading}
-                    >
-                        <option value="">Alt konu seçin</option>
-                        {Object.entries(altKonular).map(([id, altkonu]) => (
-                            <option key={id} value={id}>
-                                {altkonu.baslik}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-                <div className="flex justify-end gap-4">
+                {selectedTopic && (
+                    <div className="mb-4">
+                        <label htmlFor="subtopic" className="block text-gray-700 mb-2">
+                            Alt konu seçin
+                        </label>
+                        <select 
+                            id="subtopic"
+                            value={selectedSubtopic}
+                            onChange={(e) => setSelectedSubtopic(e.target.value)}
+                            className="w-full p-2 border rounded"
+                        >
+                            <option value="">Bir alt konu seçin</option>
+                            {konular
+                                .find((konu) => konu.id === selectedTopic)
+                                ?.altkonular &&
+                                Object.entries(
+                                    konular.find((konu) => konu.id === selectedTopic).altkonular
+                                ).map(([key, altkonu]) => (
+                                    <option key={key} value={key}>
+                                        {altkonu.baslik}
+                                    </option>
+                                ))}
+                        </select>
+                    </div>
+                )}
+                <div className="flex justify-end">
                     <button
-                        type="button"
-                        onClick={onClose}
-                        className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                        disabled={loading}
+                        onClick={handleDeleteSubtopic}
+                        className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 mr-2"
                     >
-                        İptal
+                        Sil
                     </button>
                     <button
-                        type="button"
-                        onClick={handleDelete}
-                        className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                        disabled={!selectedKonu || !selectedAltKonu || loading}
+                        onClick={closeModal}
+                        className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
                     >
-                        {loading ? 'Siliniyor...' : 'Sil'}
+                        Kapat
                     </button>
                 </div>
             </div>

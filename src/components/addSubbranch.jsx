@@ -1,163 +1,86 @@
-import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
-import { toast } from 'react-hot-toast';
+import React, { useState } from "react";
+import { database } from "../firebase";
+import { ref, update } from "firebase/database";
 
-const AddSubbranch = ({ isOpen, onClose }) => {
-    const [konular, setKonular] = useState([]);
-    const [selectedKonu, setSelectedKonu] = useState('');
-    const [selectedAltKonu, setSelectedAltKonu] = useState('');
-    const [baslik, setBaslik] = useState('');
-    const [loading, setLoading] = useState(false);
+const AddSubbranch = ({ konular, closeModal}) => {
+    const [selectedKonu, setSelectedKonu] = useState("");
+    const [selectedAltKonu, setSelectedAltKonu] = useState("");
+    const [newAltDal, setNewAltDal] = useState("");
 
-    useEffect(() => {
-        const fetchKonular = async () => {
-            try {
-                const konularSnapshot = await getDocs(collection(db, 'konular'));
-                const konularData = konularSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                setKonular(konularData);
-            } catch (error) {
-                console.error('Konular yüklenirken hata:', error);
-                toast.error('Konular yüklenirken bir hata oluştu!');
-            }
-        };
-
-        if (isOpen) {
-            fetchKonular();
-            setSelectedKonu('');
-            setSelectedAltKonu('');
-            setBaslik('');
-        }
-    }, [isOpen]);
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!selectedKonu || !selectedAltKonu) {
-            toast.error('Lütfen bir konu ve alt konu seçin!');
-            return;
-        }
-        if (!baslik.trim()) {
-            toast.error('Alt dal başlığı boş olamaz!');
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const konuRef = doc(db, 'konular', selectedKonu);
-            const selectedKonuData = konular.find(k => k.id === selectedKonu);
-            const altKonuData = selectedKonuData.altkonular[selectedAltKonu];
-            
-            const altDalId = baslik.toLowerCase().replace(/\s+/g, '-');
-            const updatedAltKonu = {
-                ...altKonuData,
-                altdallar: {
-                    ...(altKonuData.altdallar || {}),
-                    [altDalId]: {
-                        baslik: baslik,
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString()
-                    }
-                }
-            };
-
-            await updateDoc(konuRef, {
-                [`altkonular.${selectedAltKonu}`]: updatedAltKonu
+    const handleAddAltDal = () => {
+        if (selectedKonu && selectedAltKonu && newAltDal) {
+            const altDalRef = ref(database, `konular/${selectedKonu}/altkonular/${selectedAltKonu}/altdallar`);
+            update(altDalRef, {
+                [Date.now()]: {baslik: newAltDal},
             });
-
-            toast.success('Alt dal başarıyla eklendi!');
-            setBaslik('');
-            onClose();
-        } catch (error) {
-            console.error('Alt dal eklenirken hata:', error);
-            toast.error('Alt dal eklenirken bir hata oluştu!');
-        } finally {
-            setLoading(false);
+            alert("Alt dal başarıyla eklendi");
+            closeModal();
+        } else {
+            alert("Lütfen tüm alanları doldurun.");
         }
     };
 
-    const selectedKonuData = konular.find(k => k.id === selectedKonu);
-    const altKonular = selectedKonuData?.altkonular || {};
-
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
-                <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Yeni Alt Dal Ekle</h2>
-                <form onSubmit={handleSubmit}>
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white p-6 rounded shadow w-96">
+                <h3 className="text-xl font-semibold mb-4">Alt Dal Ekle</h3>
+                <div className="mb-4">
+                    <label className="block font-medium mb-1">Konu Seç</label>
+                    <select
+                        className="w-full border px-3 py-2 rounded"
+                        value={selectedKonu}
+                        onChange={(e) => setSelectedKonu(e.target.value)}
+                    >
+                        <option value="">Konu Seç</option>
+                        {konular.map((konu) => (
+                            <option key={konu.id} value={konu.id}>
+                                {konu.baslik}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                {selectedKonu && (
                     <div className="mb-4">
-                        <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
-                            Ana Konu
-                        </label>
+                        <label className="block font-medium mb-1">Alt Konu Seç</label>
                         <select
-                            value={selectedKonu}
-                            onChange={(e) => {
-                                setSelectedKonu(e.target.value);
-                                setSelectedAltKonu('');
-                            }}
-                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            disabled={loading}
-                        >
-                            <option value="">Konu seçin</option>
-                            {konular.map((konu) => (
-                                <option key={konu.id} value={konu.id}>
-                                    {konu.baslik}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="mb-4">
-                        <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
-                            Alt Konu
-                        </label>
-                        <select
+                            className="w-full border px-3 py-2 rounded"
                             value={selectedAltKonu}
                             onChange={(e) => setSelectedAltKonu(e.target.value)}
-                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            disabled={!selectedKonu || loading}
                         >
-                            <option value="">Alt konu seçin</option>
-                            {Object.entries(altKonular).map(([id, altkonu]) => (
-                                <option key={id} value={id}>
+                            <option value="">Alt Konu Seç</option>
+                            {Object.entries(konular.find(k => k.id === selectedKonu).altkonular || {}).map(([key, altkonu]) => (
+                                <option key={key} value={key}>
                                     {altkonu.baslik}
                                 </option>
                             ))}
                         </select>
                     </div>
+                )}
+                {selectedAltKonu && (
                     <div className="mb-4">
-                        <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
-                            Alt Dal Başlığı
-                        </label>
+                        <label className="block font-medium mb-1">Alt Dal Başlık</label>
                         <input
                             type="text"
-                            value={baslik}
-                            onChange={(e) => setBaslik(e.target.value)}
-                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            placeholder="Alt dal başlığını giriniz"
-                            disabled={loading}
+                            className="w-full border px-3 py-2 rounded"
+                            value={newAltDal}
+                            onChange={(e) => setNewAltDal(e.target.value)}
                         />
                     </div>
-                    <div className="flex justify-end gap-4">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                            disabled={loading}
-                        >
-                            İptal
-                        </button>
-                        <button
-                            type="submit"
-                            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                            disabled={!selectedKonu || !selectedAltKonu || loading}
-                        >
-                            {loading ? 'Ekleniyor...' : 'Ekle'}
-                        </button>
-                    </div>
-                </form>
+                )}
+                <div className="flex justify-end">
+                    <button
+                        onClick={handleAddAltDal}
+                        className="px-4 py-2 bg-blue-500 text-white rounded mr-2 hover:bg-blue-600"
+                    >
+                        Ekle
+                    </button>
+                    <button
+                        onClick={closeModal}
+                        className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                    >
+                        Kapat
+                    </button>
+                </div>
             </div>
         </div>
     );

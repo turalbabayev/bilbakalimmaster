@@ -1,76 +1,72 @@
-import React, { useState } from 'react';
-import { db } from '../firebase';
-import { doc, updateDoc } from 'firebase/firestore';
-import { toast } from 'react-hot-toast';
+import React, { useState, useEffect } from "react";
+import { database } from "../firebase";
+import { ref, update, onValue } from "firebase/database";
 
-const UpdateModal = ({ isOpen, onClose, path, type }) => {
-    const [baslik, setBaslik] = useState('');
-    const [loading, setLoading] = useState(false);
+const UpdateModal = ({ isOpen, closeModal, updatePath, itemType }) => {
+    const [title, setTitle] = useState("");
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!baslik.trim()) {
-            toast.error('Başlık boş olamaz!');
+    useEffect(() => {
+        if (updatePath) {
+            const itemRef = ref(database, updatePath);
+            onValue(itemRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    setTitle(data.baslik || "");
+                }
+            });
+        }
+    }, [updatePath]);
+
+    const handleUpdate = () => {
+        if (!title.trim()) {
+            alert("Başlık boş olamaz!");
             return;
         }
 
-        setLoading(true);
-        try {
-            const docRef = doc(db, path);
-            await updateDoc(docRef, {
-                baslik: baslik,
-                updatedAt: new Date().toISOString()
-            });
+        const updatedData = { baslik: title };
+        const itemRef = ref(database, updatePath);
 
-            toast.success(`${type} başarıyla güncellendi!`);
-            setBaslik('');
-            onClose();
-        } catch (error) {
-            console.error(`${type} güncellenirken hata:`, error);
-            toast.error(`${type} güncellenirken bir hata oluştu!`);
-        } finally {
-            setLoading(false);
-        }
+        update(itemRef, updatedData)
+            .then(() => {
+                alert(`${itemType} başarıyla güncellendi.`);
+                closeModal();
+            })
+            .catch((error) => {
+                console.error(`${itemType} güncelleme hatası:`, error);
+                alert(`${itemType} güncellenirken bir hata oluştu!`);
+            });
     };
 
     if (!isOpen) return null;
-
+    
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
-                <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">{type} Güncelle</h2>
-                <form onSubmit={handleSubmit}>
-                    <div className="mb-4">
-                        <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
-                            Yeni Başlık
-                        </label>
-                        <input
-                            type="text"
-                            value={baslik}
-                            onChange={(e) => setBaslik(e.target.value)}
-                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            placeholder="Yeni başlığı giriniz"
-                            disabled={loading}
-                        />
-                    </div>
-                    <div className="flex justify-end gap-4">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                            disabled={loading}
-                        >
-                            İptal
-                        </button>
-                        <button
-                            type="submit"
-                            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                            disabled={loading}
-                        >
-                            {loading ? 'Güncelleniyor...' : 'Güncelle'}
-                        </button>
-                    </div>
-                </form>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="bg-white rounded-lg p-6 shadow-lg max-w-md w-full">
+                <h3 className="text-xl font-semibold mb-2">{itemType} Güncelle</h3>
+                <div className="mb-4">
+                    <label htmlFor="title">Başlık</label>
+                    <input 
+                        type="text"
+                        id="title"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        className="w-full p-2 border rounded"
+                    />
+                </div>
+                <div className="flex justify-end space-x-2">
+                    <button
+                        onClick={handleUpdate}
+                        className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600"
+                    >
+                        Güncelle
+                    </button>
+                    <button
+                        onClick={closeModal}
+                        className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                    >
+                        Kapat
+                    </button>
+                </div>
             </div>
         </div>
     );
