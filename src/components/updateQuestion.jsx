@@ -6,7 +6,7 @@ import 'react-quill/dist/quill.snow.css';
 import { toast } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 
-const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, altDalId, onUpdateComplete }) => {
+const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateComplete }) => {
     const [soru, setSoru] = useState(null);
     const [loading, setLoading] = useState(true);
     const [cevaplar, setCevaplar] = useState(["", "", "", "", ""]);
@@ -57,7 +57,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, altDalId, 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                console.log("Modal açıldı, veri yükleme başlıyor:", { konuId, altKonuId, soruId, altDalId, isOpen });
+                console.log("Modal açıldı, veri yükleme başlıyor:", { konuId, altKonuId, soruId, isOpen });
                 
                 if (!konuId || !altKonuId || !soruId) {
                     console.error("Eksik parametreler:", { konuId, altKonuId, soruId });
@@ -78,18 +78,32 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, altDalId, 
                 const konuRef = doc(db, "konular", konuId);
                 const altKonularCollectionRef = collection(konuRef, "altkonular");
                 
-                // Soru referansını alt dal durumuna göre oluştur
-                const soruRef = altDalId 
-                    ? doc(db, "konular", konuId, "altkonular", altKonuId, "altdallar", altDalId, "sorular", soruId)
-                    : doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soruId);
+                // Önce normal sorular koleksiyonunda ara
+                let soruRef = doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soruId);
+                let soruSnapshot = await getDoc(soruRef);
                 
-                // Promise.all ile tüm verileri paralel olarak yükle
-                const [altKonularSnapshot, soruSnapshot] = await Promise.all([
-                    getDocs(altKonularCollectionRef),
-                    getDoc(soruRef)
-                ]);
+                // Eğer normal sorularda bulunamazsa, alt dallarda ara
+                if (!soruSnapshot.exists()) {
+                    // Alt konunun alt dallarını kontrol et
+                    const altKonuRef = doc(db, "konular", konuId, "altkonular", altKonuId);
+                    const altDallarCollectionRef = collection(altKonuRef, "altdallar");
+                    const altDallarSnapshot = await getDocs(altDallarCollectionRef);
+                    
+                    // Her alt dalı kontrol et
+                    for (const altDal of altDallarSnapshot.docs) {
+                        const altDalSoruRef = doc(db, "konular", konuId, "altkonular", altKonuId, "altdallar", altDal.id, "sorular", soruId);
+                        const altDalSoruSnapshot = await getDoc(altDalSoruRef);
+                        
+                        if (altDalSoruSnapshot.exists()) {
+                            soruRef = altDalSoruRef;
+                            soruSnapshot = altDalSoruSnapshot;
+                            break;
+                        }
+                    }
+                }
                 
                 // Alt konuları yükle
+                const altKonularSnapshot = await getDocs(altKonularCollectionRef);
                 const altKonularData = {};
                 altKonularSnapshot.forEach((doc) => {
                     altKonularData[doc.id] = doc.data();
@@ -123,7 +137,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, altDalId, 
                 }
                 
                 setCevaplar(normalizedCevaplar);
-                setDogruCevap(soruData.dogruCevap || "");
+                setDogruCevap(soruData.dogruCevap || "A");
                 setSelectedAltKonu(altKonuId);
                 setMevcutSoruNumarasi(soruData.soruNumarasi || null);
                 
@@ -138,7 +152,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, altDalId, 
         if (isOpen) {
             fetchData();
         }
-    }, [isOpen, konuId, altKonuId, soruId, altDalId]);
+    }, [isOpen, konuId, altKonuId, soruId]);
 
     const handleResimYukle = async (e) => {
         const file = e.target.files[0];
@@ -196,10 +210,26 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, altDalId, 
         }
 
         try {
-            // Firestore'da soruyu güncelle - alt dal durumuna göre referans oluştur
-            const soruRef = altDalId 
-                ? doc(db, "konular", konuId, "altkonular", altKonuId, "altdallar", altDalId, "sorular", soruId)
-                : doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soruId);
+            // Önce normal sorular koleksiyonunda güncellemeyi dene
+            let soruRef = doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soruId);
+            let soruSnapshot = await getDoc(soruRef);
+            
+            // Eğer normal sorularda bulunamazsa, alt dallarda ara ve güncelle
+            if (!soruSnapshot.exists()) {
+                const altKonuRef = doc(db, "konular", konuId, "altkonular", altKonuId);
+                const altDallarCollectionRef = collection(altKonuRef, "altdallar");
+                const altDallarSnapshot = await getDocs(altDallarCollectionRef);
+                
+                for (const altDal of altDallarSnapshot.docs) {
+                    const altDalSoruRef = doc(db, "konular", konuId, "altkonular", altKonuId, "altdallar", altDal.id, "sorular", soruId);
+                    const altDalSoruSnapshot = await getDoc(altDalSoruRef);
+                    
+                    if (altDalSoruSnapshot.exists()) {
+                        soruRef = altDalSoruRef;
+                        break;
+                    }
+                }
+            }
             
             const updatedSoru = {
                 soruMetni: soru.soruMetni,
