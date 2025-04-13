@@ -210,12 +210,17 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
         }
 
         try {
-            // Önce normal sorular koleksiyonunda güncellemeyi dene
+            // Önce normal sorular koleksiyonunda ara
             let soruRef = doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soruId);
             let soruSnapshot = await getDoc(soruRef);
+            let soruBulundu = false;
             
-            // Eğer normal sorularda bulunamazsa, alt dallarda ara ve güncelle
-            if (!soruSnapshot.exists()) {
+            // Normal sorularda bulunduysa güncelle
+            if (soruSnapshot.exists()) {
+                soruBulundu = true;
+                console.log("Soru normal koleksiyonda bulundu, güncelleniyor...");
+            } else {
+                // Alt dallarda ara
                 const altKonuRef = doc(db, "konular", konuId, "altkonular", altKonuId);
                 const altDallarCollectionRef = collection(altKonuRef, "altdallar");
                 const altDallarSnapshot = await getDocs(altDallarCollectionRef);
@@ -226,9 +231,15 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                     
                     if (altDalSoruSnapshot.exists()) {
                         soruRef = altDalSoruRef;
+                        soruBulundu = true;
+                        console.log("Soru alt dalda bulundu, güncelleniyor...", altDal.id);
                         break;
                     }
                 }
+            }
+
+            if (!soruBulundu) {
+                throw new Error("Soru veritabanında bulunamadı!");
             }
             
             const updatedSoru = {
@@ -243,9 +254,10 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                 soruResmi: soru.soruResmi
             };
 
-            console.log("Güncellenecek soru:", updatedSoru);
+            console.log("Güncellenecek soru:", { ref: soruRef.path, data: updatedSoru });
 
             await updateDoc(soruRef, updatedSoru);
+            console.log("Soru başarıyla güncellendi");
             
             toast.success("Soru başarıyla güncellendi!");
             
@@ -256,7 +268,6 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
         } catch (error) {
             console.error("Güncelleme sırasında hata:", error);
             toast.error("Soru güncellenirken bir hata oluştu: " + error.message);
-        } finally {
             setIsSaving(false);
         }
     };
