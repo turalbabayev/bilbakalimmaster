@@ -212,25 +212,20 @@ function HomePage() {
                                                     </div>
                                                     {expandedAltKonu[key] && altkonu.altdallar && (
                                                         <div className="mt-3 pl-4 space-y-2 border-l-2 border-emerald-100 dark:border-emerald-900">
-                                                            {Object.entries(altkonu.altdallar).map(
-                                                                ([subKey, altdal]) => (
-                                                                    <div key={subKey} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-2 rounded-lg">
-                                                                        <span className="text-gray-700 dark:text-gray-300 font-medium">{altdal.baslik || "Alt Dal Yok"}</span>
-                                                                        <button
-                                                                            onClick={() => openUpdateModal(
-                                                                                `konular/${konu.id}/altkonular/${key}/altdallar/${subKey}`,
-                                                                                "Alt Dal"
-                                                                            )}
-                                                                            className="text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 transition-colors flex items-center text-sm"
-                                                                        >
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                                                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                                                            </svg>
-                                                                            Güncelle
-                                                                        </button>
-                                                                    </div>
-                                                                )
-                                                            )}
+                                                            {Object.entries(altkonu.altdallar).map(([altdalKey, altdal]) => (
+                                                                <div key={altdalKey} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-2 rounded-lg">
+                                                                    <span className="text-sm text-emerald-600 dark:text-emerald-400">{altdal.baslik || "Alt Dal Yok"}</span>
+                                                                    <button
+                                                                        onClick={() => openUpdateModal(`konular/${konu.id}/altkonular/${key}/altdallar/${altdalKey}`, "Alt Dal")}
+                                                                        className="text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 transition-colors flex items-center text-sm"
+                                                                    >
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                                                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                                                        </svg>
+                                                                        Güncelle
+                                                                    </button>
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     )}
                                                 </div>
