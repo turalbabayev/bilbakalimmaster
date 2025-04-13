@@ -32,9 +32,25 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
         setGeminiApiKey(geminiKey);
     }, []);
     
-    // Sorular değiştiğinde seçili soruları temizle
     useEffect(() => {
+        // Sorular değiştiğinde seçili soruları temizle ve soruları sırala
         setSeciliSorular([]);
+        
+        // Soruları sıralı olarak filtrele
+        const siraliSorular = [...sorular].sort((a, b) => {
+            if (a.soruNumarasi && b.soruNumarasi) {
+                return a.soruNumarasi - b.soruNumarasi;
+            }
+            return 0;
+        });
+        
+        // Sıralı soruları state'e kaydet
+        setSonuclar(siraliSorular.map(soru => ({
+            soru,
+            analiz: '',
+            sistemDogruCevap: '',
+            model: null
+        })));
     }, [sorular]);
 
     const handleSoruSecim = (soruId) => {
@@ -50,7 +66,7 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
     const handleDogrulamaSecenegi = (secenek) => {
         setDogrulamaSecenegi(secenek);
         
-        // Önce soruları sırala (varsa soruNumarasi'na göre, yoksa varsayılan sıra)
+        // Soruları sırala
         const siraliSorular = [...sorular].sort((a, b) => {
             if (a.soruNumarasi && b.soruNumarasi) {
                 return a.soruNumarasi - b.soruNumarasi;
@@ -682,7 +698,9 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
                     <h2 className="text-xl font-bold mb-4">Sorular</h2>
                     <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                        {sorular.map((soru, index) => (
+                        {[...sorular]
+                            .sort((a, b) => (a.soruNumarasi || 0) - (b.soruNumarasi || 0))
+                            .map((soru, index) => (
                             <div key={soru.id} className="flex items-start space-x-3">
                                 <input 
                                     type="checkbox" 
@@ -694,7 +712,7 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
                                 <label htmlFor={`soru-${soru.id}`} className="flex-1 cursor-pointer">
                                     <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
                                         <p className="font-medium text-gray-800 dark:text-gray-200">
-                                            {index + 1}. {stripHtml(soru.soruMetni).length > 100 ? stripHtml(soru.soruMetni).substring(0, 100) + '...' : stripHtml(soru.soruMetni)}
+                                            {soru.soruNumarasi || index + 1}. {stripHtml(soru.soruMetni).length > 100 ? stripHtml(soru.soruMetni).substring(0, 100) + '...' : stripHtml(soru.soruMetni)}
                                         </p>
                                         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                                             Doğru Cevap: {soru.dogruCevap}
