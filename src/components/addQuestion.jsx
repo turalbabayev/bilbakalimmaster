@@ -21,6 +21,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [dogruCevapSecimi, setDogruCevapSecimi] = useState(false);
     const [loading, setLoading] = useState(false);
     const [soruNumarasi, setSoruNumarasi] = useState("");
+    const [resimUrl, setResimUrl] = useState("");
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -70,6 +71,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
             const reader = new FileReader();
             reader.onloadend = () => {
                 setResim(file);
+                setResimUrl(URL.createObjectURL(file));
                 setResimYukleniyor(false);
             };
             reader.readAsDataURL(file);
@@ -81,6 +83,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
 
     const handleResimSil = () => {
         setResim(null);
+        setResimUrl("");
     };
 
     const handleSubmit = async (e) => {
@@ -357,10 +360,10 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                         Resim yükleniyor...
                                     </div>
                                 )}
-                                {soruResmi && (
+                                {resimUrl && (
                                     <div className="mt-4 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
                                         <img 
-                                            src={soruResmi} 
+                                            src={resimUrl} 
                                             alt="Soru resmi" 
                                             className="w-full h-auto"
                                         />
