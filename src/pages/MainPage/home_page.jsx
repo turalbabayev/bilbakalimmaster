@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Layout from "../../components/layout";
 import { db } from "../../firebase";
-import { collection, onSnapshot, query } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import AddTopics from "../../components/addTopics";
 import DeleteTopics from "../../components/deleteTopics";
@@ -29,15 +29,24 @@ function HomePage() {
 
     useEffect(() => {
         const konularRef = collection(db, "konular");
-        const q = query(konularRef);
+        const q = query(konularRef, orderBy("createdAt", "desc"));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const konularData = {};
-            snapshot.forEach((doc) => {
-                konularData[doc.id] = { id: doc.id, ...doc.data() };
-            });
-            setKonular(konularData);
+            try {
+                const konularData = [];
+                snapshot.forEach((doc) => {
+                    konularData.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+                setKonular(konularData);
+            } catch (error) {
+                console.error("Veri işleme hatası:", error);
+                toast.error("Konular yüklenirken bir hata oluştu: " + error.message);
+            }
         }, (error) => {
+            console.error("Firestore hatası:", error);
             toast.error("Konular yüklenirken bir hata oluştu: " + error.message);
         });
 
@@ -143,8 +152,8 @@ function HomePage() {
                     </div>
                     
                     <div className="space-y-6">
-                        {Object.keys(konular).length > 0 ? (
-                            Object.values(konular).map((konu) => (
+                        {konular.length > 0 ? (
+                            konular.map((konu) => (
                                 <div key={konu.id} className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-6 border border-gray-100 dark:border-gray-700 transition-all duration-200 hover:shadow-xl">
                                     <div className="flex items-center justify-between">
                                         <h3 className="text-xl font-semibold text-gray-800 dark:text-white">{konu.baslik || "Başlık Yok"}</h3>
