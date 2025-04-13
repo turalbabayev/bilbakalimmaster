@@ -11,6 +11,8 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
 
     useEffect(() => {
         const fetchSorular = async () => {
+            if (!isOpen) return;
+            
             setLoading(true);
             try {
                 let soruRef;
@@ -29,6 +31,8 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
                 }));
 
                 setSorular(soruListesi);
+                setSelectedSorular({}); // Seçimleri sıfırla
+                setHepsiSecili(false); // Tümünü seç durumunu sıfırla
             } catch (error) {
                 console.error('Sorular yüklenirken hata oluştu:', error);
                 toast.error('Sorular yüklenirken bir hata oluştu');
@@ -37,10 +41,10 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
             }
         };
 
-        if (konuId && altKonuId) {
+        if (konuId && altKonuId && isOpen) {
             fetchSorular();
         }
-    }, [konuId, altKonuId, altDalId]);
+    }, [konuId, altKonuId, altDalId, isOpen]);
 
     const handleSoruToggle = (soruId) => {
         setSelectedSorular(prev => ({
