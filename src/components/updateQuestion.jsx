@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { db, database } from "../firebase";
+import { db } from "../firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { ref, get, set, remove } from "firebase/database";
 import 'react-toastify/dist/ReactToastify.css';
 
 const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateComplete }) => {
