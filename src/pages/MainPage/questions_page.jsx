@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import Layout from "../../components/layout";
 import { Link } from "react-router-dom";
 import { db } from "../../firebase";
-import { collection, onSnapshot, query, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, query, getDocs, collectionGroup } from "firebase/firestore";
+import { toast } from "react-hot-toast";
 
 function QuestionsPage() {
     const [konular, setKonular] = useState([]);
@@ -10,44 +11,76 @@ function QuestionsPage() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const konularRef = collection(db, "konular");
-        const unsubscribe = onSnapshot(konularRef, async (snapshot) => {
-            setIsLoading(true);
-            const konularData = [];
-            
-            for (const doc of snapshot.docs) {
-                const konu = {
+        try {
+            // Konuları dinle
+            const konularRef = collection(db, "konular");
+            const unsubscribeKonular = onSnapshot(konularRef, (snapshot) => {
+                const konularData = snapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
-                };
-                konularData.push(konu);
-
-                // Her konu için alt konu ve soru sayılarını hesapla
-                const altkonularRef = collection(db, "konular", doc.id, "altkonular");
-                const altkonularSnap = await getDocs(altkonularRef);
-                let soruSayisi = 0;
-
-                // Alt konuların her biri için soru sayısını hesapla
-                for (const altkonuDoc of altkonularSnap.docs) {
-                    const sorularRef = collection(db, "konular", doc.id, "altkonular", altkonuDoc.id, "sorular");
-                    const sorularSnap = await getDocs(sorularRef);
-                    soruSayisi += sorularSnap.size;
-                }
-
-                setKonuIstatistikleri(prev => ({
-                    ...prev,
-                    [doc.id]: {
-                        altKonuSayisi: altkonularSnap.size,
-                        soruSayisi: soruSayisi
-                    }
                 }));
-            }
-            
-            setKonular(konularData);
-            setIsLoading(false);
-        });
+                setKonular(konularData);
+            }, (error) => {
+                console.error("Konular dinlenirken hata:", error);
+                toast.error("Konular yüklenirken bir hata oluştu");
+            });
 
-        return () => unsubscribe();
+            // Alt konuları ve soruları dinle
+            const updateIstatistikler = async () => {
+                try {
+                    const altKonularGroup = query(collectionGroup(db, "altkonular"));
+                    const sorularGroup = query(collectionGroup(db, "sorular"));
+
+                    const [altKonularSnap, sorularSnap] = await Promise.all([
+                        getDocs(altKonularGroup),
+                        getDocs(sorularGroup)
+                    ]);
+
+                    // Alt konuları konulara göre grupla
+                    const altKonuSayilari = {};
+                    altKonularSnap.forEach(doc => {
+                        const konuId = doc.ref.parent.parent.id;
+                        altKonuSayilari[konuId] = (altKonuSayilari[konuId] || 0) + 1;
+                    });
+
+                    // Soruları konulara göre grupla
+                    const soruSayilari = {};
+                    sorularSnap.forEach(doc => {
+                        const konuId = doc.ref.parent.parent.parent.parent.id;
+                        soruSayilari[konuId] = (soruSayilari[konuId] || 0) + 1;
+                    });
+
+                    // İstatistikleri güncelle
+                    const yeniIstatistikler = {};
+                    Object.keys({ ...altKonuSayilari, ...soruSayilari }).forEach(konuId => {
+                        yeniIstatistikler[konuId] = {
+                            altKonuSayisi: altKonuSayilari[konuId] || 0,
+                            soruSayisi: soruSayilari[konuId] || 0
+                        };
+                    });
+
+                    setKonuIstatistikleri(yeniIstatistikler);
+                    setIsLoading(false);
+                } catch (error) {
+                    console.error("İstatistikler hesaplanırken hata:", error);
+                    toast.error("İstatistikler yüklenirken bir hata oluştu");
+                    setIsLoading(false);
+                }
+            };
+
+            // İlk yükleme ve değişikliklerde istatistikleri güncelle
+            updateIstatistikler();
+            const interval = setInterval(updateIstatistikler, 30000); // Her 30 saniyede bir güncelle
+
+            return () => {
+                unsubscribeKonular();
+                clearInterval(interval);
+            };
+        } catch (error) {
+            console.error("Sayfa yüklenirken hata:", error);
+            toast.error("Sayfa yüklenirken bir hata oluştu");
+            setIsLoading(false);
+        }
     }, []);
 
     return (
