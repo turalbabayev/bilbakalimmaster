@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
 import { collection, getDocs, deleteDoc, doc, query, orderBy, updateDoc } from "firebase/firestore";
 import { toast } from 'react-toastify';
@@ -9,46 +9,38 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
     const [selectedSorular, setSelectedSorular] = useState({});
     const [hepsiSecili, setHepsiSecili] = useState(false);
 
-    React.useEffect(() => {
-        const fetchQuestions = async () => {
-            if (!isOpen) return;
-            
+    useEffect(() => {
+        const fetchSorular = async () => {
             setLoading(true);
             try {
-                // Alt dal ID'si yoksa, doğrudan alt konu altındaki sorulara bakalım
-                const soruPath = altDalId 
-                    ? ["konular", konuId, "altkonular", altKonuId, "altdallar", altDalId, "sorular"]
-                    : ["konular", konuId, "altkonular", altKonuId, "sorular"];
-                
-                const soruRef = collection(db, ...soruPath);
-                const q = query(soruRef, orderBy("soruNumarasi", "asc"));
+                let soruRef;
+                if (altDalId) {
+                    soruRef = collection(db, 'konular', konuId, 'altKonular', altKonuId, 'altDallar', altDalId, 'sorular');
+                } else {
+                    soruRef = collection(db, 'konular', konuId, 'altKonular', altKonuId, 'sorular');
+                }
+
+                const q = query(soruRef, orderBy('soruNumarasi', 'asc'));
                 const querySnapshot = await getDocs(q);
                 
-                const soruData = [];
-                querySnapshot.forEach((doc) => {
-                    soruData.push({
-                        id: doc.id,
-                        ...doc.data()
-                    });
-                });
-                
-                // Soruları soruNumarasi'na göre sırala
-                const siraliSorular = soruData.sort((a, b) => (a.soruNumarasi || 0) - (b.soruNumarasi || 0));
-                setSorular(siraliSorular);
-                
-                // Seçimleri sıfırla
-                setSelectedSorular({});
-                setHepsiSecili(false);
+                const soruListesi = querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                setSorular(soruListesi);
             } catch (error) {
-                console.error("Sorular yüklenirken hata oluştu:", error);
-                toast.error("Sorular yüklenirken bir hata oluştu!");
+                console.error('Sorular yüklenirken hata oluştu:', error);
+                toast.error('Sorular yüklenirken bir hata oluştu');
             } finally {
                 setLoading(false);
             }
         };
-        
-        fetchQuestions();
-    }, [isOpen, konuId, altKonuId, altDalId]);
+
+        if (konuId && altKonuId) {
+            fetchSorular();
+        }
+    }, [konuId, altKonuId, altDalId]);
 
     const handleSoruToggle = (soruId) => {
         setSelectedSorular(prev => ({
