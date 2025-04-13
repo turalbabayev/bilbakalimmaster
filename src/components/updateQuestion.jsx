@@ -177,7 +177,11 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
             // Resmi base64'e çevir
             const reader = new FileReader();
             reader.onloadend = () => {
-                setSoru({ ...soru, soruResmi: reader.result });
+                setSoruResmi(reader.result);
+                setSoru(prevSoru => ({
+                    ...prevSoru,
+                    soruResmi: reader.result
+                }));
                 setResimYukleniyor(false);
             };
             reader.readAsDataURL(file);
@@ -188,7 +192,11 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
     };
 
     const handleResimSil = () => {
-        setSoru({ ...soru, soruResmi: null });
+        setSoruResmi(null);
+        setSoru(prevSoru => ({
+            ...prevSoru,
+            soruResmi: null
+        }));
     };
 
     const handleUpdate = async (e) => {
@@ -220,15 +228,17 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                 liked: soru.liked || 0,
                 unliked: soru.unliked || 0,
                 soruNumarasi: mevcutSoruNumarasi,
-                soruResmi: soru.soruResmi || null
+                soruResmi: soruResmi // Direkt olarak soruResmi state'ini kullan
             };
+
+            console.log("Güncellenecek soru:", updatedSoru); // Debug için
 
             await updateDoc(soruRef, updatedSoru);
             
             toast.success("Soru başarıyla güncellendi!");
             
             if (onUpdateComplete && typeof onUpdateComplete === 'function') {
-                onUpdateComplete();
+                onUpdateComplete(updatedSoru);
             } else {
                 onClose();
             }

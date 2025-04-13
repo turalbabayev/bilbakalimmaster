@@ -102,11 +102,17 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId }
         }
     };
 
+    const stripHtml = (html) => {
+        if (!html) return "";
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        return doc.body.textContent || "";
+    };
+
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100 dark:border-gray-800">
+            <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden border border-gray-100 dark:border-gray-800">
                 <div className="p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
                     <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center">
                         Soru Sırasını Değiştir
@@ -119,33 +125,71 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId }
                             <div className="w-8 h-8 border-t-4 border-b-4 border-indigo-500 rounded-full animate-spin"></div>
                         </div>
                     ) : (
-                        <div className="space-y-5">
-                            <div>
-                                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                                    Mevcut Soru Numarası:
-                                </label>
-                                <input
-                                    type="number"
-                                    value={currentQuestionNumber}
-                                    disabled
-                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-                                />
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-2 gap-8">
+                                <div>
+                                    <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                                        Mevcut Soru Numarası:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={currentQuestionNumber}
+                                        disabled
+                                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                                        Takas Edilecek Soru Numarası:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={targetQuestionNumber}
+                                        onChange={(e) => setTargetQuestionNumber(Number(e.target.value))}
+                                        min="1"
+                                        max={allQuestions.length}
+                                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-all"
+                                    />
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Bu kategori için olası soru numaraları: 1 - {allQuestions.length}
+                                    </p>
+                                </div>
                             </div>
 
-                            <div>
-                                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                                    Takas Edilecek Soru Numarası:
-                                </label>
-                                <input
-                                    type="number"
-                                    value={targetQuestionNumber}
-                                    onChange={(e) => setTargetQuestionNumber(Number(e.target.value))}
-                                    min="1"
-                                    max={allQuestions.length}
-                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-all"
-                                />
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    Bu kategori için olası soru numaraları: 1 - {allQuestions.length}
+                            <div className="mt-4 bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-lg">
+                                <h3 className="font-medium text-indigo-800 dark:text-indigo-300 mb-2">Mevcut Soru Sıralaması:</h3>
+                                <div className="max-h-40 overflow-y-auto pr-2">
+                                    <ul className="space-y-1.5">
+                                        {allQuestions.map((question) => (
+                                            <li 
+                                                key={question.id} 
+                                                className={`text-sm py-1 px-2 rounded ${
+                                                    question.id === currentSoruKey
+                                                    ? 'bg-indigo-100 dark:bg-indigo-800/50 font-medium' 
+                                                    : question.soruNumarasi === targetQuestionNumber
+                                                    ? 'bg-amber-100 dark:bg-amber-800/30 font-medium'
+                                                    : ''
+                                                }`}
+                                            >
+                                                <span className="font-medium mr-2">#{question.soruNumarasi || '?'}</span>
+                                                {stripHtml(question.soruMetni)?.substring(0, 60)}
+                                                {question.soruMetni?.length > 60 ? '...' : ''}
+                                                {question.id === currentSoruKey ? 
+                                                    <span className="ml-1 text-indigo-600 dark:text-indigo-400">(seçili)</span>
+                                                    : question.soruNumarasi === targetQuestionNumber ?
+                                                    <span className="ml-1 text-amber-600 dark:text-amber-400">(takas edilecek)</span>
+                                                    : null
+                                                }
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
+                                <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                                    <strong>Not:</strong> Bu işlem sadece iki sorunun sıra numaralarını takas edecektir. Diğer soruların sıra numaraları değişmeyecektir.
                                 </p>
                             </div>
                         </div>
@@ -173,7 +217,7 @@ const ChangeQuestionOrder = ({ isOpen, onClose, soruRefPath, konuId, altKonuId }
                                 İşlem Yapılıyor...
                             </>
                         ) : (
-                            "Değiştir"
+                            "Soruları Takas Et"
                         )}
                     </button>
                 </div>
