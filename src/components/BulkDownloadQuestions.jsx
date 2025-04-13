@@ -235,24 +235,18 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                 }]
             });
 
-            console.log("Doküman oluşturuldu, buffer'a dönüştürülüyor...");
+            console.log("Doküman oluşturuldu, blob'a dönüştürülüyor...");
 
             try {
-                // Dokümanı buffer'a dönüştür
-                const buffer = await Packer.toBuffer(doc);
-                console.log("Buffer oluşturuldu, boyut:", buffer.length);
-
-                // Blob oluştur
-                const blob = new Blob([buffer], { 
-                    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
-                });
+                // Dokümanı direkt blob'a dönüştür
+                const blob = await Packer.toBlob(doc);
                 console.log("Blob oluşturuldu, boyut:", blob.size);
 
                 // Dosya adını oluştur
                 const fileName = `sorular_${new Date().toISOString().split('T')[0]}.docx`;
                 
                 // Dosyayı kaydet
-                await saveAs(blob, fileName);
+                saveAs(blob, fileName);
                 console.log("Dosya kaydedildi:", fileName);
                 
                 toast.success('Sorular başarıyla indirildi!');
