@@ -16,7 +16,6 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
     const [mevcutSoruNumarasi, setMevcutSoruNumarasi] = useState(null);
     const [resimYukleniyor, setResimYukleniyor] = useState(false);
     const [modalKey, setModalKey] = useState(0);
-    const [soruResmi, setSoruResmi] = useState(null);
     const [zenginMetinAktif, setZenginMetinAktif] = useState(false);
     const [dogruCevapSecimi, setDogruCevapSecimi] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -74,7 +73,6 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                 setDogruCevap("");
                 setSelectedAltKonu("");
                 setMevcutSoruNumarasi(null);
-                setSoruResmi(null); // soruResmi state'ini de sıfırla
                 
                 // Firestore referanslarını oluştur
                 const konuRef = doc(db, "konular", konuId);
@@ -108,7 +106,6 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                 
                 // State'leri güvenli bir şekilde güncelle
                 setSoru(soruData);
-                setSoruResmi(soruData.soruResmi || null); // soruResmi state'ini güncelle
                 
                 // Cevapları güvenli bir şekilde ayarla
                 const cevaplarData = Array.isArray(soruData.cevaplar) ? 
@@ -170,7 +167,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
         // Resim boyutu kontrolü (5MB)
         const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
         if (file.size > MAX_FILE_SIZE) {
-            alert("Resim boyutu çok büyük! Lütfen 5MB'dan küçük bir resim seçin.");
+            toast.error("Resim boyutu çok büyük! Lütfen 5MB'dan küçük bir resim seçin.");
             return;
         }
 
@@ -180,7 +177,6 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
             const reader = new FileReader();
             reader.onloadend = () => {
                 const base64String = reader.result;
-                setSoruResmi(base64String);
                 setSoru(prevSoru => ({
                     ...prevSoru,
                     soruResmi: base64String
@@ -196,7 +192,6 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
     };
 
     const handleResimSil = () => {
-        setSoruResmi(null);
         setSoru(prevSoru => ({
             ...prevSoru,
             soruResmi: null
@@ -233,7 +228,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                 liked: soru.liked || 0,
                 unliked: soru.unliked || 0,
                 soruNumarasi: mevcutSoruNumarasi,
-                soruResmi: soruResmi // Direkt olarak soruResmi state'ini kullan
+                soruResmi: soru.soruResmi // soru objesinden al
             };
 
             console.log("Güncellenecek soru:", updatedSoru); // Debug için
