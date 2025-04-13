@@ -2,46 +2,29 @@ import React, { useState, useEffect } from "react";
 import Layout from "../../components/layout";
 import { Link, useNavigate } from "react-router-dom";
 import { db } from "../../firebase";
-import { collection, onSnapshot, query } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "react-hot-toast";
 
 function QuestionsPage() {
-    const [konular, setKonular] = useState({});
+    const [konular, setKonular] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const { currentUser } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
-        setLoading(true);
-        setError(null);
-
-        try {
+        const fetchKonular = async () => {
             const konularRef = collection(db, "konular");
-            const q = query(konularRef);
-
-            const unsubscribe = onSnapshot(q, (snapshot) => {
-                const konularData = {};
-                snapshot.forEach((doc) => {
-                    konularData[doc.id] = { id: doc.id, ...doc.data() };
-                });
-                setKonular(konularData);
-                setLoading(false);
-            }, (error) => {
-                console.error("Konular yüklenirken hata:", error);
-                setError(error.message);
-                toast.error("Konular yüklenirken bir hata oluştu: " + error.message);
-                setLoading(false);
-            });
-
-            return () => unsubscribe();
-        } catch (err) {
-            console.error("Firestore bağlantı hatası:", err);
-            setError(err.message);
-            toast.error("Veritabanına bağlanırken bir hata oluştu");
+            const snapshot = await getDocs(konularRef);
+            const konularList = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setKonular(konularList);
             setLoading(false);
-        }
+        };
+        fetchKonular();
     }, []);
 
     // Alt konu ve soru sayılarını hesapla
@@ -87,9 +70,9 @@ function QuestionsPage() {
                 <div className="container mx-auto py-8 px-4">
                     <h1 className="text-3xl font-bold text-gray-800 dark:text-white text-center mb-8">Soru Bankası</h1>
                     
-                    {Object.keys(konular).length > 0 ? (
+                    {konular.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {Object.values(konular).map((konu) => {
+                            {konular.map((konu) => {
                                 const { altKonuSayisi, soruSayisi } = countSubtopicsAndQuestions(konu);
                                 return (
                                     <Link
