@@ -755,6 +755,12 @@ function QuestionContent() {
                         currentKonuId={id}
                         onUpdate={handleUpdateComplete}
                         selectedAltKonuId={selectedAltKonuId}
+                        expandedAltKonu={expandedAltKonu}
+                        refreshQuestions={refreshQuestions}
+                        handleSoruDogruCevapGuncelle={handleSoruDogruCevapGuncelle}
+                        handleUpdateFromBulkVerification={handleUpdateFromBulkVerification}
+                        handleDeleteSoru={handleDeleteSoru}
+                        baslik={baslik}
                     />
                 </>
             )}
