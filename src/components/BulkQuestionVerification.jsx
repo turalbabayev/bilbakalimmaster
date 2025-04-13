@@ -526,8 +526,25 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
             console.log('Silinecek sorunun yolu:', soruPath);
             
             // Soruyu sil
-            await deleteDoc(doc(db, soruPath));
+            const soruRef = doc(db, soruPath);
+            await deleteDoc(soruRef);
             console.log('Soru başarıyla silindi');
+
+            // UI güncellemeleri
+            setSonuclar(prevSonuclar => 
+                prevSonuclar.filter(sonuc => sonuc.soru.id !== soru.id)
+            );
+
+            // Seçili sorulardan kaldır
+            setSeciliSorular(prev => prev.filter(id => id !== soru.id));
+
+            // Parent componenti bilgilendir
+            if (onDeleteClick) {
+                await onDeleteClick(soru);
+            }
+
+            // Başarı mesajı göster
+            toast.success('Soru başarıyla silindi.');
 
             // Koleksiyon yolunu belirle
             const koleksiyonPath = altDalId 
@@ -542,31 +559,19 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
             let yeniNumara = 1;
             const updatePromises = [];
             
-            querySnapshot.forEach((doc) => {
-                updatePromises.push(updateDoc(doc.ref, {
-                    soruNumarasi: yeniNumara
-                }));
-                yeniNumara++;
+            querySnapshot.forEach((docSnap) => {
+                if (docSnap.id !== soru.id) {
+                    updatePromises.push(updateDoc(docSnap.ref, {
+                        soruNumarasi: yeniNumara++
+                    }));
+                }
             });
 
             // Tüm güncelleme işlemlerini bekle
-            await Promise.all(updatePromises);
-            console.log('Soru numaraları güncellendi');
-            
-            toast.success('Soru başarıyla silindi ve numaralar yeniden düzenlendi.');
-            
-            // UI güncellemeleri
-            setSonuclar(prevSonuclar => 
-                prevSonuclar.filter(sonuc => sonuc.soru.id !== soru.id)
-            );
-
-            // Parent componenti bilgilendir
-            if (onDeleteClick) {
-                onDeleteClick(soru);
+            if (updatePromises.length > 0) {
+                await Promise.all(updatePromises);
+                console.log('Soru numaraları güncellendi');
             }
-
-            // Seçili sorulardan kaldır
-            setSeciliSorular(prev => prev.filter(id => id !== soru.id));
 
         } catch (error) {
             console.error('Soru silinirken hata:', error);
@@ -857,7 +862,7 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
                 </div>
             )}
 
-            {sonuclar.length > 0 && (
+            {sonuclar.length > 0 && sonuclar.some(sonuc => sonuc.analiz) && (
                 <div className="space-y-6 mt-8">
                     <div className="flex items-center justify-between">
                         <h2 className="text-xl font-bold">Analiz Sonuçları</h2>
