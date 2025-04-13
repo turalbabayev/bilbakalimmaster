@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { db } from "../firebase";
+import { db, storage } from "../firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -22,6 +23,9 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
     const [resimYukleniyor, setResimYukleniyor] = useState(false);
     const [modalKey, setModalKey] = useState(0);
     const [isSaving, setIsSaving] = useState(false);
+    const [resim, setResim] = useState(null);
+    const [resimUrl, setResimUrl] = useState("");
+    const [useRichText, setUseRichText] = useState(true);
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -67,6 +71,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                     setAciklama(soru.aciklama || "");
                     setSoruResmi(soru.soruResmi || "");
                     setSoruNumarasi(soru.soruNumarasi || "");
+                    setResimUrl(soru.resim || "");
                 }
             } catch (error) {
                 console.error("Soru yüklenirken hata:", error);
@@ -79,9 +84,36 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
+        if (!soruMetni || !dogruCevap) {
+            toast.error("Lütfen tüm gerekli alanları doldurun!");
+            return;
+        }
 
+        setLoading(true);
         try {
+            let newResimUrl = resimUrl;
+
+            // Eğer yeni resim yüklendiyse
+            if (resim) {
+                // Eski resmi sil
+                if (resimUrl) {
+                    try {
+                        const oldImageRef = ref(storage, resimUrl);
+                        await deleteObject(oldImageRef);
+                    } catch (error) {
+                        console.error("Eski resim silinirken hata:", error);
+                    }
+                }
+
+                // Yeni resmi yükle
+                const storageRef = ref(
+                    storage,
+                    `sorular/${konuId}/${altKonuId}/${Date.now()}_${resim.name}`
+                );
+                await uploadBytes(storageRef, resim);
+                newResimUrl = await getDownloadURL(storageRef);
+            }
+
             const soruRef = doc(db, `konular/${konuId}/altkonular/${altKonuId}/sorular/${soruId}`);
             
             await updateDoc(soruRef, {
@@ -89,7 +121,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                 cevaplar,
                 dogruCevap,
                 aciklama,
-                soruResmi,
+                soruResmi: newResimUrl,
                 soruNumarasi: soruNumarasi || 0,
                 updatedAt: new Date()
             });
@@ -102,7 +134,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                     cevaplar,
                     dogruCevap,
                     aciklama,
-                    soruResmi,
+                    soruResmi: newResimUrl,
                     soruNumarasi
                 });
             }
@@ -131,7 +163,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
             // Resmi base64'e çevir
             const reader = new FileReader();
             reader.onloadend = () => {
-                setSoruResmi(reader.result);
+                setResim(file);
                 setResimYukleniyor(false);
             };
             reader.readAsDataURL(file);
@@ -142,7 +174,8 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
     };
 
     const handleResimSil = () => {
-        setSoruResmi("");
+        setResim(null);
+        setResimUrl("");
     };
 
     if (!isOpen) return null;
@@ -185,43 +218,46 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                             <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
                                 Soru Metni
                             </label>
-                            <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                <ReactQuill 
-                                    theme="snow"
-                                    value={soruMetni}
-                                    onChange={(value) => setSoruMetni(value)}
-                                    modules={modules}
-                                    formats={formats}
-                                    className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                                    style={{ height: '200px' }}
-                                />
+                            <div className="flex items-center mb-2">
+                                <label className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={useRichText}
+                                        onChange={(e) => setUseRichText(e.target.checked)}
+                                        className="mr-2"
+                                    />
+                                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                                        Zengin metin editörünü kullan
+                                    </span>
+                                </label>
                             </div>
+                            {useRichText ? (
+                                <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
+                                    <ReactQuill 
+                                        theme="snow"
+                                        value={soruMetni}
+                                        onChange={(value) => setSoruMetni(value)}
+                                        modules={modules}
+                                        formats={formats}
+                                        className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                        style={{ height: '200px' }}
+                                    />
+                                </div>
+                            ) : (
+                                <textarea
+                                    value={soruMetni}
+                                    onChange={(e) => setSoruMetni(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                    rows="4"
+                                    required
+                                />
+                            )}
                         </div>
 
                         <div>
-                            <div className="flex justify-between items-center mb-3">
-                                <label className="block text-base font-semibold text-gray-900 dark:text-white">
-                                    Cevaplar
-                                </label>
-                                <button
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        setZenginMetinAktif(!zenginMetinAktif);
-                                        if (zenginMetinAktif) {
-                                            // Basit editöre geçerken HTML etiketlerini temizle
-                                            const temizCevaplar = cevaplar.map(cevap => stripHtml(cevap));
-                                            setCevaplar(temizCevaplar);
-                                        }
-                                    }}
-                                    className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
-                                        zenginMetinAktif 
-                                            ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' 
-                                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-                                    }`}
-                                >
-                                    {zenginMetinAktif ? 'Basit Metin Editörüne Geç' : 'Zengin Metin Editörüne Geç'}
-                                </button>
-                            </div>
+                            <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                Cevaplar
+                            </label>
                             <div className="space-y-4">
                                 {cevaplar.map((cevap, index) => (
                                     <div key={index} className="flex items-start gap-4">
@@ -241,7 +277,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                                             </button>
                                         </div>
                                         <div className="flex-1">
-                                            {zenginMetinAktif ? (
+                                            {useRichText ? (
                                                 <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
                                                     <ReactQuill
                                                         theme="snow"
@@ -283,17 +319,26 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                             <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
                                 Açıklama
                             </label>
-                            <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                <ReactQuill
-                                    theme="snow"
+                            {useRichText ? (
+                                <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
+                                    <ReactQuill
+                                        theme="snow"
+                                        value={aciklama}
+                                        onChange={(value) => setAciklama(value)}
+                                        modules={modules}
+                                        formats={formats}
+                                        className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                        style={{ height: '200px' }}
+                                    />
+                                </div>
+                            ) : (
+                                <textarea
                                     value={aciklama}
-                                    onChange={(value) => setAciklama(value)}
-                                    modules={modules}
-                                    formats={formats}
-                                    className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                                    style={{ height: '200px' }}
+                                    onChange={(e) => setAciklama(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                    rows="4"
                                 />
-                            </div>
+                            )}
                         </div>
 
                         <div>
@@ -310,7 +355,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                                             className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40"
                                         />
                                     </div>
-                                    {soruResmi && (
+                                    {resimUrl && (
                                         <button
                                             onClick={handleResimSil}
                                             className="px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all duration-200 font-medium"
@@ -324,10 +369,10 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                                         Resim yükleniyor...
                                     </div>
                                 )}
-                                {soruResmi && (
+                                {resimUrl && (
                                     <div className="mt-4 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
                                         <img 
-                                            src={soruResmi} 
+                                            src={resimUrl} 
                                             alt="Soru resmi" 
                                             className="w-full h-auto"
                                         />

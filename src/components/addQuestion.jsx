@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from "react";
-import { db, messaging } from "../firebase";
-import { collection, addDoc, doc, getDoc } from "firebase/firestore";
-import { getMessaging, getToken } from "firebase/messaging";
+import { db, storage } from "../firebase";
+import { collection, addDoc, doc, getDoc, updateDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
 const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [selectedAltKonu, setSelectedAltKonu] = useState("");
+    const [selectedSubbranch, setSelectedSubbranch] = useState("");
     const [soruMetni, setSoruMetni] = useState("");
     const [cevaplar, setCevaplar] = useState(["", "", "", "", ""]);
     const [dogruCevap, setDogruCevap] = useState("");
     const [aciklama, setAciklama] = useState("");
     const [liked, setLiked] = useState(0);
     const [unliked, setUnliked] = useState(0);
-    const [soruResmi, setSoruResmi] = useState(null);
+    const [resim, setResim] = useState(null);
     const [resimYukleniyor, setResimYukleniyor] = useState(false);
-    const [zenginMetinAktif, setZenginMetinAktif] = useState(false);
+    const [zenginMetinAktif, setZenginMetinAktif] = useState(true);
     const [dogruCevapSecimi, setDogruCevapSecimi] = useState(false);
     const [loading, setLoading] = useState(false);
     const [soruNumarasi, setSoruNumarasi] = useState("");
@@ -68,7 +69,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
             // Resmi base64'e çevir
             const reader = new FileReader();
             reader.onloadend = () => {
-                setSoruResmi(reader.result);
+                setResim(file);
                 setResimYukleniyor(false);
             };
             reader.readAsDataURL(file);
@@ -79,32 +80,75 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     };
 
     const handleResimSil = () => {
-        setSoruResmi(null);
+        setResim(null);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
+        if (!selectedAltKonu || !selectedSubbranch || !soruMetni || !dogruCevap) {
+            toast.error("Lütfen tüm gerekli alanları doldurun!");
+            return;
+        }
 
+        setLoading(true);
         try {
-            if (!selectedAltKonu) {
-                throw new Error("Lütfen bir alt konu seçin");
+            let resimUrl = "";
+            if (resim) {
+                const storageRef = ref(storage, `sorular/${currentKonuId}/${selectedAltKonu}/${Date.now()}_${resim.name}`);
+                await uploadBytes(storageRef, resim);
+                resimUrl = await getDownloadURL(storageRef);
             }
 
-            const yeniSoru = {
-                soruMetni: soruMetni,
-                cevaplar: cevaplar,
-                dogruCevap: dogruCevap,
-                aciklama: aciklama,
-                soruResmi: soruResmi,
-                soruNumarasi: soruNumarasi || 0,
-                createdAt: new Date(),
-                updatedAt: new Date()
+            const konuRef = doc(db, "konular", currentKonuId);
+            const konuDoc = await getDoc(konuRef);
+            
+            if (!konuDoc.exists()) {
+                throw new Error("Konu bulunamadı!");
+            }
+
+            const konuData = konuDoc.data();
+            const altKonularData = konuData.altkonular || {};
+            const subbranches = altKonularData[selectedAltKonu]?.subbranches || {};
+            const currentQuestions = subbranches[selectedSubbranch]?.questions || {};
+
+            // Yeni soru numarası
+            const questionNumber = Object.keys(currentQuestions).length + 1;
+
+            // Yeni soruyu ekle
+            const updatedQuestions = {
+                ...currentQuestions,
+                [questionNumber]: {
+                    soruMetni,
+                    cevaplar,
+                    dogruCevap,
+                    aciklama,
+                    resim: resimUrl,
+                    liked: 0,
+                    unliked: 0,
+                    report: 0,
+                },
             };
 
-            // Soruyu Firestore'a ekle
-            const sorularRef = collection(db, `konular/${currentKonuId}/altkonular/${selectedAltKonu}/sorular`);
-            const docRef = await addDoc(sorularRef, yeniSoru);
+            // Firestore'u güncelle
+            const updatedSubbranches = {
+                ...subbranches,
+                [selectedSubbranch]: {
+                    ...subbranches[selectedSubbranch],
+                    questions: updatedQuestions,
+                },
+            };
+
+            const updatedAltKonular = {
+                ...altKonularData,
+                [selectedAltKonu]: {
+                    ...altKonularData[selectedAltKonu],
+                    subbranches: updatedSubbranches,
+                },
+            };
+
+            await updateDoc(konuRef, {
+                altkonular: updatedAltKonular,
+            });
 
             toast.success("Soru başarıyla eklendi!");
             
@@ -113,17 +157,23 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
             setCevaplar(["", "", "", "", ""]);
             setDogruCevap("");
             setAciklama("");
-            setSoruResmi("");
-            setSoruNumarasi("");
+            setResim(null);
+            setSelectedSubbranch("");
             setSelectedAltKonu("");
             
             onClose();
         } catch (error) {
-            console.error("Soru eklenirken hata:", error);
-            toast.error(`Soru eklenirken bir hata oluştu: ${error.message}`);
+            console.error("Hata:", error);
+            toast.error("Soru eklenirken bir hata oluştu!");
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleCevapChange = (index, value) => {
+        const newCevaplar = [...cevaplar];
+        newCevaplar[index] = value;
+        setCevaplar(newCevaplar);
     };
 
     if (!isOpen) return null;
@@ -154,6 +204,25 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                         {altKonu.baslik}
                                     </option>
                                 ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                Alt Dal Seçin
+                            </label>
+                            <select
+                                value={selectedSubbranch}
+                                onChange={(e) => setSelectedSubbranch(e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                            >
+                                <option value="">Alt dal seçin</option>
+                                {selectedAltKonu &&
+                                    Object.entries(altKonular[selectedAltKonu]?.subbranches || {}).map(([key, subbranch]) => (
+                                        <option key={key} value={key}>
+                                            {subbranch.baslik}
+                                        </option>
+                                    ))}
                             </select>
                         </div>
 
@@ -218,11 +287,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                                     <ReactQuill
                                                         theme="snow"
                                                         value={cevap}
-                                                        onChange={(value) => {
-                                                            const newCevaplar = [...cevaplar];
-                                                            newCevaplar[index] = value;
-                                                            setCevaplar(newCevaplar);
-                                                        }}
+                                                        onChange={(value) => handleCevapChange(index, value)}
                                                         modules={modules}
                                                         formats={formats}
                                                         className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -232,11 +297,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                                 <input
                                                     type="text"
                                                     value={cevap}
-                                                    onChange={(e) => {
-                                                        const newCevaplar = [...cevaplar];
-                                                        newCevaplar[index] = e.target.value;
-                                                        setCevaplar(newCevaplar);
-                                                    }}
+                                                    onChange={(e) => handleCevapChange(index, e.target.value)}
                                                     placeholder={`${String.fromCharCode(65 + index)} şıkkının cevabını girin`}
                                                     className={`w-full px-4 py-3 rounded-xl border-2 ${
                                                         dogruCevap === String.fromCharCode(65 + index)
@@ -282,7 +343,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                             className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40"
                                         />
                                     </div>
-                                    {soruResmi && (
+                                    {resim && (
                                         <button
                                             onClick={handleResimSil}
                                             className="px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all duration-200 font-medium"

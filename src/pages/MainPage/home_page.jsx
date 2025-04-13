@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import Layout from "../../components/layout";
-import { database } from "../../firebase";
-import { ref, onValue } from "firebase/database";
+import { db } from "../../firebase";
+import { collection, onSnapshot, query } from "firebase/firestore";
+import { toast } from "react-hot-toast";
 import AddTopics from "../../components/addTopics";
 import DeleteTopics from "../../components/deleteTopics";
 import AddSubtopics from "../../components/addSubtopics";
@@ -26,19 +27,19 @@ function HomePage() {
     const [isDeleteTopicModalOpen, setIsDeleteTopicModalOpen] = useState(false);
 
     useEffect(() => {
-        const konularRef = ref(database, "konular");
-        const unsubscribe = onValue(konularRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                const formattedData = Object.keys(data).map((key) => ({
-                    id: key,
-                    ...data[key],
-                }));
-                setKonular(formattedData);
-            } else {
-                setKonular([]);
-            }
+        const konularRef = collection(db, "konular");
+        const q = query(konularRef);
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const konularData = {};
+            snapshot.forEach((doc) => {
+                konularData[doc.id] = { id: doc.id, ...doc.data() };
+            });
+            setKonular(konularData);
+        }, (error) => {
+            toast.error("Konular yüklenirken bir hata oluştu: " + error.message);
         });
+
         return () => unsubscribe();
     }, []);
 
@@ -63,7 +64,7 @@ function HomePage() {
         <Layout>
             <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
                 <div className="container mx-auto py-8 px-4">
-                    <h1 className="text-3xl font-bold text-gray-800 dark:text-white text-center mb-8">Soru Bankası Yönetimi</h1>
+                    <h1 className="text-3xl font-bold text-gray-800 dark:text-white text-center mb-8">Ana Sayfa</h1>
                     
                     <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-6 mb-8 border border-gray-100 dark:border-gray-700">
                         <h2 className="text-xl font-semibold text-indigo-600 dark:text-indigo-400 mb-4">Konu Yönetimi</h2>
@@ -132,8 +133,8 @@ function HomePage() {
                     </div>
                     
                     <div className="space-y-6">
-                        {konular.length > 0 ? (
-                            konular.map((konu) => (
+                        {Object.keys(konular).length > 0 ? (
+                            Object.values(konular).map((konu) => (
                                 <div key={konu.id} className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-6 border border-gray-100 dark:border-gray-700 transition-all duration-200 hover:shadow-xl">
                                     <div className="flex items-center justify-between">
                                         <h3 className="text-xl font-semibold text-gray-800 dark:text-white">{konu.baslik || "Başlık Yok"}</h3>
@@ -239,31 +240,31 @@ function HomePage() {
             )}
             {isDeleteTopicModalOpen && (
                 <DeleteTopics 
-                    konular={konular}
+                    konular={Object.values(konular)}
                     closeModal={() => setIsDeleteTopicModalOpen(false)}
                 />
             )}
             {isModelOpen && (
                 <AddSubtopics
-                    konular={konular}
+                    konular={Object.values(konular)}
                     closeModal={() => setIsModelOpen(false)}
                 />
             )}
             {isDeleteModelOpen && (
                 <DeleteSubtopics
-                    konular={konular}
+                    konular={Object.values(konular)}
                     closeModal={() => setIsDeleteModelOpen(false)}
                 />
             )}
             {isSubbranchModalOpen && (
                 <AddSubbranch
-                    konular={konular}
+                    konular={Object.values(konular)}
                     closeModal={() => setIsSubbranchModalOpen(false)}
                 />
             )}
             {isDeleteSubbranchModalOpen && (
                 <DeleteSubbranch 
-                    konular={konular}
+                    konular={Object.values(konular)}
                     closeModal={() => setIsDeleteSubbranchModalOpen(false)}
                 />
             )}

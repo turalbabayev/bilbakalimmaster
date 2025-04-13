@@ -1,90 +1,72 @@
 import React, { useState } from "react";
-import { database } from "../firebase";
-import { ref, push } from "firebase/database";
+import { db } from "../firebase";
+import { doc, updateDoc } from "firebase/firestore";
+import { toast } from "react-hot-toast";
 
-const AddSubtopics = ({ konular, closeModal }) => {
-    const [selectedTopic, setSelectedTopic] = useState("");
-    const [altKonuBaslik, setAltKonuBaslik] = useState("");
+function AddSubtopics({ selectedTopic, closeModal }) {
+  const [baslik, setBaslik] = useState("");
 
-    const handleAddSubTopic = () => {
-        if (!selectedTopic) {
-            alert("Bir konu seçmelisiniz!");
-            return;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!baslik.trim()) {
+      toast.error("Alt konu başlığı boş olamaz!");
+      return;
+    }
+
+    try {
+      const konuRef = doc(db, "konular", selectedTopic);
+      await updateDoc(konuRef, {
+        [`altkonular.${Date.now()}`]: {
+          baslik: baslik.trim(),
+          altdallar: {}
         }
-        if (!altKonuBaslik.trim()) {
-            alert("Alt konu başlığı boş olamaz!");
-            return;
-        }
-        try {
-            const altKonularRef = ref(database, `konular/${selectedTopic}/altkonular`);
-            const newSubTopic = { baslik: altKonuBaslik };
+      });
 
-            push(altKonularRef, newSubTopic)
-                .then(() => {
-                    alert("Alt konu başarıyla eklendi.");
-                    setAltKonuBaslik("");
-                    closeModal();
-                })
-                .catch((error) => {
-                    console.error("Alt konu eklenirken hata oluştu: ", error);
-                    alert("Alt konu eklenemedi.");
-                });
-        } catch (error) {
-            console.error("Referans yolu oluşturulamadı:", error);
-            alert("Bir hata oluştu! Lütfen tekrar deneyin.");
-        }
-    };
+      setBaslik("");
+      closeModal();
+      toast.success("Alt konu başarıyla eklendi!");
+    } catch (error) {
+      toast.error("Alt konu eklenirken bir hata oluştu: " + error.message);
+    }
+  };
 
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white rounded-lg p-6 shadow-lg max-w-md w-full">
-                <h3 className="text-xl font-semibold mb-4">Alt Konu Ekle</h3>
-                <div className="mb-4">
-                    <label htmlFor="topic" className="block text-gray-700 mb-2">
-                        Konu Seçin
-                    </label>
-                    <select 
-                        id="topic"
-                        value={selectedTopic}
-                        onChange={(e) => setSelectedTopic(e.target.value)}
-                        className="w-full p-2 border rounded"
-                    >
-                        <option value="">Bir konu seçin</option>
-                        {konular.map((konu) => (
-                            <option key={konu.id} value={konu.id}>{konu.baslik}</option>
-                        ))}
-                    </select>
-                </div>
-                <div className="mb-4">
-                    <label htmlFor="subtopic" className="block text-gray-700 mb-2">
-                        Alt Konu Başlığı
-                    </label>
-                    <input 
-                        type="text"
-                        id="subtopic"
-                        value={altKonuBaslik}
-                        onChange={(e) => setAltKonuBaslik(e.target.value)}
-                        placeholder="Alt konu başlığı giriniz"
-                        className="w-full p-2 border rounded" 
-                    />
-                </div>
-                <div className="flex justify-end">
-                    <button
-                        onClick={handleAddSubTopic}
-                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 mr-2"
-                    >
-                        Ekle
-                    </button>
-                    <button
-                        onClick={closeModal}
-                        className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-                    >
-                        Kapat
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg max-w-md w-full">
+        <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Alt Konu Ekle</h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="baslik" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Alt Konu Başlığı
+            </label>
+            <input
+              type="text"
+              id="baslik"
+              value={baslik}
+              onChange={(e) => setBaslik(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+              placeholder="Alt konu başlığını giriniz"
+            />
+          </div>
+          <div className="flex justify-end space-x-3">
+            <button
+              type="submit"
+              className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800"
+            >
+              Ekle
+            </button>
+            <button
+              type="button"
+              onClick={closeModal}
+              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:focus:ring-offset-gray-800"
+            >
+              Kapat
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 export default AddSubtopics;
