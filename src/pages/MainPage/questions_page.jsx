@@ -7,25 +7,41 @@ import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "react-hot-toast";
 
 function QuestionsPage() {
-    const [konular, setKonular] = useState([]);
+    const [konular, setKonular] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const { currentUser } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
-        const konularRef = collection(db, "konular");
-        const q = query(konularRef);
+        setLoading(true);
+        setError(null);
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const konularData = {};
-            snapshot.forEach((doc) => {
-                konularData[doc.id] = { id: doc.id, ...doc.data() };
+        try {
+            const konularRef = collection(db, "konular");
+            const q = query(konularRef);
+
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const konularData = {};
+                snapshot.forEach((doc) => {
+                    konularData[doc.id] = { id: doc.id, ...doc.data() };
+                });
+                setKonular(konularData);
+                setLoading(false);
+            }, (error) => {
+                console.error("Konular yüklenirken hata:", error);
+                setError(error.message);
+                toast.error("Konular yüklenirken bir hata oluştu: " + error.message);
+                setLoading(false);
             });
-            setKonular(konularData);
-        }, (error) => {
-            toast.error("Konular yüklenirken bir hata oluştu: " + error.message);
-        });
 
-        return () => unsubscribe();
+            return () => unsubscribe();
+        } catch (err) {
+            console.error("Firestore bağlantı hatası:", err);
+            setError(err.message);
+            toast.error("Veritabanına bağlanırken bir hata oluştu");
+            setLoading(false);
+        }
     }, []);
 
     // Alt konu ve soru sayılarını hesapla
@@ -43,13 +59,35 @@ function QuestionsPage() {
         return { altKonuSayisi, soruSayisi };
     };
 
+    if (loading) {
+        return (
+            <Layout>
+                <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+                </div>
+            </Layout>
+        );
+    }
+
+    if (error) {
+        return (
+            <Layout>
+                <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center">
+                    <div className="bg-red-100 dark:bg-red-900 p-4 rounded-lg">
+                        <p className="text-red-600 dark:text-red-200">Hata: {error}</p>
+                    </div>
+                </div>
+            </Layout>
+        );
+    }
+
     return (
         <Layout>
             <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
                 <div className="container mx-auto py-8 px-4">
                     <h1 className="text-3xl font-bold text-gray-800 dark:text-white text-center mb-8">Soru Bankası</h1>
                     
-                    {konular.length > 0 ? (
+                    {Object.keys(konular).length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {Object.values(konular).map((konu) => {
                                 const { altKonuSayisi, soruSayisi } = countSubtopicsAndQuestions(konu);
