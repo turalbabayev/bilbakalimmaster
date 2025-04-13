@@ -737,15 +737,19 @@ function QuestionContent() {
             />
             {selectedSoruRef && (
                 <>
-                    <UpdateModal
+                    <UpdateQuestion
                         isOpen={isUpdateModalOpen}
-                        closeModal={() => {
+                        onClose={() => {
                             setIsUpdateModalOpen(false);
                             setSelectedSoruRef(null);
                             refreshQuestions();
                         }}
-                        updatePath={selectedSoruRef}
-                        itemType="Soru"
+                        soruRef={selectedSoruRef}
+                        onUpdateSuccess={() => {
+                            refreshQuestions();
+                            setIsUpdateModalOpen(false);
+                            setSelectedSoruRef(null);
+                        }}
                     />
                 </>
             )}
