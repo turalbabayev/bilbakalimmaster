@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { db, storage } from "../firebase";
 import { collection, addDoc, doc, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -9,18 +9,14 @@ import 'react-quill/dist/quill.snow.css';
 const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [selectedAltKonu, setSelectedAltKonu] = useState("");
     const [selectedSubbranch, setSelectedSubbranch] = useState("");
-    const [soruMetni, setSoruMetni] = useState("");
+    const [soru, setSoru] = useState("");
     const [cevaplar, setCevaplar] = useState(["", "", "", "", ""]);
     const [dogruCevap, setDogruCevap] = useState("");
     const [aciklama, setAciklama] = useState("");
-    const [liked, setLiked] = useState(0);
-    const [unliked, setUnliked] = useState(0);
     const [resim, setResim] = useState(null);
     const [resimYukleniyor, setResimYukleniyor] = useState(false);
     const [zenginMetinAktif, setZenginMetinAktif] = useState(true);
-    const [dogruCevapSecimi, setDogruCevapSecimi] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [soruNumarasi, setSoruNumarasi] = useState("");
     const [resimUrl, setResimUrl] = useState("");
 
     // Quill editör modülleri ve formatları
@@ -61,22 +57,18 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
         // Resim boyutu kontrolü (5MB)
         const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
         if (file.size > MAX_FILE_SIZE) {
-            alert("Resim boyutu çok büyük! Lütfen 5MB'dan küçük bir resim seçin.");
+            toast.error("Resim boyutu çok büyük! Lütfen 5MB'dan küçük bir resim seçin.");
             return;
         }
 
         setResimYukleniyor(true);
         try {
-            // Resmi base64'e çevir
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setResim(file);
-                setResimUrl(URL.createObjectURL(file));
-                setResimYukleniyor(false);
-            };
-            reader.readAsDataURL(file);
+            setResim(file);
+            setResimUrl(URL.createObjectURL(file));
         } catch (error) {
             console.error("Resim yüklenirken hata oluştu:", error);
+            toast.error("Resim yüklenirken bir hata oluştu!");
+        } finally {
             setResimYukleniyor(false);
         }
     };
@@ -88,18 +80,18 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!selectedAltKonu || !selectedSubbranch || !soruMetni || !dogruCevap) {
+        if (!selectedAltKonu || !selectedSubbranch || !soru || !dogruCevap) {
             toast.error("Lütfen tüm gerekli alanları doldurun!");
             return;
         }
 
         setLoading(true);
         try {
-            let resimUrl = "";
+            let imageUrl = "";
             if (resim) {
                 const storageRef = ref(storage, `sorular/${currentKonuId}/${selectedAltKonu}/${Date.now()}_${resim.name}`);
                 await uploadBytes(storageRef, resim);
-                resimUrl = await getDownloadURL(storageRef);
+                imageUrl = await getDownloadURL(storageRef);
             }
 
             const konuRef = doc(db, "konular", currentKonuId);
@@ -121,14 +113,14 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
             const updatedQuestions = {
                 ...currentQuestions,
                 [questionNumber]: {
-                    soruMetni,
+                    soru,
                     cevaplar,
                     dogruCevap,
                     aciklama,
-                    resim: resimUrl,
-                    liked: 0,
-                    unliked: 0,
-                    report: 0,
+                    resim: imageUrl,
+                    soruNumarasi: questionNumber,
+                    createdAt: new Date(),
+                    updatedAt: new Date()
                 },
             };
 
@@ -156,11 +148,12 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
             toast.success("Soru başarıyla eklendi!");
             
             // Form alanlarını temizle
-            setSoruMetni("");
+            setSoru("");
             setCevaplar(["", "", "", "", ""]);
             setDogruCevap("");
             setAciklama("");
             setResim(null);
+            setResimUrl("");
             setSelectedSubbranch("");
             setSelectedAltKonu("");
             
@@ -236,8 +229,8 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
                                 <ReactQuill 
                                     theme="snow"
-                                    value={soruMetni}
-                                    onChange={setSoruMetni}
+                                    value={soru}
+                                    onChange={setSoru}
                                     modules={modules}
                                     formats={formats}
                                     className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -383,9 +376,10 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                     </button>
                     <button
                         onClick={handleSubmit}
-                        className="px-6 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 font-medium"
+                        disabled={loading}
+                        className="px-6 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Soru Ekle
+                        {loading ? "Ekleniyor..." : "Soru Ekle"}
                     </button>
                 </div>
             </div>
