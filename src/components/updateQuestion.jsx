@@ -6,7 +6,7 @@ import 'react-quill/dist/quill.snow.css';
 import { toast } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 
-const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateComplete }) => {
+const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, altDalId, onUpdateComplete }) => {
     const [soru, setSoru] = useState(null);
     const [loading, setLoading] = useState(true);
     const [cevaplar, setCevaplar] = useState(["", "", "", "", ""]);
@@ -57,11 +57,11 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
     useEffect(() => {
         const fetchData = async () => {
             try {
-                console.log("Modal açıldı, veri yükleme başlıyor:", { konuId, altKonuId, soruId, isOpen });
+                console.log("Modal açıldı, veri yükleme başlıyor:", { konuId, altKonuId, soruId, altDalId, isOpen });
                 
                 if (!konuId || !altKonuId || !soruId) {
                     console.error("Eksik parametreler:", { konuId, altKonuId, soruId });
-                    alert("Soru güncelleme için gerekli parametreler eksik!");
+                    toast.error("Soru güncelleme için gerekli parametreler eksik!");
                     setLoading(false);
                     onClose();
                     return;
@@ -77,7 +77,11 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                 // Firestore referanslarını oluştur
                 const konuRef = doc(db, "konular", konuId);
                 const altKonularCollectionRef = collection(konuRef, "altkonular");
-                const soruRef = doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soruId);
+                
+                // Soru referansını alt dal durumuna göre oluştur
+                const soruRef = altDalId 
+                    ? doc(db, "konular", konuId, "altkonular", altKonuId, "altdallar", altDalId, "sorular", soruId)
+                    : doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soruId);
                 
                 // Promise.all ile tüm verileri paralel olarak yükle
                 const [altKonularSnapshot, soruSnapshot] = await Promise.all([
@@ -95,6 +99,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                 // Soru kontrolü
                 if (!soruSnapshot.exists()) {
                     console.error("Soru bulunamadı:", { konuId, altKonuId, soruId });
+                    toast.error("Soru bulunamadı!");
                     setLoading(false);
                     onClose();
                     return;
@@ -104,7 +109,6 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                 const soruData = soruSnapshot.data();
                 console.log("Soru verisi başarıyla yüklendi:", soruData);
                 
-                // State'leri güvenli bir şekilde güncelle
                 setSoru(soruData);
                 
                 // Cevapları güvenli bir şekilde ayarla
@@ -119,46 +123,22 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                 }
                 
                 setCevaplar(normalizedCevaplar);
+                setDogruCevap(soruData.dogruCevap || "");
                 setSelectedAltKonu(altKonuId);
-                
-                // Doğru cevap şıkkını güvenli bir şekilde belirle
-                if (soruData.dogruCevap) {
-                    if (/^[A-E]$/.test(soruData.dogruCevap)) {
-                        setDogruCevap(soruData.dogruCevap);
-                    } else if (Array.isArray(soruData.cevaplar)) {
-                        const index = soruData.cevaplar.findIndex(cevap => 
-                            cevap === soruData.dogruCevap && cevap !== "" && cevap !== null && cevap !== undefined
-                        );
-                        
-                        if (index !== -1) {
-                            const dogruCevapHarfi = String.fromCharCode(65 + index);
-                            setDogruCevap(dogruCevapHarfi);
-                        } else {
-                            setDogruCevap("A");
-                        }
-                    } else {
-                        setDogruCevap("A");
-                    }
-                } else {
-                    setDogruCevap("A");
-                }
-                
                 setMevcutSoruNumarasi(soruData.soruNumarasi || null);
-                setLoading(false);
                 
+                setLoading(false);
             } catch (error) {
                 console.error("Veri yüklenirken hata:", error);
+                toast.error("Veri yüklenirken bir hata oluştu!");
                 setLoading(false);
-                onClose();
             }
         };
-
+        
         if (isOpen) {
-            setLoading(true);
             fetchData();
         }
-        
-    }, [isOpen, konuId, altKonuId, soruId, onClose]);
+    }, [isOpen, konuId, altKonuId, soruId, altDalId]);
 
     const handleResimYukle = async (e) => {
         const file = e.target.files[0];
@@ -216,8 +196,10 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
         }
 
         try {
-            // Firestore'da soruyu güncelle
-            const soruRef = doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soruId);
+            // Firestore'da soruyu güncelle - alt dal durumuna göre referans oluştur
+            const soruRef = altDalId 
+                ? doc(db, "konular", konuId, "altkonular", altKonuId, "altdallar", altDalId, "sorular", soruId)
+                : doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soruId);
             
             const updatedSoru = {
                 soruMetni: soru.soruMetni,
@@ -228,10 +210,10 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                 liked: soru.liked || 0,
                 unliked: soru.unliked || 0,
                 soruNumarasi: mevcutSoruNumarasi,
-                soruResmi: soru.soruResmi // soru objesinden al
+                soruResmi: soru.soruResmi
             };
 
-            console.log("Güncellenecek soru:", updatedSoru); // Debug için
+            console.log("Güncellenecek soru:", updatedSoru);
 
             await updateDoc(soruRef, updatedSoru);
             
