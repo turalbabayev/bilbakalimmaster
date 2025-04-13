@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { database } from "../firebase";
-import { ref, get } from "firebase/database";
+import { db } from "../firebase";
+import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import { saveAs } from "file-saver";
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType } from "docx";
 
@@ -18,15 +18,22 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
             
             setLoading(true);
             try {
-                const soruPath = altDalId 
-                    ? `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/sorular`
-                    : `konular/${konuId}/altkonular/${altKonuId}/sorular`;
+                let soruPath;
+                if (altDalId) {
+                    soruPath = `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}`;
+                } else {
+                    soruPath = `konular/${konuId}/altkonular/${altKonuId}`;
+                }
+
+                const sorularRef = collection(db, soruPath, 'sorular');
+                const snapshot = await getDocs(sorularRef);
                 
-                const soruRef = ref(database, soruPath);
-                const snapshot = await get(soruRef);
-                
-                if (snapshot.exists()) {
-                    setSorular(snapshot.val());
+                if (!snapshot.empty) {
+                    const soruData = {};
+                    snapshot.forEach(doc => {
+                        soruData[doc.id] = doc.data();
+                    });
+                    setSorular(soruData);
                 } else {
                     setSorular({});
                 }
@@ -265,13 +272,21 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
         const buffer = await Packer.toBlob(doc);
         
         // Dosya adını oluştur
-        const konuAdi = altDalId 
-            ? `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/baslik`
-            : `konular/${konuId}/altkonular/${altKonuId}/baslik`;
-        
-        const konuRef = ref(database, konuAdi);
-        const konuSnapshot = await get(konuRef);
-        const konuBaslik = konuSnapshot.exists() ? konuSnapshot.val() : "Bilinmeyen Konu";
+        let konuBaslik = "Bilinmeyen Konu";
+        try {
+            let konuDocRef;
+            if (altDalId) {
+                konuDocRef = doc(db, `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}`);
+            } else {
+                konuDocRef = doc(db, `konular/${konuId}/altkonular/${altKonuId}`);
+            }
+            const konuDoc = await getDoc(konuDocRef);
+            if (konuDoc.exists()) {
+                konuBaslik = konuDoc.data().baslik || "Bilinmeyen Konu";
+            }
+        } catch (error) {
+            console.error("Konu başlığı alınırken hata:", error);
+        }
         
         const indirmeTipiMetni = indirmeTipi === "tum" ? "tum-aciklamalar-dahil" : "sadece-cevaplar";
         const indirmeMiktariMetni = indirmeMiktari === "secili" 

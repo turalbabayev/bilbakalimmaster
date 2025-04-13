@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { database, messaging } from "../firebase";
-import { ref, push, get } from "firebase/database";
+import { db, messaging } from "../firebase";
+import { collection, addDoc, doc, getDoc } from "firebase/firestore";
+import { getMessaging, getToken } from "firebase/messaging";
+import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
@@ -16,6 +18,8 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [resimYukleniyor, setResimYukleniyor] = useState(false);
     const [zenginMetinAktif, setZenginMetinAktif] = useState(false);
     const [dogruCevapSecimi, setDogruCevapSecimi] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [soruNumarasi, setSoruNumarasi] = useState("");
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -78,96 +82,47 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
         setSoruResmi(null);
     };
 
-    const handleAddQuestion = async () => {
-        if (
-            !selectedAltKonu ||
-            !soruMetni ||
-            cevaplar.some((c) => !c) ||
-            !dogruCevap
-        ) {
-            alert("Tüm alanları doldurmalısınız.");
-            return;
-        }
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
 
-        // Mevcut soruların sayısını alıp, yeni soru numarasını belirle
-        const soruRef = ref(
-            database,
-            `konular/${currentKonuId}/altkonular/${selectedAltKonu}/sorular`
-        );
-        
         try {
-            const snapshot = await get(soruRef);
-            const sorular = snapshot.val() || {};
-            const soruSayisi = Object.keys(sorular).length;
-            const soruNumarasi = soruSayisi + 1;
-            
-            const newQuestion = {
-                soruMetni,
-                cevaplar,
-                dogruCevap,
-                aciklama,
-                liked: 0,
-                unliked: 0,
-                report: 0,
-                soruNumarasi: soruNumarasi,
-                soruResmi: soruResmi || null
-            };
-            
-            push(soruRef, newQuestion)
-                .then(() => {
-                    alert("Soru başarıyla eklendi.");
-                    sendNotification("Yeni soru eklendi", `Soru: ${soruMetni.replace(/<[^>]*>?/gm, '')}`);
-                    onClose();
-                    setSelectedAltKonu("");
-                    setSoruMetni("");
-                    setCevaplar(["", "", "", "", ""]);
-                    setDogruCevap("");
-                    setAciklama("");
-                    setLiked(0);
-                    setUnliked(0);
-                    setSoruResmi(null);
-                })
-                .catch((error) => {
-                    console.error("Soru eklenirken bir hata oluştu:  ", error);
-                    alert("Soru eklenirken bir hata oluştu!");
-                });
-        } catch (error) {
-            console.error("Soru sayısı alınırken hata oluştu: ", error);
-            alert("Soru eklenirken bir hata oluştu!");
-        }
-    };
-  
-    const sendNotification = async (title, body) => {
-        const messagePayload = {
-            title: title, // Backend'in beklediği parametre adı
-            body: body, // Backend'in beklediği parametre adı
-            topic: "bilbakalim", // Topic adı
-        };
-        try {
-            const response = await fetch(
-                "http://localhost:5000/send-notification",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json", // JSON formatı
-                    },
-                    body: JSON.stringify(messagePayload), // JSON olarak gönder
-                }
-            );
-
-            if (response.ok) {
-                console.log("Bildirim başarıyla gönderildi.");
-            } else {
-                console.error(
-                    "Bildirim gönderimi başarısız oldu.",
-                    await response.text()
-                );
+            if (!selectedAltKonu) {
+                throw new Error("Lütfen bir alt konu seçin");
             }
+
+            const yeniSoru = {
+                soruMetni: soruMetni,
+                cevaplar: cevaplar,
+                dogruCevap: dogruCevap,
+                aciklama: aciklama,
+                soruResmi: soruResmi,
+                soruNumarasi: soruNumarasi || 0,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+
+            // Soruyu Firestore'a ekle
+            const sorularRef = collection(db, `konular/${currentKonuId}/altkonular/${selectedAltKonu}/sorular`);
+            const docRef = await addDoc(sorularRef, yeniSoru);
+
+            toast.success("Soru başarıyla eklendi!");
+            
+            // Form alanlarını temizle
+            setSoruMetni("");
+            setCevaplar(["", "", "", "", ""]);
+            setDogruCevap("");
+            setAciklama("");
+            setSoruResmi("");
+            setSoruNumarasi("");
+            setSelectedAltKonu("");
+            
+            onClose();
         } catch (error) {
-            console.error(
-                "Bildirim gönderimi sırasında bir hata oluştu: ",
-                error
-            );
+            console.error("Soru eklenirken hata:", error);
+            toast.error(`Soru eklenirken bir hata oluştu: ${error.message}`);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -363,7 +318,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                         İptal
                     </button>
                     <button
-                        onClick={handleAddQuestion}
+                        onClick={handleSubmit}
                         className="px-6 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 font-medium"
                     >
                         Soru Ekle
