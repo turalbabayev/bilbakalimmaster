@@ -13,26 +13,32 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
         const fetchSorular = async () => {
             if (!isOpen) return;
             
+            console.log('Fetching questions with params:', { konuId, altKonuId, altDalId });
             setLoading(true);
             try {
                 let soruRef;
                 if (altDalId) {
-                    soruRef = collection(db, 'konular', konuId, 'altKonular', altKonuId, 'altDallar', altDalId, 'sorular');
+                    soruRef = collection(db, 'konular', konuId, 'altkonular', altKonuId, 'altdallar', altDalId, 'sorular');
+                    console.log('Using altdal path:', altDalId);
                 } else {
-                    soruRef = collection(db, 'konular', konuId, 'altKonular', altKonuId, 'sorular');
+                    soruRef = collection(db, 'konular', konuId, 'altkonular', altKonuId, 'sorular');
+                    console.log('Using altkonu path');
                 }
 
                 const q = query(soruRef, orderBy('soruNumarasi', 'asc'));
                 const querySnapshot = await getDocs(q);
+                
+                console.log('Found questions:', querySnapshot.size);
                 
                 const soruListesi = querySnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
                 }));
 
+                console.log('Processed questions:', soruListesi.length);
                 setSorular(soruListesi);
-                setSelectedSorular({}); // Seçimleri sıfırla
-                setHepsiSecili(false); // Tümünü seç durumunu sıfırla
+                setSelectedSorular({});
+                setHepsiSecili(false);
             } catch (error) {
                 console.error('Sorular yüklenirken hata oluştu:', error);
                 toast.error('Sorular yüklenirken bir hata oluştu');
@@ -42,7 +48,10 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
         };
 
         if (konuId && altKonuId && isOpen) {
+            console.log('Starting fetch with:', { konuId, altKonuId, isOpen });
             fetchSorular();
+        } else {
+            console.log('Fetch conditions not met:', { konuId, altKonuId, isOpen });
         }
     }, [konuId, altKonuId, altDalId, isOpen]);
 
