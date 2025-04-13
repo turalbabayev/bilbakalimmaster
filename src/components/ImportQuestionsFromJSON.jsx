@@ -206,7 +206,8 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
                                     liked: 0,
                                     unliked: 0,
                                     report: 0,
-                                    soruNumarasi: mevcutSoruSayisi + i + 1
+                                    soruNumarasi: mevcutSoruSayisi + i + 1,
+                                    soruResmi: null
                                 };
                                 
                                 await addDoc(soruRef, newQuestion);
