@@ -13,10 +13,25 @@ const DeleteQuestion = ({ soruRef, onDelete }) => {
         }
 
         setIsDeleting(true);
+        console.log("Silinecek sorunun referansı:", soruRef);
 
         try {
-            // soruRef'ten path bilgilerini al
-            const [, , konuId, , altKonuId, , soruId] = soruRef.split('/');
+            // Path'i düzgün şekilde ayrıştır
+            const pathParts = soruRef.split('/').filter(part => part !== '');
+            console.log("Path parçaları:", pathParts);
+
+            // Path'ten ID'leri al
+            const konuId = pathParts[1];  // konular/[konuId]
+            const altKonuId = pathParts[3]; // altkonular/[altKonuId]
+            const soruId = pathParts[5];  // sorular/[soruId]
+
+            console.log("Konu ID:", konuId);
+            console.log("Alt Konu ID:", altKonuId);
+            console.log("Soru ID:", soruId);
+
+            if (!konuId || !altKonuId || !soruId) {
+                throw new Error("Geçersiz soru referansı");
+            }
             
             // Firestore referansları
             const soruDocRef = doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soruId);
@@ -38,13 +53,18 @@ const DeleteQuestion = ({ soruRef, onDelete }) => {
                 }
             });
 
+            console.log("Silinecek soru numarası:", silinecekSoruNumarasi);
+            console.log("Toplam soru sayısı:", sorular.length);
+
             // Soruyu sil
             await deleteDoc(soruDocRef);
+            console.log("Soru başarıyla silindi");
 
             // Diğer soruların numaralarını güncelle
             const updatePromises = sorular
                 .filter(soru => soru.id !== soruId && soru.soruNumarasi > silinecekSoruNumarasi)
                 .map(soru => {
+                    console.log(`${soru.id} numarası güncelleniyor: ${soru.soruNumarasi} -> ${soru.soruNumarasi - 1}`);
                     const soruRef = doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soru.id);
                     return updateDoc(soruRef, {
                         soruNumarasi: soru.soruNumarasi - 1
@@ -54,6 +74,7 @@ const DeleteQuestion = ({ soruRef, onDelete }) => {
             // Tüm güncellemeleri bekle
             if (updatePromises.length > 0) {
                 await Promise.all(updatePromises);
+                console.log("Soru numaraları güncellendi");
             }
 
             toast.success("Soru başarıyla silindi ve numaralar yeniden düzenlendi.");
