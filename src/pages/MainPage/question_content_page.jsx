@@ -95,24 +95,33 @@ function QuestionContent() {
             }));
 
             const sorularRef = collection(db, "konular", id, "altkonular", altKonuId, "sorular");
-            const sorularSnap = await getDocs(sorularRef);
             
-            const sorularData = {};
-            sorularSnap.forEach((doc) => {
-                sorularData[doc.id] = {
-                    id: doc.id,
-                    ...doc.data()
-                };
+            // Realtime listener ekle
+            const unsubscribe = onSnapshot(sorularRef, (snapshot) => {
+                const sorularData = {};
+                snapshot.forEach((doc) => {
+                    sorularData[doc.id] = {
+                        id: doc.id,
+                        ...doc.data()
+                    };
+                });
+
+                setAltKonular(prev => ({
+                    ...prev,
+                    [altKonuId]: {
+                        ...prev[altKonuId],
+                        sorular: sorularData,
+                        sorularYukleniyor: false
+                    }
+                }));
+            }, (error) => {
+                console.error("Sorular dinlenirken hata:", error);
+                toast.error("Sorular yüklenirken bir hata oluştu");
             });
 
-            setAltKonular(prev => ({
-                ...prev,
-                [altKonuId]: {
-                    ...prev[altKonuId],
-                    sorular: sorularData,
-                    sorularYukleniyor: false
-                }
-            }));
+            // Cleanup function'ı döndür
+            return () => unsubscribe();
+
         } catch (error) {
             console.error("Sorular çekilirken hata:", error);
             toast.error("Sorular yüklenirken bir hata oluştu");
@@ -126,6 +135,7 @@ function QuestionContent() {
         }
     };
 
+    // Alt konu açıldığında/kapandığında listener'ı yönet
     const toggleExpand = (altKonuId) => {
         setExpandedAltKonu(prev => {
             const yeni = prev === altKonuId ? null : altKonuId;
@@ -670,23 +680,13 @@ function QuestionContent() {
                                                                                     className="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200"
                                                                                     onClick={() => handleUpdateClick(`konular/${id}/altkonular/${key}/sorular/${soruKey}`)}
                                                                                 >
-                                                                                    <div className="flex items-center">
-                                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                                                                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                                                                        </svg>
-                                                                                        Düzenle
-                                                                                    </div>
+                                                                                    Güncelle
                                                                                 </button>
                                                                                 <button
                                                                                     className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200"
                                                                                     onClick={() => handleChangeOrderClick(`konular/${id}/altkonular/${key}/sorular/${soruKey}`)}
                                                                                 >
-                                                                                    <div className="flex items-center">
-                                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                                                                            <path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8zM12 15a1 1 0 100-2H6.414l1.293-1.293a1 1 0 10-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L6.414 15H12z" />
-                                                                                        </svg>
-                                                                                        Takas Et
-                                                                                    </div>
+                                                                                    Takas Et
                                                                                 </button>
                                                                                 <DeleteQuestion
                                                                                     soruRef={`konular/${id}/altkonular/${key}/sorular/${soruKey}`}
