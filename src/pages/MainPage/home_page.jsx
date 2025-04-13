@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Layout from "../../components/layout";
 import { database, db } from "../../firebase";
-import { collection, onSnapshot, query, orderBy, doc, getDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, doc, getDoc, getDocs } from "firebase/firestore";
 import AddTopics from "../../components/addTopics";
 import DeleteTopics from "../../components/deleteTopics";
 import AddSubtopics from "../../components/addSubtopics";
@@ -65,17 +65,19 @@ function HomePage() {
         }
 
         try {
-            const konuRef = doc(db, "konular", konuId);
-            const konuSnap = await getDoc(konuRef);
+            const altkonularRef = collection(db, "konular", konuId, "altkonular");
+            const altkonularSnap = await getDocs(altkonularRef);
             
-            if (konuSnap.exists()) {
-                const konuData = konuSnap.data();
-                setAltKonular(prev => ({
-                    ...prev,
-                    [konuId]: konuData.altkonular || {}
-                }));
-                setExpanded(konuId);
-            }
+            const altkonularData = {};
+            altkonularSnap.forEach((doc) => {
+                altkonularData[doc.id] = doc.data();
+            });
+
+            setAltKonular(prev => ({
+                ...prev,
+                [konuId]: altkonularData
+            }));
+            setExpanded(konuId);
         } catch (error) {
             console.error("Alt konular çekilirken hata oluştu:", error);
             toast.error("Alt konular yüklenirken bir hata oluştu");
