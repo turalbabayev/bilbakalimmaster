@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { database } from "../firebase";
-import { ref, remove, get } from "firebase/database";
+import { db } from "../firebase";
+import { collection, getDocs, deleteDoc, doc, query, orderBy } from "firebase/firestore";
+import { toast } from 'react-toastify';
 
 const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) => {
     const [loading, setLoading] = useState(false);
-    const [sorular, setSorular] = useState({});
+    const [sorular, setSorular] = useState([]);
     const [selectedSorular, setSelectedSorular] = useState({});
     const [hepsiSecili, setHepsiSecili] = useState(false);
 
@@ -16,23 +17,29 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
             try {
                 // Alt dal ID'si yoksa, doğrudan alt konu altındaki sorulara bakalım
                 const soruPath = altDalId 
-                    ? `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/sorular`
-                    : `konular/${konuId}/altkonular/${altKonuId}/sorular`;
+                    ? ["konular", konuId, "altkonular", altKonuId, "altdallar", altDalId, "sorular"]
+                    : ["konular", konuId, "altkonular", altKonuId, "sorular"];
                 
-                const soruRef = ref(database, soruPath);
-                const snapshot = await get(soruRef);
+                const soruRef = collection(db, ...soruPath);
+                const q = query(soruRef, orderBy("soruNumarasi", "asc"));
+                const querySnapshot = await getDocs(q);
                 
-                if (snapshot.exists()) {
-                    setSorular(snapshot.val());
-                } else {
-                    setSorular({});
-                }
+                const soruData = [];
+                querySnapshot.forEach((doc) => {
+                    soruData.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+                
+                setSorular(soruData);
                 
                 // Seçimleri sıfırla
                 setSelectedSorular({});
                 setHepsiSecili(false);
             } catch (error) {
                 console.error("Sorular yüklenirken hata oluştu:", error);
+                toast.error("Sorular yüklenirken bir hata oluştu!");
             } finally {
                 setLoading(false);
             }
@@ -53,8 +60,8 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
         setHepsiSecili(yeniDurum);
         
         const yeniSecimler = {};
-        Object.keys(sorular).forEach(soruId => {
-            yeniSecimler[soruId] = yeniDurum;
+        sorular.forEach(soru => {
+            yeniSecimler[soru.id] = yeniDurum;
         });
         
         setSelectedSorular(yeniSecimler);
@@ -70,7 +77,7 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
             .map(([key]) => key);
             
         if (seciliIDs.length === 0) {
-            alert("Lütfen silinecek soruları seçin.");
+            toast.warning("Lütfen silinecek soruları seçin.");
             return;
         }
         
@@ -82,20 +89,20 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
         try {
             // Alt dal ID'si yoksa, doğrudan alt konu altındaki sorulara bakalım
             const soruBasePath = altDalId 
-                ? `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/sorular`
-                : `konular/${konuId}/altkonular/${altKonuId}/sorular`;
+                ? ["konular", konuId, "altkonular", altKonuId, "altdallar", altDalId, "sorular"]
+                : ["konular", konuId, "altkonular", altKonuId, "sorular"];
                 
             // Her bir soruyu sırayla sil
             for (const soruId of seciliIDs) {
-                const soruRef = ref(database, `${soruBasePath}/${soruId}`);
-                await remove(soruRef);
+                const soruRef = doc(db, ...soruBasePath, soruId);
+                await deleteDoc(soruRef);
             }
             
-            alert(`${seciliIDs.length} adet soru başarıyla silindi.`);
+            toast.success(`${seciliIDs.length} adet soru başarıyla silindi.`);
             onClose(true); // true ile başarılı işlemi bildir
         } catch (error) {
             console.error("Sorular silinirken hata oluştu:", error);
-            alert("Sorular silinirken bir hata oluştu: " + error.message);
+            toast.error("Sorular silinirken bir hata oluştu!");
         } finally {
             setLoading(false);
         }
@@ -130,7 +137,7 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
                                         className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                                     />
                                     <label htmlFor="selectAll" className="ml-2 text-base font-medium text-gray-900 dark:text-gray-300">
-                                        Tüm Soruları Seç ({Object.keys(sorular).length})
+                                        Tüm Soruları Seç ({sorular.length})
                                     </label>
                                 </div>
                                 <div className="text-base font-medium text-gray-900 dark:text-gray-300">
@@ -138,60 +145,41 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
                                 </div>
                             </div>
                             
-                            {Object.keys(sorular).length > 0 ? (
+                            {sorular.length > 0 ? (
                                 <div className="space-y-4">
-                                    {Object.entries(sorular).map(([soruId, soru], index) => (
-                                        <div key={soruId} className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 flex items-start">
+                                    {sorular.map((soru, index) => (
+                                        <div key={soru.id} className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 flex items-start">
                                             <input 
                                                 type="checkbox" 
-                                                id={`soru-${soruId}`}
-                                                checked={!!selectedSorular[soruId]}
-                                                onChange={() => handleSoruToggle(soruId)}
+                                                id={`soru-${soru.id}`}
+                                                checked={!!selectedSorular[soru.id]}
+                                                onChange={() => handleSoruToggle(soru.id)}
                                                 className="mt-1 w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                                             />
                                             <div className="ml-3 flex-1">
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <label htmlFor={`soru-${soruId}`} className="text-base font-medium text-gray-900 dark:text-white">
+                                                    <label htmlFor={`soru-${soru.id}`} className="text-base font-medium text-gray-900 dark:text-white">
                                                         <span className="inline-flex items-center justify-center bg-blue-600 text-white font-semibold rounded-full w-6 h-6 mr-2 text-sm">
-                                                            {index + 1}
+                                                            {soru.soruNumarasi || index + 1}
                                                         </span>
                                                         {soru.baslik && <span className="font-semibold mr-2">{soru.baslik}</span>}
-                                                        <span className="text-xs text-gray-500 dark:text-gray-400">ID: {soruId}</span>
+                                                        <span className="text-xs text-gray-500 dark:text-gray-400">ID: {soru.id}</span>
                                                     </label>
-                                                    {soru.siraNo && (
-                                                        <span className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs px-2 py-1 rounded-md">
-                                                            Sıra: {soru.siraNo}
-                                                        </span>
-                                                    )}
                                                 </div>
                                                 <div className="mb-2" dangerouslySetInnerHTML={{ __html: soru.soruMetni }} />
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                                                    {soru.cevaplar?.map((cevap, index) => (
-                                                        <div 
-                                                            key={index} 
-                                                            className={`p-2 text-sm rounded ${
-                                                                index === soru.dogruCevap || String.fromCharCode(65 + index) === soru.dogruCevap
-                                                                    ? "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300"
-                                                                    : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300"
-                                                            }`}
-                                                        >
-                                                            <span className="font-medium">{String.fromCharCode(65 + index)}:</span> {cevap}
-                                                        </div>
-                                                    ))}
-                                                </div>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <div className="text-center py-8">
-                                    <p className="text-lg text-gray-500 dark:text-gray-400">Bu konu altında soru bulunamadı.</p>
+                                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                                    Henüz soru bulunmamaktadır.
                                 </div>
                             )}
                         </>
                     )}
                 </div>
-                
+
                 <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex justify-end space-x-4">
                     <button
                         onClick={onClose}

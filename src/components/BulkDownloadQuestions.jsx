@@ -1,12 +1,13 @@
 import React, { useState } from "react";
-import { database } from "../firebase";
-import { ref, get } from "firebase/database";
+import { db } from "../firebase";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { saveAs } from "file-saver";
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType } from "docx";
+import { toast } from 'react-toastify';
 
 const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) => {
     const [loading, setLoading] = useState(false);
-    const [sorular, setSorular] = useState({});
+    const [sorular, setSorular] = useState([]);
     const [selectedSorular, setSelectedSorular] = useState({});
     const [hepsiSecili, setHepsiSecili] = useState(false);
     const [indirmeTipi, setIndirmeTipi] = useState("tum"); // "tum" veya "sadeceSorular"
@@ -19,22 +20,27 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
             setLoading(true);
             try {
                 const soruPath = altDalId 
-                    ? `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/sorular`
-                    : `konular/${konuId}/altkonular/${altKonuId}/sorular`;
+                    ? ["konular", konuId, "altkonular", altKonuId, "altdallar", altDalId, "sorular"]
+                    : ["konular", konuId, "altkonular", altKonuId, "sorular"];
                 
-                const soruRef = ref(database, soruPath);
-                const snapshot = await get(soruRef);
+                const soruRef = collection(db, ...soruPath);
+                const q = query(soruRef, orderBy("soruNumarasi", "asc"));
+                const querySnapshot = await getDocs(q);
                 
-                if (snapshot.exists()) {
-                    setSorular(snapshot.val());
-                } else {
-                    setSorular({});
-                }
+                const soruData = [];
+                querySnapshot.forEach((doc) => {
+                    soruData.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
                 
+                setSorular(soruData);
                 setSelectedSorular({});
                 setHepsiSecili(false);
             } catch (error) {
                 console.error("Sorular yüklenirken hata oluştu:", error);
+                toast.error("Sorular yüklenirken bir hata oluştu!");
             } finally {
                 setLoading(false);
             }
@@ -55,8 +61,8 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
         setHepsiSecili(yeniDurum);
         
         const yeniSecimler = {};
-        Object.keys(sorular).forEach(soruId => {
-            yeniSecimler[soruId] = yeniDurum;
+        sorular.forEach(soru => {
+            yeniSecimler[soru.id] = yeniDurum;
         });
         
         setSelectedSorular(yeniSecimler);
@@ -74,15 +80,13 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
             setSelectedSorular({});
             setHepsiSecili(false);
         } else {
-            // İlk N soruyu seç (sıralı olarak)
+            // İlk N soruyu seç
             const yeniSecimler = {};
-            // Önce sıralı sorular listesini al
-            const siralanmisSorular = sortedQuestions(sorular);
             const secilenMiktar = parseInt(miktar);
             
-            // Sadece ilk N sıralı soruyu seç
-            siralanmisSorular.slice(0, secilenMiktar).forEach(([soruId]) => {
-                yeniSecimler[soruId] = true;
+            // Sadece ilk N soruyu seç
+            sorular.slice(0, secilenMiktar).forEach(soru => {
+                yeniSecimler[soru.id] = true;
             });
             
             setSelectedSorular(yeniSecimler);
@@ -95,202 +99,129 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
             .filter(([_, value]) => value)
             .map(([key]) => key);
 
-        let indirilecekSorular = {};
+        let indirilecekSorular = [];
         
         if (indirmeMiktari === "secili") {
-            indirilecekSorular = seciliIDs.reduce((acc, id) => {
-                acc[id] = sorular[id];
-                return acc;
-            }, {});
+            indirilecekSorular = sorular.filter(soru => seciliIDs.includes(soru.id));
         } else {
-            // İlk N soruyu al (sıralı olarak)
+            // İlk N soruyu al
             const miktar = parseInt(indirmeMiktari);
-            const siralanmisSorular = sortedQuestions(sorular);
-            
-            indirilecekSorular = siralanmisSorular
-                .slice(0, miktar)
-                .reduce((acc, [id, soru]) => {
-                    acc[id] = soru;
-                    return acc;
-                }, {});
+            indirilecekSorular = sorular.slice(0, miktar);
         }
 
-        // Soruları soru numarasına göre sıralama
-        const sortedSorular = Object.entries(indirilecekSorular).sort((a, b) => {
-            const numA = a[1].soruNumarasi || 0;
-            const numB = b[1].soruNumarasi || 0;
-            return numA - numB;
-        });
+        if (indirilecekSorular.length === 0) {
+            toast.warning("Lütfen indirilecek soruları seçin.");
+            return;
+        }
 
-        const children = [];
-        
-        sortedSorular.forEach(([soruId, soru], index) => {
-            // Soru başlığı
+        setLoading(true);
+
+        try {
+            const children = [];
+            
+            // Başlık ekle
             children.push(
                 new Paragraph({
-                    children: [
-                        new TextRun({
-                            text: `${index + 1}. Soru`,
-                            bold: true,
-                            size: 24,
-                        }),
-                    ],
-                    spacing: {
-                        after: 200,
-                    },
+                    text: "Soru Listesi",
+                    heading: 1,
+                    spacing: { after: 200 }
                 })
             );
 
-            // Soru metni
-            children.push(
-                new Paragraph({
-                    children: [
-                        new TextRun({
-                            text: soru.soruMetni.replace(/<[^>]*>/g, ''),
-                            size: 20,
-                        }),
-                    ],
-                    spacing: {
-                        after: 200,
-                    },
-                })
-            );
-
-            // Şıklar
-            const cevapTable = new Table({
-                rows: soru.cevaplar.map((cevap, i) => {
-                    const harf = String.fromCharCode(65 + i);
-                    return new TableRow({
-                        children: [
-                            new TableCell({
-                                children: [
-                                    new Paragraph({
-                                        children: [
-                                            new TextRun({
-                                                text: `${harf})`,
-                                                bold: true,
-                                            }),
-                                        ],
-                                    }),
-                                ],
-                                width: {
-                                    size: 500,
-                                    type: WidthType.DXA,
-                                },
-                            }),
-                            new TableCell({
-                                children: [
-                                    new Paragraph({
-                                        children: [
-                                            new TextRun({
-                                                text: cevap,
-                                            }),
-                                        ],
-                                    }),
-                                ],
-                                width: {
-                                    size: 5000,
-                                    type: WidthType.DXA,
-                                },
-                            }),
-                        ],
-                    });
-                }),
-            });
-
-            children.push(cevapTable);
-
-            if (indirmeTipi === "tum") {
-                // Doğru cevap ve şık harfi
-                const dogruCevapIndex = soru.cevaplar.indexOf(soru.dogruCevap);
-                const dogruCevapHarfi = String.fromCharCode(65 + dogruCevapIndex);
-                
+            // Her soru için
+            for (const soru of indirilecekSorular) {
+                // Soru numarası ve metni
                 children.push(
                     new Paragraph({
                         children: [
                             new TextRun({
-                                text: `Doğru Cevap: ${soru.dogruCevap} (${dogruCevapHarfi})`,
+                                text: `Soru ${soru.soruNumarasi || ""}`,
                                 bold: true,
-                                color: "008000",
-                            }),
+                                size: 28
+                            })
                         ],
-                        spacing: {
-                            before: 200,
-                            after: 200,
-                        },
+                        spacing: { before: 400, after: 200 }
                     })
                 );
 
-                // Açıklama
-                if (soru.aciklama) {
+                children.push(
+                    new Paragraph({
+                        text: soru.soruMetni.replace(/<[^>]*>/g, ''),
+                        spacing: { after: 200 }
+                    })
+                );
+
+                // Şıklar
+                if (soru.cevaplar && Array.isArray(soru.cevaplar)) {
+                    for (let i = 0; i < soru.cevaplar.length; i++) {
+                        children.push(
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: `${String.fromCharCode(65 + i)}) ${soru.cevaplar[i]}`,
+                                        bold: String.fromCharCode(65 + i) === soru.dogruCevap
+                                    })
+                                ],
+                                spacing: { after: 100 }
+                            })
+                        );
+                    }
+                }
+
+                // Doğru cevap ve açıklama
+                if (indirmeTipi === "tum") {
                     children.push(
                         new Paragraph({
                             children: [
                                 new TextRun({
-                                    text: `Açıklama: ${soru.aciklama}`,
-                                    color: "0000FF",
-                                }),
+                                    text: `Doğru Cevap: ${soru.dogruCevap}`,
+                                    bold: true,
+                                    color: "2b5797"
+                                })
                             ],
-                            spacing: {
-                                before: 200,
-                                after: 400,
-                            },
+                            spacing: { before: 200, after: 100 }
                         })
                     );
+
+                    if (soru.aciklama) {
+                        children.push(
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: "Açıklama: ",
+                                        bold: true
+                                    }),
+                                    new TextRun({
+                                        text: soru.aciklama.replace(/<[^>]*>/g, '')
+                                    })
+                                ],
+                                spacing: { before: 100, after: 400 }
+                            })
+                        );
+                    }
                 }
             }
 
-            // Sayfa sonu (son soru hariç)
-            if (index < sortedSorular.length - 1) {
-                children.push(
-                    new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: "",
-                                break: 1,
-                            }),
-                        ],
-                    })
-                );
-            }
-        });
+            // Dokümanı oluştur
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: children
+                }]
+            });
 
-        const doc = new Document({
-            sections: [{
-                properties: {},
-                children: children,
-            }],
-        });
-
-        const buffer = await Packer.toBlob(doc);
-        
-        // Dosya adını oluştur
-        const konuAdi = altDalId 
-            ? `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/baslik`
-            : `konular/${konuId}/altkonular/${altKonuId}/baslik`;
-        
-        const konuRef = ref(database, konuAdi);
-        const konuSnapshot = await get(konuRef);
-        const konuBaslik = konuSnapshot.exists() ? konuSnapshot.val() : "Bilinmeyen Konu";
-        
-        const indirmeTipiMetni = indirmeTipi === "tum" ? "tum-aciklamalar-dahil" : "sadece-cevaplar";
-        const indirmeMiktariMetni = indirmeMiktari === "secili" 
-            ? `secili-${seciliSoruSayisi()}-soru` 
-            : `ilk-${indirmeMiktari}-soru`;
-        
-        const dosyaAdi = `${konuBaslik}-${indirmeMiktariMetni}-${indirmeTipiMetni}.docx`;
-        
-        saveAs(buffer, dosyaAdi);
-    };
-
-    // Soruları sıralama fonksiyonu - UI'da kullanmak için
-    const sortedQuestions = (questions) => {
-        if (!questions) return [];
-        return Object.entries(questions).sort((a, b) => {
-            const numA = a[1].soruNumarasi || 0;
-            const numB = b[1].soruNumarasi || 0;
-            return numA - numB;
-        });
+            // Dokümanı indir
+            const buffer = await Packer.toBuffer(doc);
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+            saveAs(blob, 'sorular.docx');
+            
+            toast.success('Sorular başarıyla indirildi!');
+        } catch (error) {
+            console.error("Doküman oluşturulurken hata:", error);
+            toast.error("Doküman oluşturulurken bir hata oluştu!");
+        } finally {
+            setLoading(false);
+        }
     };
 
     if (!isOpen) return null;
@@ -395,36 +326,39 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                                     </div>
                                 </div>
                             </div>
-                            
-                            <div className="mb-4 flex items-center justify-between">
-                                <label className="flex items-center space-x-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
+
+                            <div className="mb-6 flex justify-between items-center">
+                                <div className="flex items-center">
+                                    <input 
+                                        type="checkbox" 
+                                        id="selectAll"
                                         checked={hepsiSecili}
                                         onChange={handleHepsiToggle}
                                         className="form-checkbox text-blue-600"
                                     />
-                                    <span className="text-gray-700 dark:text-gray-300">Tümünü Seç</span>
-                                </label>
-                                <span className="text-sm text-gray-500 dark:text-gray-400">
+                                    <label htmlFor="selectAll" className="ml-2 text-gray-700 dark:text-gray-300">
+                                        Tüm Soruları Seç ({sorular.length})
+                                    </label>
+                                </div>
+                                <div className="text-gray-700 dark:text-gray-300">
                                     {seciliSoruSayisi()} soru seçildi
-                                </span>
+                                </div>
                             </div>
-                            
+
                             <div className="space-y-4">
-                                {sortedQuestions(sorular).map(([soruId, soru], index) => (
-                                    <div key={soruId} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800">
+                                {sorular.map((soru, index) => (
+                                    <div key={soru.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800">
                                         <div className="flex items-start space-x-3">
                                             <input
                                                 type="checkbox"
-                                                checked={selectedSorular[soruId] || false}
-                                                onChange={() => handleSoruToggle(soruId)}
+                                                checked={selectedSorular[soru.id] || false}
+                                                onChange={() => handleSoruToggle(soru.id)}
                                                 className="form-checkbox text-blue-600 mt-1"
                                             />
                                             <div className="flex-1">
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                                                        {index + 1}. Soru {soru.soruNumarasi ? `(No: ${soru.soruNumarasi})` : ''}
+                                                        {soru.soruNumarasi || index + 1}. Soru
                                                     </span>
                                                     <span className="text-sm text-gray-500 dark:text-gray-400">
                                                         Doğru Cevap: {soru.dogruCevap}
@@ -433,25 +367,6 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                                                 <p className="mt-2 text-gray-700 dark:text-gray-300">
                                                     {soru.soruMetni.replace(/<[^>]*>/g, '')}
                                                 </p>
-                                                <div className="mt-3 space-y-2">
-                                                    {soru.cevaplar.map((cevap, i) => (
-                                                        <div key={i} className="flex items-center space-x-2">
-                                                            <span className="text-gray-500 dark:text-gray-400 w-6">
-                                                                {String.fromCharCode(65 + i)})
-                                                            </span>
-                                                            <span className="text-gray-700 dark:text-gray-300">
-                                                                {cevap}
-                                                            </span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                {soru.aciklama && (
-                                                    <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                                                        <p className="text-sm text-blue-700 dark:text-blue-300">
-                                                            Açıklama: {soru.aciklama}
-                                                        </p>
-                                                    </div>
-                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -460,7 +375,7 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                         </>
                     )}
                 </div>
-                
+
                 <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex justify-end space-x-4">
                     <button
                         onClick={onClose}
