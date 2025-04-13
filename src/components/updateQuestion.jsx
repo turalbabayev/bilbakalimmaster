@@ -241,18 +241,29 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
             if (!soruBulundu) {
                 throw new Error("Soru veritabanında bulunamadı!");
             }
+
+            // Veri kontrolü ve temizleme
+            const cleanData = (data) => {
+                if (data === undefined) return null;
+                if (typeof data === 'string' && data.trim() === '') return null;
+                return data;
+            };
             
             const updatedSoru = {
-                soruMetni: soru.soruMetni,
-                cevaplar: cevaplar,
-                dogruCevap: dogruCevap,
-                aciklama: soru.aciklama,
-                report: soru.report || 0,
-                liked: soru.liked || 0,
-                unliked: soru.unliked || 0,
-                soruNumarasi: mevcutSoruNumarasi,
-                soruResmi: soru.soruResmi
+                soruMetni: cleanData(soru.soruMetni) || '',
+                cevaplar: cevaplar.map(cevap => cleanData(cevap) || ''),
+                dogruCevap: cleanData(dogruCevap) || 'A',
+                aciklama: cleanData(soru.aciklama) || '',
+                report: cleanData(soru.report) || 0,
+                liked: cleanData(soru.liked) || 0,
+                unliked: cleanData(soru.unliked) || 0,
+                soruNumarasi: cleanData(mevcutSoruNumarasi) || 0
             };
+
+            // soruResmi sadece varsa ekle
+            if (soru.soruResmi) {
+                updatedSoru.soruResmi = soru.soruResmi;
+            }
 
             console.log("Güncellenecek soru:", { ref: soruRef.path, data: updatedSoru });
 
