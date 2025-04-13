@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import Layout from "../../components/layout";
-import { database, db } from "../../firebase";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { db } from "../../firebase";
+import { collection, onSnapshot, query, orderBy, doc, getDoc } from "firebase/firestore";
+import { toast } from "react-hot-toast";
 import AddTopics from "../../components/addTopics";
 import DeleteTopics from "../../components/deleteTopics";
 import AddSubtopics from "../../components/addSubtopics";
@@ -24,41 +25,57 @@ function HomePage() {
     const [updatePath, setUpdatePath] = useState("");
     const [updateType, setUpdateType] = useState("");
     const [isDeleteTopicModalOpen, setIsDeleteTopicModalOpen] = useState(false);
+    const [isNumberQuestionsModalOpen, setIsNumberQuestionsModalOpen] = useState(false);
 
     useEffect(() => {
-        try {
-            console.log("Firestore'dan konular çekiliyor...");
-            const konularRef = collection(db, "konular");
-            console.log("konularRef:", konularRef);
-            
-            const q = query(konularRef);  // orderBy'ı kaldırdım çünkü henüz createdAt field'ı olmayabilir
-            console.log("query:", q);
+        const konularRef = collection(db, "konular");
+        const q = query(konularRef, orderBy("createdAt", "desc"));
 
-            const unsubscribe = onSnapshot(q, (snapshot) => {
-                console.log("snapshot alındı, doküman sayısı:", snapshot.size);
-                const data = [];
-                snapshot.forEach((doc) => {
-                    console.log("doküman id:", doc.id);
-                    console.log("doküman data:", doc.data());
-                    data.push({
-                        id: doc.id,
-                        ...doc.data()
-                    });
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data = [];
+            snapshot.forEach((doc) => {
+                data.push({
+                    id: doc.id,
+                    ...doc.data()
                 });
-                console.log("işlenmiş data:", data);
-                setKonular(data);
-            }, (error) => {
-                console.error("Firestore dinleme hatası:", error);
             });
+            setKonular(data);
+        }, (error) => {
+            console.error("Konular yüklenirken hata:", error);
+            toast.error("Konular yüklenirken bir hata oluştu!");
+        });
 
-            return () => unsubscribe();
-        } catch (error) {
-            console.error("Firestore bağlantı hatası:", error);
-        }
+        return () => unsubscribe();
     }, []);
 
-    const toggleExpand = (id) => {
-        setExpanded((prev) => (prev === id ? null : id));
+    const toggleExpand = async (id) => {
+        if (expanded === id) {
+            setExpanded(null);
+            return;
+        }
+
+        try {
+            const konuRef = doc(db, "konular", id);
+            const konuDoc = await getDoc(konuRef);
+            
+            if (konuDoc.exists()) {
+                const konuData = konuDoc.data();
+                const updatedKonular = konular.map(konu => {
+                    if (konu.id === id) {
+                        return {
+                            ...konu,
+                            altkonular: konuData.altkonular || {}
+                        };
+                    }
+                    return konu;
+                });
+                setKonular(updatedKonular);
+                setExpanded(id);
+            }
+        } catch (error) {
+            console.error("Alt konular yüklenirken hata:", error);
+            toast.error("Alt konular yüklenirken bir hata oluştu!");
+        }
     };
 
     const toggleExpandAltKonu = (altKonuId) => {
@@ -244,47 +261,50 @@ function HomePage() {
             </div>
             {isTopicModalOpen && (
                 <AddTopics 
-                    closeModal={() => setIsTopicModalOpen(false)}
+                    isOpen={isTopicModalOpen}
+                    onClose={() => setIsTopicModalOpen(false)}
                 />
             )}
             {isDeleteTopicModalOpen && (
                 <DeleteTopics 
+                    isOpen={isDeleteTopicModalOpen}
+                    onClose={() => setIsDeleteTopicModalOpen(false)}
                     konular={konular}
-                    closeModal={() => setIsDeleteTopicModalOpen(false)}
                 />
             )}
             {isModelOpen && (
                 <AddSubtopics
-                    konular={konular}
-                    closeModal={() => setIsModelOpen(false)}
+                    isOpen={isModelOpen}
+                    onClose={() => setIsModelOpen(false)}
                 />
             )}
             {isDeleteModelOpen && (
                 <DeleteSubtopics
-                    konular={konular}
-                    closeModal={() => setIsDeleteModelOpen(false)}
+                    isOpen={isDeleteModelOpen}
+                    onClose={() => setIsDeleteModelOpen(false)}
                 />
             )}
             {isSubbranchModalOpen && (
                 <AddSubbranch
-                    konular={konular}
-                    closeModal={() => setIsSubbranchModalOpen(false)}
+                    isOpen={isSubbranchModalOpen}
+                    onClose={() => setIsSubbranchModalOpen(false)}
                 />
             )}
             {isDeleteSubbranchModalOpen && (
                 <DeleteSubbranch 
-                    konular={konular}
-                    closeModal={() => setIsDeleteSubbranchModalOpen(false)}
+                    isOpen={isDeleteSubbranchModalOpen}
+                    onClose={() => setIsDeleteSubbranchModalOpen(false)}
                 />
             )}
             {isUpdateModalOpen && (
                 <UpdateModal 
                     isOpen={isUpdateModalOpen}
-                    closeModal={() => setIsUpdateModalOpen(false)}
+                    onClose={() => setIsUpdateModalOpen(false)}
                     updatePath={updatePath}
                     itemType={updateType}
                 />
             )}
+            <NumberQuestions isOpen={isNumberQuestionsModalOpen} onClose={() => setIsNumberQuestionsModalOpen(false)} />
         </Layout>
     );
 }
