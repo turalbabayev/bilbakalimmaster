@@ -1,46 +1,54 @@
 import React, { useState, useEffect } from "react";
 import Layout from "../../components/layout";
 import { Link } from "react-router-dom";
-import { database } from "../../firebase";
-import { ref, onValue } from "firebase/database";
+import { db } from "../../firebase";
+import { collection, onSnapshot, query, getDocs } from "firebase/firestore";
 
 function QuestionsPage() {
     const [konular, setKonular] = useState([]);
+    const [konuIstatistikleri, setKonuIstatistikleri] = useState({});
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const konularRef = ref(database, "konular");
-        const unsubscribe = onValue(konularRef, (snapshot) => {
+        const konularRef = collection(db, "konular");
+        const unsubscribe = onSnapshot(konularRef, async (snapshot) => {
             setIsLoading(true);
-            const data = snapshot.val();
-            if (data) {
-                const formattedData = Object.keys(data).map((key) => ({
-                    id: key,
-                    ...data[key],
+            const konularData = [];
+            
+            for (const doc of snapshot.docs) {
+                const konu = {
+                    id: doc.id,
+                    ...doc.data()
+                };
+                konularData.push(konu);
+
+                // Her konu için alt konu ve soru sayılarını hesapla
+                const altkonularRef = collection(db, "konular", doc.id, "altkonular");
+                const altkonularSnap = await getDocs(altkonularRef);
+                let soruSayisi = 0;
+
+                // Alt konuların her biri için soru sayısını hesapla
+                for (const altkonuDoc of altkonularSnap.docs) {
+                    const sorularRef = collection(db, "konular", doc.id, "altkonular", altkonuDoc.id, "sorular");
+                    const sorularSnap = await getDocs(sorularRef);
+                    soruSayisi += sorularSnap.size;
+                }
+
+                setKonuIstatistikleri(prev => ({
+                    ...prev,
+                    [doc.id]: {
+                        altKonuSayisi: altkonularSnap.size,
+                        soruSayisi: soruSayisi
+                    }
                 }));
-                setKonular(formattedData);
-            } else {
-                setKonular([]);
             }
+            
+            setKonular(konularData);
             setIsLoading(false);
         });
+
         return () => unsubscribe();
     }, []);
-
-    // Alt konu ve soru sayılarını hesapla
-    const countSubtopicsAndQuestions = (konu) => {
-        const altKonular = konu.altkonular || {};
-        const altKonuSayisi = Object.keys(altKonular).length;
-        
-        let soruSayisi = 0;
-        Object.values(altKonular).forEach(altKonu => {
-            if (altKonu.sorular) {
-                soruSayisi += Object.keys(altKonu.sorular).length;
-            }
-        });
-        
-        return { altKonuSayisi, soruSayisi };
-    };
 
     return (
         <Layout>
@@ -56,7 +64,7 @@ function QuestionsPage() {
                         konular.length > 0 ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {konular.map((konu) => {
-                                    const { altKonuSayisi, soruSayisi } = countSubtopicsAndQuestions(konu);
+                                    const istatistik = konuIstatistikleri[konu.id] || { altKonuSayisi: 0, soruSayisi: 0 };
                                     return (
                                         <Link
                                             to={`/question/${konu.id}`}
@@ -72,13 +80,13 @@ function QuestionsPage() {
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                                                             <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
                                                         </svg>
-                                                        {altKonuSayisi} Alt Konu
+                                                        {istatistik.altKonuSayisi} Alt Konu
                                                     </span>
                                                     <span className="text-gray-500 dark:text-gray-400 text-sm font-medium bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full flex items-center">
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                                                             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                                                         </svg>
-                                                        {soruSayisi} Soru
+                                                        {istatistik.soruSayisi} Soru
                                                     </span>
                                                 </div>
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500 dark:text-indigo-400 group-hover:translate-x-1 transition-transform" viewBox="0 0 20 20" fill="currentColor">
