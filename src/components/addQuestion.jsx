@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { database, messaging } from "../firebase";
-import { ref, push, get } from "firebase/database";
+import { db } from "../firebase";
+import { collection, addDoc } from "firebase/firestore";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import { toast } from "react-toastify";
+import 'react-toastify/dist/ReactToastify.css';
 
 const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [selectedAltKonu, setSelectedAltKonu] = useState("");
@@ -16,6 +18,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [resimYukleniyor, setResimYukleniyor] = useState(false);
     const [zenginMetinAktif, setZenginMetinAktif] = useState(false);
     const [dogruCevapSecimi, setDogruCevapSecimi] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -55,7 +58,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
         // Resim boyutu kontrolü (5MB)
         const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
         if (file.size > MAX_FILE_SIZE) {
-            alert("Resim boyutu çok büyük! Lütfen 5MB'dan küçük bir resim seçin.");
+            toast.error("Resim boyutu çok büyük! Lütfen 5MB'dan küçük bir resim seçin.");
             return;
         }
 
@@ -70,6 +73,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
             reader.readAsDataURL(file);
         } catch (error) {
             console.error("Resim yüklenirken hata oluştu:", error);
+            toast.error("Resim yüklenirken bir hata oluştu!");
             setResimYukleniyor(false);
         }
     };
@@ -79,28 +83,18 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     };
 
     const handleAddQuestion = async () => {
-        if (
-            !selectedAltKonu ||
-            !soruMetni ||
-            cevaplar.some((c) => !c) ||
-            !dogruCevap
-        ) {
-            alert("Tüm alanları doldurmalısınız.");
+        if (!selectedAltKonu || !soruMetni || cevaplar.some((c) => !c) || !dogruCevap) {
+            toast.error("Lütfen tüm alanları doldurun!");
             return;
         }
 
-        // Mevcut soruların sayısını alıp, yeni soru numarasını belirle
-        const soruRef = ref(
-            database,
-            `konular/${currentKonuId}/altkonular/${selectedAltKonu}/sorular`
-        );
-        
+        setIsSaving(true);
+
         try {
-            const snapshot = await get(soruRef);
-            const sorular = snapshot.val() || {};
-            const soruSayisi = Object.keys(sorular).length;
-            const soruNumarasi = soruSayisi + 1;
+            // Firestore koleksiyon referansı
+            const sorularCollectionRef = collection(db, "konular", currentKonuId, "altkonular", selectedAltKonu, "sorular");
             
+            // Yeni soru objesi
             const newQuestion = {
                 soruMetni,
                 cevaplar,
@@ -109,65 +103,31 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                 liked: 0,
                 unliked: 0,
                 report: 0,
-                soruNumarasi: soruNumarasi,
+                soruNumarasi: Date.now(), // Geçici olarak timestamp kullanıyoruz, daha sonra düzenlenebilir
                 soruResmi: soruResmi || null
             };
-            
-            push(soruRef, newQuestion)
-                .then(() => {
-                    alert("Soru başarıyla eklendi.");
-                    sendNotification("Yeni soru eklendi", `Soru: ${soruMetni.replace(/<[^>]*>?/gm, '')}`);
-                    onClose();
-                    setSelectedAltKonu("");
-                    setSoruMetni("");
-                    setCevaplar(["", "", "", "", ""]);
-                    setDogruCevap("");
-                    setAciklama("");
-                    setLiked(0);
-                    setUnliked(0);
-                    setSoruResmi(null);
-                })
-                .catch((error) => {
-                    console.error("Soru eklenirken bir hata oluştu:  ", error);
-                    alert("Soru eklenirken bir hata oluştu!");
-                });
-        } catch (error) {
-            console.error("Soru sayısı alınırken hata oluştu: ", error);
-            alert("Soru eklenirken bir hata oluştu!");
-        }
-    };
-  
-    const sendNotification = async (title, body) => {
-        const messagePayload = {
-            title: title, // Backend'in beklediği parametre adı
-            body: body, // Backend'in beklediği parametre adı
-            topic: "bilbakalim", // Topic adı
-        };
-        try {
-            const response = await fetch(
-                "http://localhost:5000/send-notification",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json", // JSON formatı
-                    },
-                    body: JSON.stringify(messagePayload), // JSON olarak gönder
-                }
-            );
 
-            if (response.ok) {
-                console.log("Bildirim başarıyla gönderildi.");
-            } else {
-                console.error(
-                    "Bildirim gönderimi başarısız oldu.",
-                    await response.text()
-                );
-            }
+            // Soruyu Firestore'a ekle
+            await addDoc(sorularCollectionRef, newQuestion);
+            
+            toast.success("Soru başarıyla eklendi!");
+            
+            // Form alanlarını temizle
+            setSelectedAltKonu("");
+            setSoruMetni("");
+            setCevaplar(["", "", "", "", ""]);
+            setDogruCevap("");
+            setAciklama("");
+            setSoruResmi(null);
+            
+            // Modalı kapat
+            onClose();
+
         } catch (error) {
-            console.error(
-                "Bildirim gönderimi sırasında bir hata oluştu: ",
-                error
-            );
+            console.error("Soru eklenirken bir hata oluştu:", error);
+            toast.error("Soru eklenirken bir hata oluştu: " + error.message);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -191,7 +151,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                             <select
                                 value={selectedAltKonu}
                                 onChange={(e) => setSelectedAltKonu(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                className={`w-full px-4 py-3 rounded-xl border-2 ${!selectedAltKonu ? 'border-red-400 dark:border-red-600' : 'border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200`}
                             >
                                 <option value="">Alt konu seçin</option>
                                 {Object.entries(altKonular).map(([key, altKonu]) => (
@@ -200,6 +160,11 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                     </option>
                                 ))}
                             </select>
+                            {!selectedAltKonu && (
+                                <p className="mt-2 text-sm text-red-500 dark:text-red-400">
+                                    Lütfen bir alt konu seçin. Bu alanın doldurulması zorunludur.
+                                </p>
+                            )}
                         </div>
 
                         <div>
@@ -225,7 +190,8 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                     Cevaplar
                                 </label>
                                 <button
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                        e.preventDefault();
                                         setZenginMetinAktif(!zenginMetinAktif);
                                         if (zenginMetinAktif) {
                                             // Basit editöre geçerken HTML etiketlerini temizle
@@ -247,7 +213,10 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                     <div key={index} className="flex items-start gap-4">
                                         <div className="flex-shrink-0 pt-3">
                                             <button
-                                                onClick={() => setDogruCevap(String.fromCharCode(65 + index))}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    setDogruCevap(String.fromCharCode(65 + index));
+                                                }}
                                                 className={`w-8 h-8 flex items-center justify-center rounded-lg font-medium transition-all duration-200 ${
                                                     dogruCevap === String.fromCharCode(65 + index)
                                                         ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 ring-2 ring-green-500'
@@ -355,18 +324,30 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                     </div>
                 </div>
 
-                <div className="p-8 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex justify-end gap-4">
+                <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex justify-end gap-4">
                     <button
                         onClick={onClose}
-                        className="px-6 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 font-medium"
+                        className="px-6 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                        disabled={isSaving}
                     >
                         İptal
                     </button>
                     <button
                         onClick={handleAddQuestion}
-                        className="px-6 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 font-medium"
+                        disabled={isSaving}
+                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                     >
-                        Soru Ekle
+                        {isSaving ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Ekleniyor...
+                            </>
+                        ) : (
+                            "Soru Ekle"
+                        )}
                     </button>
                 </div>
             </div>
