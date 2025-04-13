@@ -1,152 +1,79 @@
-import React, { useState, useEffect } from "react";
-import { db } from "../firebase";
-import { doc, updateDoc, getDoc } from "firebase/firestore";
-import { toast } from "react-hot-toast";
+import React, { useState } from 'react';
+import { db } from '../firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { toast } from 'react-hot-toast';
 
-function UpdateModal({ selectedKonu, selectedAltKonu, selectedAltDal, selectedSoru, closeModal }) {
-  const [soru, setSoru] = useState("");
-  const [cevaplar, setCevaplar] = useState(["", "", "", ""]);
-  const [dogruCevap, setDogruCevap] = useState(0);
-  const [aciklama, setAciklama] = useState("");
+const UpdateModal = ({ isOpen, onClose, path, type }) => {
+    const [baslik, setBaslik] = useState('');
+    const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const loadSoru = async () => {
-      try {
-        const konuRef = doc(db, "konular", selectedKonu);
-        const konuDoc = await getDoc(konuRef);
-        
-        if (!konuDoc.exists()) {
-          toast.error("Konu bulunamadı!");
-          return;
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!baslik.trim()) {
+            toast.error('Başlık boş olamaz!');
+            return;
         }
 
-        const konuData = konuDoc.data();
-        const soruData = konuData.altkonular?.[selectedAltKonu]?.altdallar?.[selectedAltDal]?.sorular?.[selectedSoru];
-        
-        if (!soruData) {
-          toast.error("Soru bulunamadı!");
-          return;
-        }
+        setLoading(true);
+        try {
+            const docRef = doc(db, path);
+            await updateDoc(docRef, {
+                baslik: baslik,
+                updatedAt: new Date().toISOString()
+            });
 
-        setSoru(soruData.soru || "");
-        setCevaplar(soruData.cevaplar || ["", "", "", ""]);
-        setDogruCevap(soruData.dogruCevap || 0);
-        setAciklama(soruData.aciklama || "");
-      } catch (error) {
-        toast.error("Soru yüklenirken bir hata oluştu: " + error.message);
-      }
+            toast.success(`${type} başarıyla güncellendi!`);
+            setBaslik('');
+            onClose();
+        } catch (error) {
+            console.error(`${type} güncellenirken hata:`, error);
+            toast.error(`${type} güncellenirken bir hata oluştu!`);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    loadSoru();
-  }, [selectedKonu, selectedAltKonu, selectedAltDal, selectedSoru]);
+    if (!isOpen) return null;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!soru.trim()) {
-      toast.error("Soru metni boş olamaz!");
-      return;
-    }
-
-    if (cevaplar.some(cevap => !cevap.trim())) {
-      toast.error("Tüm cevap seçenekleri doldurulmalıdır!");
-      return;
-    }
-
-    try {
-      const konuRef = doc(db, "konular", selectedKonu);
-      await updateDoc(konuRef, {
-        [`altkonular.${selectedAltKonu}.altdallar.${selectedAltDal}.sorular.${selectedSoru}`]: {
-          soru: soru.trim(),
-          cevaplar: cevaplar.map(cevap => cevap.trim()),
-          dogruCevap,
-          aciklama: aciklama.trim()
-        }
-      });
-
-      closeModal();
-      toast.success("Soru başarıyla güncellendi!");
-    } catch (error) {
-      toast.error("Soru güncellenirken bir hata oluştu: " + error.message);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center overflow-y-auto">
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg max-w-2xl w-full m-4">
-        <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Soruyu Düzenle</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Soru Metni
-            </label>
-            <textarea
-              value={soru}
-              onChange={(e) => setSoru(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-              rows={4}
-            />
-          </div>
-
-          <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Cevap Seçenekleri
-            </label>
-            {cevaplar.map((cevap, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  name="dogruCevap"
-                  checked={dogruCevap === index}
-                  onChange={() => setDogruCevap(index)}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
-                />
-                <input
-                  type="text"
-                  value={cevap}
-                  onChange={(e) => {
-                    const yeniCevaplar = [...cevaplar];
-                    yeniCevaplar[index] = e.target.value;
-                    setCevaplar(yeniCevaplar);
-                  }}
-                  className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-                  placeholder={`${index + 1}. seçenek`}
-                />
-              </div>
-            ))}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Açıklama
-            </label>
-            <textarea
-              value={aciklama}
-              onChange={(e) => setAciklama(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-              rows={4}
-            />
-          </div>
-
-          <div className="flex justify-end space-x-3">
-            <button
-              type="submit"
-              className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800"
-            >
-              Güncelle
-            </button>
-            <button
-              type="button"
-              onClick={closeModal}
-              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:focus:ring-offset-gray-800"
-            >
-              İptal
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+                <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">{type} Güncelle</h2>
+                <form onSubmit={handleSubmit}>
+                    <div className="mb-4">
+                        <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
+                            Yeni Başlık
+                        </label>
+                        <input
+                            type="text"
+                            value={baslik}
+                            onChange={(e) => setBaslik(e.target.value)}
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                            placeholder="Yeni başlığı giriniz"
+                            disabled={loading}
+                        />
+                    </div>
+                    <div className="flex justify-end gap-4">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                            disabled={loading}
+                        >
+                            İptal
+                        </button>
+                        <button
+                            type="submit"
+                            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                            disabled={loading}
+                        >
+                            {loading ? 'Güncelleniyor...' : 'Güncelle'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
 
 export default UpdateModal;

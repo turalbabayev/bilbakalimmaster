@@ -25,6 +25,7 @@ function HomePage() {
     const [updatePath, setUpdatePath] = useState("");
     const [updateType, setUpdateType] = useState("");
     const [isDeleteTopicModalOpen, setIsDeleteTopicModalOpen] = useState(false);
+    const [isNumberQuestionsModalOpen, setIsNumberQuestionsModalOpen] = useState(false);
 
     useEffect(() => {
         const konularRef = collection(db, "konular");
@@ -129,6 +130,15 @@ function HomePage() {
                                 </svg>
                                 Alt Dal Sil
                             </button>
+                            <button
+                                onClick={() => setIsNumberQuestionsModalOpen(true)}
+                                className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                                </svg>
+                                Soruları Numaralandır
+                            </button>
                         </div>
                     </div>
                     
@@ -198,25 +208,20 @@ function HomePage() {
                                                     </div>
                                                     {expandedAltKonu[key] && altkonu.altdallar && (
                                                         <div className="mt-3 pl-4 space-y-2 border-l-2 border-emerald-100 dark:border-emerald-900">
-                                                            {Object.entries(altkonu.altdallar).map(
-                                                                ([subKey, altdal]) => (
-                                                                    <div key={subKey} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-2 rounded-lg">
-                                                                        <span className="text-gray-700 dark:text-gray-300 font-medium">{altdal.baslik || "Alt Dal Yok"}</span>
-                                                                        <button
-                                                                            onClick={() => openUpdateModal(
-                                                                                `konular/${konu.id}/altkonular/${key}/altdallar/${subKey}`,
-                                                                                "Alt Dal"
-                                                                            )}
-                                                                            className="text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 transition-colors flex items-center text-sm"
-                                                                        >
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                                                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                                                            </svg>
-                                                                            Güncelle
-                                                                        </button>
-                                                                    </div>
-                                                                )
-                                                            )}
+                                                            {Object.entries(altkonu.altdallar).map(([altdalKey, altdal]) => (
+                                                                <div key={altdalKey} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-2 rounded-lg">
+                                                                    <span className="text-sm text-emerald-600 dark:text-emerald-400">{altdal.baslik || "Alt Dal Yok"}</span>
+                                                                    <button
+                                                                        onClick={() => openUpdateModal(`konular/${konu.id}/altkonular/${key}/altdallar/${altdalKey}`, "Alt Dal")}
+                                                                        className="text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 transition-colors flex items-center text-sm"
+                                                                    >
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                                                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                                                        </svg>
+                                                                        Güncelle
+                                                                    </button>
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     )}
                                                 </div>
@@ -226,56 +231,22 @@ function HomePage() {
                                 </div>
                             ))
                         ) : (
-                            <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-8 text-center">
-                                <p className="text-gray-600 dark:text-gray-400">Henüz hiç konu eklenmemiş.</p>
+                            <div className="text-center text-gray-500 dark:text-gray-400">
+                                Henüz hiç konu eklenmemiş.
                             </div>
                         )}
                     </div>
                 </div>
             </div>
-            {isTopicModalOpen && (
-                <AddTopics 
-                    closeModal={() => setIsTopicModalOpen(false)}
-                />
-            )}
-            {isDeleteTopicModalOpen && (
-                <DeleteTopics 
-                    konular={Object.values(konular)}
-                    closeModal={() => setIsDeleteTopicModalOpen(false)}
-                />
-            )}
-            {isModelOpen && (
-                <AddSubtopics
-                    konular={Object.values(konular)}
-                    closeModal={() => setIsModelOpen(false)}
-                />
-            )}
-            {isDeleteModelOpen && (
-                <DeleteSubtopics
-                    konular={Object.values(konular)}
-                    closeModal={() => setIsDeleteModelOpen(false)}
-                />
-            )}
-            {isSubbranchModalOpen && (
-                <AddSubbranch
-                    konular={Object.values(konular)}
-                    closeModal={() => setIsSubbranchModalOpen(false)}
-                />
-            )}
-            {isDeleteSubbranchModalOpen && (
-                <DeleteSubbranch 
-                    konular={Object.values(konular)}
-                    closeModal={() => setIsDeleteSubbranchModalOpen(false)}
-                />
-            )}
-            {isUpdateModalOpen && (
-                <UpdateModal 
-                    isOpen={isUpdateModalOpen}
-                    closeModal={() => setIsUpdateModalOpen(false)}
-                    updatePath={updatePath}
-                    itemType={updateType}
-                />
-            )}
+
+            <AddTopics isOpen={isTopicModalOpen} onClose={() => setIsTopicModalOpen(false)} />
+            <DeleteTopics isOpen={isDeleteTopicModalOpen} onClose={() => setIsDeleteTopicModalOpen(false)} />
+            <AddSubtopics isOpen={isModelOpen} onClose={() => setIsModelOpen(false)} />
+            <DeleteSubtopics isOpen={isDeleteModelOpen} onClose={() => setIsDeleteModelOpen(false)} />
+            <AddSubbranch isOpen={isSubbranchModalOpen} onClose={() => setIsSubbranchModalOpen(false)} />
+            <DeleteSubbranch isOpen={isDeleteSubbranchModalOpen} onClose={() => setIsDeleteSubbranchModalOpen(false)} />
+            <UpdateModal isOpen={isUpdateModalOpen} onClose={() => setIsUpdateModalOpen(false)} path={updatePath} type={updateType} />
+            <NumberQuestions isOpen={isNumberQuestionsModalOpen} onClose={() => setIsNumberQuestionsModalOpen(false)} />
         </Layout>
     );
 }

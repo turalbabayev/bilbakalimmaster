@@ -1,47 +1,170 @@
-import React from "react";
-import { db } from "../firebase";
-import { doc, updateDoc } from "firebase/firestore";
-import { toast } from "react-hot-toast";
+import React, { useState, useEffect } from 'react';
+import { db } from '../firebase';
+import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { toast } from 'react-hot-toast';
 
-function DeleteSubbranch({ selectedKonu, selectedAltKonu, selectedAltDal, closeModal }) {
-  const handleDelete = async () => {
-    try {
-      const konuRef = doc(db, "konular", selectedKonu);
-      await updateDoc(konuRef, {
-        [`altkonular.${selectedAltKonu}.altdallar.${selectedAltDal}`]: null
-      });
-      
-      closeModal();
-      toast.success("Alt dal başarıyla silindi!");
-    } catch (error) {
-      toast.error("Alt dal silinirken bir hata oluştu: " + error.message);
-    }
-  };
+const DeleteSubbranch = ({ isOpen, onClose }) => {
+    const [konular, setKonular] = useState([]);
+    const [selectedKonu, setSelectedKonu] = useState('');
+    const [selectedAltKonu, setSelectedAltKonu] = useState('');
+    const [selectedAltDal, setSelectedAltDal] = useState('');
+    const [loading, setLoading] = useState(false);
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg max-w-md w-full">
-        <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Alt Dalı Sil</h3>
-        <p className="mb-4 text-gray-700 dark:text-gray-300">
-          Bu alt dalı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
-        </p>
-        <div className="flex justify-end space-x-3">
-          <button
-            onClick={handleDelete}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-offset-gray-800"
-          >
-            Sil
-          </button>
-          <button
-            onClick={closeModal}
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:focus:ring-offset-gray-800"
-          >
-            İptal
-          </button>
+    useEffect(() => {
+        const fetchKonular = async () => {
+            try {
+                const konularSnapshot = await getDocs(collection(db, 'konular'));
+                const konularData = konularSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setKonular(konularData);
+            } catch (error) {
+                console.error('Konular yüklenirken hata:', error);
+                toast.error('Konular yüklenirken bir hata oluştu!');
+            }
+        };
+
+        if (isOpen) {
+            fetchKonular();
+            setSelectedKonu('');
+            setSelectedAltKonu('');
+            setSelectedAltDal('');
+        }
+    }, [isOpen]);
+
+    const handleDelete = async () => {
+        if (!selectedKonu || !selectedAltKonu || !selectedAltDal) {
+            toast.error('Lütfen bir konu, alt konu ve alt dal seçin!');
+            return;
+        }
+
+        if (!window.confirm('Bu alt dalı silmek istediğinizden emin misiniz?')) {
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const konuRef = doc(db, 'konular', selectedKonu);
+            const selectedKonuData = konular.find(k => k.id === selectedKonu);
+            const altKonuData = selectedKonuData.altkonular[selectedAltKonu];
+            
+            const updatedAltdallar = { ...altKonuData.altdallar };
+            delete updatedAltdallar[selectedAltDal];
+            
+            const updatedAltKonu = {
+                ...altKonuData,
+                altdallar: updatedAltdallar
+            };
+
+            await updateDoc(konuRef, {
+                [`altkonular.${selectedAltKonu}`]: updatedAltKonu
+            });
+
+            toast.success('Alt dal başarıyla silindi!');
+            setSelectedAltDal('');
+            onClose();
+        } catch (error) {
+            console.error('Alt dal silinirken hata:', error);
+            toast.error('Alt dal silinirken bir hata oluştu!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const selectedKonuData = konular.find(k => k.id === selectedKonu);
+    const altKonular = selectedKonuData?.altkonular || {};
+    const selectedAltKonuData = altKonular[selectedAltKonu];
+    const altDallar = selectedAltKonuData?.altdallar || {};
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+                <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Alt Dal Sil</h2>
+                <div className="mb-4">
+                    <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
+                        Ana Konu
+                    </label>
+                    <select
+                        value={selectedKonu}
+                        onChange={(e) => {
+                            setSelectedKonu(e.target.value);
+                            setSelectedAltKonu('');
+                            setSelectedAltDal('');
+                        }}
+                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        disabled={loading}
+                    >
+                        <option value="">Konu seçin</option>
+                        {konular.map((konu) => (
+                            <option key={konu.id} value={konu.id}>
+                                {konu.baslik}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div className="mb-4">
+                    <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
+                        Alt Konu
+                    </label>
+                    <select
+                        value={selectedAltKonu}
+                        onChange={(e) => {
+                            setSelectedAltKonu(e.target.value);
+                            setSelectedAltDal('');
+                        }}
+                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        disabled={!selectedKonu || loading}
+                    >
+                        <option value="">Alt konu seçin</option>
+                        {Object.entries(altKonular).map(([id, altkonu]) => (
+                            <option key={id} value={id}>
+                                {altkonu.baslik}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div className="mb-4">
+                    <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
+                        Alt Dal
+                    </label>
+                    <select
+                        value={selectedAltDal}
+                        onChange={(e) => setSelectedAltDal(e.target.value)}
+                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        disabled={!selectedKonu || !selectedAltKonu || loading}
+                    >
+                        <option value="">Alt dal seçin</option>
+                        {Object.entries(altDallar).map(([id, altdal]) => (
+                            <option key={id} value={id}>
+                                {altdal.baslik}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div className="flex justify-end gap-4">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                        disabled={loading}
+                    >
+                        İptal
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleDelete}
+                        className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                        disabled={!selectedKonu || !selectedAltKonu || !selectedAltDal || loading}
+                    >
+                        {loading ? 'Siliniyor...' : 'Sil'}
+                    </button>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
-}
+    );
+};
 
 export default DeleteSubbranch;

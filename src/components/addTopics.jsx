@@ -1,55 +1,79 @@
-import React, { useState } from "react";
-import { db } from "../firebase";
-import { collection, addDoc } from "firebase/firestore";
-import { toast } from "react-hot-toast";
+import React, { useState } from 'react';
+import { db } from '../firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { toast } from 'react-hot-toast';
 
-function AddTopics() {
-  const [baslik, setBaslik] = useState("");
+const AddTopics = ({ isOpen, onClose }) => {
+    const [baslik, setBaslik] = useState('');
+    const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!baslik.trim()) {
-      toast.error("Başlık boş olamaz!");
-      return;
-    }
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!baslik.trim()) {
+            toast.error('Konu başlığı boş olamaz!');
+            return;
+        }
 
-    try {
-      await addDoc(collection(db, "konular"), {
-        baslik: baslik.trim()
-      });
-      
-      setBaslik("");
-      toast.success("Konu başarıyla eklendi!");
-    } catch (error) {
-      toast.error("Konu eklenirken bir hata oluştu: " + error.message);
-    }
-  };
+        setLoading(true);
+        try {
+            const konuRef = doc(db, 'konular', baslik.toLowerCase().replace(/\s+/g, '-'));
+            await setDoc(konuRef, {
+                baslik: baslik,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            });
+            toast.success('Konu başarıyla eklendi!');
+            setBaslik('');
+            onClose();
+        } catch (error) {
+            console.error('Konu eklenirken hata:', error);
+            toast.error('Konu eklenirken bir hata oluştu!');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  return (
-    <div className="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden md:max-w-2xl p-6">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="baslik" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Konu Başlığı
-          </label>
-          <input
-            type="text"
-            id="baslik"
-            value={baslik}
-            onChange={(e) => setBaslik(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-            placeholder="Konu başlığını giriniz"
-          />
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+                <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Yeni Konu Ekle</h2>
+                <form onSubmit={handleSubmit}>
+                    <div className="mb-4">
+                        <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
+                            Konu Başlığı
+                        </label>
+                        <input
+                            type="text"
+                            value={baslik}
+                            onChange={(e) => setBaslik(e.target.value)}
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                            placeholder="Konu başlığını giriniz"
+                            disabled={loading}
+                        />
+                    </div>
+                    <div className="flex justify-end gap-4">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                            disabled={loading}
+                        >
+                            İptal
+                        </button>
+                        <button
+                            type="submit"
+                            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                            disabled={loading}
+                        >
+                            {loading ? 'Ekleniyor...' : 'Ekle'}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
-        <button
-          type="submit"
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800"
-        >
-          Konu Ekle
-        </button>
-      </form>
-    </div>
-  );
-}
+    );
+};
 
 export default AddTopics;
