@@ -767,6 +767,15 @@ function QuestionContent() {
                         onSoruGuncelle={handleSoruDogruCevapGuncelle}
                         onGuncellemeSuccess={refreshQuestions}
                         onDeleteClick={handleDeleteSoru}
+                        soru={altKonular[expandedAltKonu]?.sorular?.[selectedSoruRef.split('/').pop()]}
+                        selectedSoru={altKonular[expandedAltKonu]?.sorular?.[selectedSoruRef.split('/').pop()]}
+                        closeModal={() => {
+                            setIsUpdateModalOpen(false);
+                            setSelectedSoruRef(null);
+                            refreshQuestions();
+                        }}
+                        updatePath={selectedSoruRef}
+                        itemType="Soru"
                     />
                 </>
             )}
