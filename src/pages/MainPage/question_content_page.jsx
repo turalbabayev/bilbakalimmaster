@@ -749,6 +749,17 @@ function QuestionContent() {
                         soruId={selectedSoruRef.split('/').pop()}
                         onUpdateComplete={handleUpdateComplete}
                     />
+                    <ChangeQuestionOrder
+                        isOpen={isOrderModalOpen}
+                        onClose={() => {
+                            setIsOrderModalOpen(false);
+                            setSelectedSoruRef(null);
+                            refreshQuestions();
+                        }}
+                        soruRefPath={selectedSoruRef}
+                        konuId={id}
+                        altKonuId={expandedAltKonu}
+                    />
                 </>
             )}
             {selectedAltKonuId && (
