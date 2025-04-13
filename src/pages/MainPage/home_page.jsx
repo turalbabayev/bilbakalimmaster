@@ -13,7 +13,7 @@ import UpdateModal from "../../components/updateModal";
 import NumberQuestions from "../../components/numberQuestions";
 
 function HomePage() {
-    const [konular, setKonular] = useState({});
+    const [konular, setKonular] = useState([]);
     const [expanded, setExpanded] = useState(null);
     const [expandedAltKonu, setExpandedAltKonu] = useState({});
     const [isModelOpen, setIsModelOpen] = useState(false);
