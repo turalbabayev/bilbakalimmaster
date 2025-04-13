@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Layout from "../../components/layout";
-import { db } from "../../firebase";
+import { database, db } from "../../firebase";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import AddTopics from "../../components/addTopics";
 import DeleteTopics from "../../components/deleteTopics";
@@ -26,21 +26,35 @@ function HomePage() {
     const [isDeleteTopicModalOpen, setIsDeleteTopicModalOpen] = useState(false);
 
     useEffect(() => {
-        const konularRef = collection(db, "konular");
-        const q = query(konularRef, orderBy("createdAt", "desc"));
+        try {
+            console.log("Firestore'dan konular çekiliyor...");
+            const konularRef = collection(db, "konular");
+            console.log("konularRef:", konularRef);
+            
+            const q = query(konularRef);  // orderBy'ı kaldırdım çünkü henüz createdAt field'ı olmayabilir
+            console.log("query:", q);
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = [];
-            snapshot.forEach((doc) => {
-                data.push({
-                    id: doc.id,
-                    ...doc.data()
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                console.log("snapshot alındı, doküman sayısı:", snapshot.size);
+                const data = [];
+                snapshot.forEach((doc) => {
+                    console.log("doküman id:", doc.id);
+                    console.log("doküman data:", doc.data());
+                    data.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
                 });
+                console.log("işlenmiş data:", data);
+                setKonular(data);
+            }, (error) => {
+                console.error("Firestore dinleme hatası:", error);
             });
-            setKonular(data);
-        });
 
-        return () => unsubscribe();
+            return () => unsubscribe();
+        } catch (error) {
+            console.error("Firestore bağlantı hatası:", error);
+        }
     }, []);
 
     const toggleExpand = (id) => {
