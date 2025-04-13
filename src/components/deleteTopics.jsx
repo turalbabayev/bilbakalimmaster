@@ -1,38 +1,50 @@
 import React, { useState } from "react";
-import { database } from "../firebase";
-import { ref, remove } from "firebase/database";
+import { db } from "../firebase";
+import { doc, deleteDoc } from "firebase/firestore";
+import { toast } from "react-hot-toast";
 
 const DeleteTopics = ({ konular, closeModal }) => {
     const [selectedTopic, setSelectedTopic] = useState("");
+    const [loading, setLoading] = useState(false);
 
-    const handleDeleteTopic = () => {
+    const handleDeleteTopic = async () => {
         if (!selectedTopic) {
-            alert("Silmek için bir konu seçmelisiniz!");
+            toast.error("Silmek için bir konu seçmelisiniz!");
             return;
         }
-        const topicRef = ref(database, `konular/${selectedTopic}`);
-        remove(topicRef)
-            .then(() => {
-                alert("Konu başarıyla silindi.");
-                closeModal();
-            })
-            .catch((error) => {
-                console.error("Konu silme hatası:", error);
-                alert("Konu silinirken bir hata oluştu!");
-            });
+
+        if (!window.confirm("Bu konuyu silmek istediğinizden emin misiniz?")) {
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const docRef = doc(db, "konular", selectedTopic);
+            await deleteDoc(docRef);
+            toast.success("Konu başarıyla silindi.");
+            closeModal();
+        } catch (error) {
+            console.error("Konu silme hatası:", error);
+            toast.error("Konu silinirken bir hata oluştu!");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white rounded-lg p-6 shadow-lg max-w-md w-full">
-                <h3 className="text-xl font-semibold mb-4">Konu Sil</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg max-w-md w-full">
+                <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Konu Sil</h3>
                 <div className="mb-4">
-                    <label htmlFor="topic" className="block text-gray-700 mb-2">Konu Seçin</label>
+                    <label htmlFor="topic" className="block text-gray-700 dark:text-gray-300 mb-2">
+                        Konu Seçin
+                    </label>
                     <select 
                         id="topic"
                         value={selectedTopic}
                         onChange={(e) => setSelectedTopic(e.target.value)}
-                        className="w-full p-2 border rounded"
+                        className="w-full p-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        disabled={loading}
                     >
                         <option value="">Konu Seçin</option>
                         {konular.map((konu) => (
@@ -42,16 +54,18 @@ const DeleteTopics = ({ konular, closeModal }) => {
                         ))}
                     </select>
                 </div>
-                <div className="flex justify-end">
+                <div className="flex justify-end space-x-2">
                     <button
                         onClick={handleDeleteTopic}
-                        className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 mr-2"
+                        disabled={loading}
+                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Sil
+                        {loading ? "Siliniyor..." : "Sil"}
                     </button>
                     <button
                         onClick={closeModal}
-                        className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                        disabled={loading}
+                        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Kapat
                     </button>
