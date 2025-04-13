@@ -11,16 +11,24 @@ export const AuthProvider = ({ children }) => {
         const unsubscribe = auth.onAuthStateChanged((user) => {
             setUser(user);
             setLoading(false);
+        }, (error) => {
+            console.error("Auth state değişikliği hatası:", error);
+            setLoading(false);
         });
-        return unsubscribe;
+
+        return () => unsubscribe();
     }, []);
 
     if (loading) {
-        return <div>Loading...</div>;
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-100">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+            </div>
+        );
     }
 
     return (
-        <AuthContext.Provider value={{ user }}>
+        <AuthContext.Provider value={{ user, loading }}>
             {children}
         </AuthContext.Provider>
     );
