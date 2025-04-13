@@ -1,105 +1,69 @@
 import React, { useState } from "react";
-import { database } from "../firebase";
-import { ref, remove, get, update } from "firebase/database";
+import { db } from "../firebase";
+import { doc, deleteDoc, collection, getDocs, updateDoc, query, where, orderBy } from "firebase/firestore";
+import { toast } from "react-toastify";
+import 'react-toastify/dist/ReactToastify.css';
 
 const DeleteQuestion = ({ soruRef, onDelete }) => {
     const [isDeleting, setIsDeleting] = useState(false);
 
     const handleDelete = async () => {
-        if (window.confirm("Bu soruyu silmek istediğinize emin misiniz?")) {
-            setIsDeleting(true);
-            try {
-                // Silinecek sorunun verilerini al
-                const soruSnapshot = await get(ref(database, soruRef));
-                if (!soruSnapshot.exists()) {
-                    alert("Soru bulunamadı!");
-                    setIsDeleting(false);
-                    return;
+        if (!window.confirm("Bu soruyu silmek istediğinize emin misiniz?")) {
+            return;
+        }
+
+        setIsDeleting(true);
+
+        try {
+            // soruRef'ten path bilgilerini al
+            const [, , konuId, , altKonuId, , soruId] = soruRef.split('/');
+            
+            // Firestore referansları
+            const soruDocRef = doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soruId);
+            const sorularCollectionRef = collection(db, "konular", konuId, "altkonular", altKonuId, "sorular");
+
+            // Tüm soruları sıralı şekilde al
+            const q = query(sorularCollectionRef, orderBy("soruNumarasi", "asc"));
+            const querySnapshot = await getDocs(q);
+            
+            // Silinecek sorunun numarasını bul
+            let silinecekSoruNumarasi = null;
+            let sorular = [];
+            
+            querySnapshot.forEach((doc) => {
+                const soru = { id: doc.id, ...doc.data() };
+                sorular.push(soru);
+                if (doc.id === soruId) {
+                    silinecekSoruNumarasi = soru.soruNumarasi;
                 }
-                
-                const silinecekSoru = soruSnapshot.val();
-                const silinecekSoruNumarasi = silinecekSoru?.soruNumarasi;
-                
-                console.log("Silinecek soru:", soruRef);
-                console.log("Silinecek soru numarası:", silinecekSoruNumarasi);
+            });
 
-                if (!silinecekSoruNumarasi) {
-                    // Soru numarası yoksa sadece sil
-                    await remove(ref(database, soruRef));
-                    alert("Bu soru başarıyla silindi.");
-                    onDelete();
-                    return;
-                }
+            // Soruyu sil
+            await deleteDoc(soruDocRef);
 
-                // Sorunun bulunduğu koleksiyonu belirle (ana yolu)
-                const pathParts = soruRef.split('/');
-                const soruId = pathParts.pop(); // Son elemanı (soru ID) çıkar
-                const sorularYolu = pathParts.join('/'); // Sorular koleksiyonunun yolu
-                
-                console.log("Sorular yolu:", sorularYolu);
-
-                // Tüm soruları al
-                const sorularSnapshot = await get(ref(database, sorularYolu));
-                if (!sorularSnapshot.exists()) {
-                    console.log("Sorular koleksiyonu bulunamadı");
-                    await remove(ref(database, soruRef));
-                    alert("Bu soru başarıyla silindi.");
-                    onDelete();
-                    return;
-                }
-                
-                const sorular = sorularSnapshot.val() || {};
-                console.log("Mevcut sorular:", Object.keys(sorular).length);
-
-                // Soruyu sil
-                await remove(ref(database, soruRef));
-                console.log("Soru silindi:", soruRef);
-                
-                // Diğer soruların numaralarını güncelle
-                const updates = {};
-                let güncellenenSoruSayisi = 0;
-                
-                Object.entries(sorular).forEach(([key, soru]) => {
-                    // Silinecek ID'yi atla
-                    if (key === soruId) {
-                        console.log("Silinen soru atlandı:", key);
-                        return;
-                    }
-                    
-                    // Soru numarası kontrolü
-                    if (!soru.soruNumarasi && soru.soruNumarasi !== 0) {
-                        console.log("Soru numarası olmayan soru:", key);
-                        return;
-                    }
-                    
-                    // Sadece silinen sorudan yüksek numaralı soruları güncelle
-                    if (soru.soruNumarasi > silinecekSoruNumarasi) {
-                        const yeniNumara = soru.soruNumarasi - 1;
-                        updates[`${sorularYolu}/${key}/soruNumarasi`] = yeniNumara;
-                        console.log(`Soru ${key} numarası güncelleniyor: ${soru.soruNumarasi} -> ${yeniNumara}`);
-                        güncellenenSoruSayisi++;
-                    }
+            // Diğer soruların numaralarını güncelle
+            const updatePromises = sorular
+                .filter(soru => soru.id !== soruId && soru.soruNumarasi > silinecekSoruNumarasi)
+                .map(soru => {
+                    const soruRef = doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soru.id);
+                    return updateDoc(soruRef, {
+                        soruNumarasi: soru.soruNumarasi - 1
+                    });
                 });
 
-                console.log("Güncellenecek soru sayısı:", güncellenenSoruSayisi);
-                console.log("Updates nesnesi:", updates);
-
-                // Numaraları güncelle (eğer güncellenecek soru varsa)
-                if (Object.keys(updates).length > 0) {
-                    await update(ref(database), updates);
-                    console.log("Sorular güncellendi");
-                } else {
-                    console.log("Güncellenecek soru bulunamadı");
-                }
-
-                alert("Bu soru başarıyla silindi ve numaralar yeniden düzenlendi.");
-                onDelete();
-            } catch (error) {
-                console.error("Soru silinirken bir hata oluştu:", error);
-                alert("Soru silinirken bir hata oluştu: " + error.message);
-            } finally {
-                setIsDeleting(false);
+            // Tüm güncellemeleri bekle
+            if (updatePromises.length > 0) {
+                await Promise.all(updatePromises);
             }
+
+            toast.success("Soru başarıyla silindi ve numaralar yeniden düzenlendi.");
+            onDelete();
+
+        } catch (error) {
+            console.error("Soru silinirken bir hata oluştu:", error);
+            toast.error("Soru silinirken bir hata oluştu: " + error.message);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
