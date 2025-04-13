@@ -495,7 +495,7 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
             // Kullanıcıya silme işlemini onaylatma
             const soruMetniOzet = stripHtml(soru.soruMetni || '').substring(0, 50);
             if (!window.confirm(`"${soruMetniOzet}..." sorusunu silmek istediğinize emin misiniz?`)) {
-                return; // Kullanıcı iptal ettiyse işlemi sonlandır
+                return;
             }
 
             console.log('Soru silme başladı:', {
@@ -506,31 +506,61 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
             });
 
             // Sorunun Firestore'daki yolunu belirle
-            let soruPath;
-            if (altDalId) {
+            let soruPath = `konular/${konuId}/altkonular/${altKonuId}/sorular/${soru.id}`;
+
+            // Eğer soru bir alt dalda ise ve altDalId geçerliyse, yolu güncelle
+            if (altDalId && soru.altDalId) {
                 soruPath = `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/sorular/${soru.id}`;
-            } else {
-                soruPath = `konular/${konuId}/altkonular/${altKonuId}/sorular/${soru.id}`;
             }
 
             console.log('Silinecek sorunun yolu:', soruPath);
             
             const soruRef = doc(db, soruPath);
             
-            // Firestore'dan soruyu sil
-            await deleteDoc(soruRef);
-            
-            console.log('Soru başarıyla silindi');
-            toast.success('Soru başarıyla silindi!');
-            
-            // Sonuçlardan soruyu kaldır
-            setSonuclar(prevSonuclar => 
-                prevSonuclar.filter(sonuc => sonuc.soru.id !== soru.id)
-            );
+            // Önce sorunun var olup olmadığını kontrol et
+            try {
+                // Soruyu sil
+                await deleteDoc(soruRef);
+                console.log('Soru Firestore\'dan başarıyla silindi');
+                toast.success('Soru başarıyla silindi!');
+                
+                // UI güncellemeleri
+                setSonuclar(prevSonuclar => 
+                    prevSonuclar.filter(sonuc => sonuc.soru.id !== soru.id)
+                );
 
-            // Parent componente bildir
-            if (onDeleteClick) {
-                onDeleteClick(soru);
+                // Parent componente bildir
+                if (onDeleteClick) {
+                    onDeleteClick(soru);
+                }
+
+                // Seçili sorulardan kaldır
+                setSeciliSorular(prev => prev.filter(id => id !== soru.id));
+
+            } catch (error) {
+                console.error('Soru silinirken Firestore hatası:', error);
+                // Alternatif yolu dene
+                const alternatifYol = altDalId ? 
+                    `konular/${konuId}/altkonular/${altKonuId}/sorular/${soru.id}` :
+                    `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altKonuId}/sorular/${soru.id}`;
+                
+                console.log('Alternatif yol deneniyor:', alternatifYol);
+                const alternatifRef = doc(db, alternatifYol);
+                
+                await deleteDoc(alternatifRef);
+                console.log('Soru alternatif yoldan başarıyla silindi');
+                toast.success('Soru başarıyla silindi!');
+                
+                // UI güncellemeleri
+                setSonuclar(prevSonuclar => 
+                    prevSonuclar.filter(sonuc => sonuc.soru.id !== soru.id)
+                );
+
+                if (onDeleteClick) {
+                    onDeleteClick(soru);
+                }
+
+                setSeciliSorular(prev => prev.filter(id => id !== soru.id));
             }
 
         } catch (error) {
