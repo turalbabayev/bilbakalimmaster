@@ -290,10 +290,14 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
                         thematicBreak: true,
                     }),
                     
+                    // Sıralı sonuçları oluştur
                     ...sonuclar.flatMap((sonuc, index) => {
+                        // Sorunun gerçek sıra numarasını bul
+                        const soruSiraNo = sorular.findIndex(s => s.id === sonuc.soru.id) + 1;
+                        
                         return [
                             new Paragraph({
-                                text: `SORU ${index + 1}`,
+                                text: `SORU ${soruSiraNo}`,
                                 heading: HeadingLevel.HEADING_2,
                                 thematicBreak: true,
                                 spacing: {
