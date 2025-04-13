@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { database } from "../firebase";
-import { ref, get, set, remove } from "firebase/database";
+import { db } from "../firebase";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { toast } from "react-toastify";
@@ -50,176 +50,39 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
     };
 
     useEffect(() => {
-        if (isOpen) {
-            setModalKey(prev => prev + 1);
-        }
-    }, [isOpen]);
+        const loadSoru = async () => {
+            if (!isOpen || !konuId || !altKonuId || !soruId) return;
 
-    useEffect(() => {
-        const fetchData = async () => {
             try {
-                console.log("Modal açıldı, veri yükleme başlıyor:", { konuId, altKonuId, soruId, isOpen });
-                
-                if (!konuId || !altKonuId || !soruId) {
-                    console.error("Eksik parametreler:", { konuId, altKonuId, soruId });
-                    alert("Soru güncelleme için gerekli parametreler eksik!");
-                    setLoading(false);
-                    onClose();
-                    return;
-                }
-                
-                // State'i sıfırla
-                setSoru(null);
-                setCevaplar(["", "", "", "", ""]);
-                setDogruCevap("");
-                setSelectedAltKonu("");
-                setMevcutSoruNumarasi(null);
-                
-                // Önce veri tabanı referanslarını oluştur
-                const konularRef = ref(database, `konular/${konuId}`);
-                const soruRef = ref(database, `konular/${konuId}/altkonular/${altKonuId}/sorular/${soruId}`);
-                
-                // Promise.all ile tüm verileri paralel olarak yükle
-                const [konularSnapshot, soruSnapshot] = await Promise.all([
-                    get(konularRef),
-                    get(soruRef)
-                ]);
-                
-                // Konu kontrolü
-                if (!konularSnapshot.exists()) {
-                    console.error("Konu bulunamadı:", konuId);
-                    alert("Belirtilen konu bulunamadı! Modal kapatılacak.");
-                    setLoading(false);
-                    onClose();
-                    return;
-                }
-                
-                // Alt konular varsa yükle
-                const altKonularData = konularSnapshot.val().altkonular || {};
-                setAltKonular(altKonularData);
-                
-                // Soru kontrolü
-                if (!soruSnapshot.exists()) {
+                setLoading(true);
+                // Firestore'dan soruyu al
+                const soruRef = doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soruId);
+                const soruSnap = await getDoc(soruRef);
+
+                if (!soruSnap.exists()) {
                     console.error("Soru bulunamadı:", { konuId, altKonuId, soruId });
-                    // Alert kaldırıldı
                     setLoading(false);
                     onClose();
                     return;
                 }
-                
-                // Soru verilerini yükle
-                const soruData = soruSnapshot.val();
-                console.log("Soru verisi başarıyla yüklendi:", soruData);
-                
-                // Soru temel verilerini doğrula
-                if (!soruData) {
-                    console.error("Soru verisi boş:", { konuId, altKonuId, soruId });
-                    // Alert kaldırıldı
-                    setLoading(false);
-                    onClose();
-                    return;
-                }
-                
-                // State'leri güvenli bir şekilde güncelle
+
+                const soruData = soruSnap.data();
                 setSoru(soruData);
-                
-                // Cevapları güvenli bir şekilde ayarla (undefined veya eksik değerler olabilir)
-                const cevaplarData = Array.isArray(soruData.cevaplar) ? 
-                    soruData.cevaplar : 
-                    ["", "", "", "", ""];
-                    
-                // Array uzunluğunu 5'e tamamla (eksik elementler varsa)
-                const normalizedCevaplar = [...cevaplarData];
-                while (normalizedCevaplar.length < 5) {
-                    normalizedCevaplar.push("");
-                }
-                
-                setCevaplar(normalizedCevaplar);
-                
-                // Alt konu seçimini güncelle
+                setCevaplar(soruData.cevaplar || ["", "", "", "", ""]);
+                setDogruCevap(soruData.dogruCevap || "");
                 setSelectedAltKonu(altKonuId);
-                
-                // Doğru cevap şıkkını güvenli bir şekilde belirle
-                if (soruData.dogruCevap) {
-                    // Eğer dogruCevap zaten bir harf ise (A, B, C, D, E), direkt kullan
-                    if (/^[A-E]$/.test(soruData.dogruCevap)) {
-                        setDogruCevap(soruData.dogruCevap);
-                        console.log("Doğru cevap harfi bulundu:", soruData.dogruCevap);
-                    } 
-                    // Eski sistemden gelen veri yapısı (cevabın kendisi)
-                    else if (Array.isArray(soruData.cevaplar)) {
-                        // Cevaplar içerisinde doğru cevabı ara
-                        const index = soruData.cevaplar.findIndex(cevap => 
-                            cevap === soruData.dogruCevap && cevap !== "" && cevap !== null && cevap !== undefined
-                        );
-                        
-                        if (index !== -1) {
-                            // Bulunan index'e göre harf belirle (A, B, C, D, E)
-                            const dogruCevapHarfi = String.fromCharCode(65 + index);
-                            setDogruCevap(dogruCevapHarfi);
-                            console.log("Doğru cevap hesaplandı:", dogruCevapHarfi, "index:", index);
-                        } else {
-                            console.warn("Doğru cevap array içinde bulunamadı, varsayılan 'A' ayarlanıyor");
-                            setDogruCevap("A");
-                        }
-                    } else {
-                        console.warn("Doğru cevap için geçerli bir değer bulunamadı, varsayılan 'A' ayarlanıyor");
-                        setDogruCevap("A");
-                    }
-                } else {
-                    console.warn("dogruCevap alanı eksik, varsayılan 'A' ayarlanıyor");
-                    setDogruCevap("A");
-                }
-                
-                // Soru numarasını ayarla (null olabilir)
-                setMevcutSoruNumarasi(soruData.soruNumarasi || null);
-                
-                // Yükleme tamamlandı
-                setLoading(false);
-                console.log("Veri yükleme işlemi başarıyla tamamlandı");
-                
+                setMevcutSoruNumarasi(soruData.soruNumarasi);
+
             } catch (error) {
-                console.error("Veri yüklenirken kritik bir hata oluştu:", error);
-                console.error("Hata sırasındaki parametreler:", { konuId, altKonuId, soruId });
-                alert("Veri yüklenirken bir hata oluştu! Modal kapatılacak.");
-                
-                // Hatadan sonra state'i temizle
-                setSoru(null);
-                setCevaplar(["", "", "", "", ""]);
-                setDogruCevap("");
-                setSelectedAltKonu("");
-                setMevcutSoruNumarasi(null);
-                
-                // Loading'i kapat ve modal'ı kapat
+                console.error("Soru yüklenirken hata:", error);
+                toast.error("Soru yüklenirken bir hata oluştu");
+            } finally {
                 setLoading(false);
-                setTimeout(() => {
-                    onClose();
-                }, 100);
             }
         };
 
-        if (isOpen) {
-            // State'i sıfırla ve loading'i başlat
-            setLoading(true);
-            
-            // Veri yükleme işlemini başlat
-            fetchData();
-        }
-        
-        // Cleanup fonksiyonu
-        return () => {
-            // Modal kapandığında state'i temizle
-            if (!isOpen) {
-                setSoru(null);
-                setCevaplar(["", "", "", "", ""]);
-                setDogruCevap("");
-                setSelectedAltKonu("");
-                setMevcutSoruNumarasi(null);
-                setLoading(false);
-                console.log("Modal kapandı, state temizlendi");
-            }
-        };
-    }, [isOpen, konuId, altKonuId, soruId, onClose, modalKey]);
+        loadSoru();
+    }, [isOpen, konuId, altKonuId, soruId]);
 
     const handleResimYukle = async (e) => {
         const file = e.target.files[0];
@@ -258,122 +121,39 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
         if (!soru) {
             console.error("Güncellenecek soru bulunamadı!");
             setIsSaving(false);
-                return;
-            }
-
-        // Alt konu seçimi kontrolü ekle
-            if (!selectedAltKonu) {
-            alert("Lütfen bir alt konu seçin!");
-            setIsSaving(false);
-                return;
+            return;
         }
 
-        // Güncellenecek soru için bir kopyasını sakla (loading durumunda state sıfırlanabiliyor)
-        const guncellenecekSoru = {...soru};
-        const guncellenecekCevaplar = [...cevaplar];
-        const guncellenecekDogruCevap = dogruCevap;
-        const guncellenecekAltKonu = selectedAltKonu;
-        const suAnkiKonuId = konuId;
-        const suAnkiAltKonuId = altKonuId;
-        const suAnkiSoruId = soruId;
-        
         try {
-            console.log("=== Güncelleme Başlangıç ===");
-            console.log("Güncellenecek soru:", guncellenecekSoru);
-            console.log("Cevaplar:", guncellenecekCevaplar);
-            console.log("Doğru cevap şıkkı:", guncellenecekDogruCevap);
-            console.log("Seçili alt konu:", guncellenecekAltKonu);
-
-            // Doğru cevap kontrolü
-            if (!guncellenecekDogruCevap) {
-                console.error("Doğru cevap seçilmemiş!");
-                setIsSaving(false);
-                throw new Error("Lütfen doğru cevabı seçin!");
-            }
-
-            // Önce yeni konumdaki soruların numaralarını kontrol et
-            const yeniKonumSorularRef = ref(database, `konular/${suAnkiKonuId}/altkonular/${guncellenecekAltKonu}/sorular`);
-            const yeniKonumSnapshot = await get(yeniKonumSorularRef);
-            const yeniKonumSorular = yeniKonumSnapshot.val() || {};
+            // Firestore'da soruyu güncelle
+            const soruRef = doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soruId);
             
-            // Mevcut soru numaralarını ve maksimum soru numarasını bul
-            const mevcutSoruNumaralari = Object.values(yeniKonumSorular).map(s => s.soruNumarasi || 0);
-            const maksimumSoruNumarasi = mevcutSoruNumaralari.length > 0 ? Math.max(...mevcutSoruNumaralari) : 0;
-            
-            // Mevcut soru numarası yoksa veya başka bir alt konuya taşınıyorsa, yeni numara ata
-            let kullanilacakSoruNumarasi = mevcutSoruNumarasi;
-            if (!kullanilacakSoruNumarasi || suAnkiAltKonuId !== guncellenecekAltKonu) {
-                kullanilacakSoruNumarasi = maksimumSoruNumarasi + 1;
-                console.log("Yeni soru numarası atandı:", kullanilacakSoruNumarasi);
-            }
-
-            const timestamp = Date.now();
-            const newPath = `konular/${suAnkiKonuId}/altkonular/${guncellenecekAltKonu}/sorular/${suAnkiSoruId}_${timestamp}`;
-            console.log("Yeni yol:", newPath);
-            
-            // Yeni konuma soruyu ekle
-        const newSoruRef = ref(database, newPath);
             const updatedSoru = {
-                soruMetni: guncellenecekSoru.soruMetni,
-                cevaplar: guncellenecekCevaplar,
-                dogruCevap: guncellenecekDogruCevap, // Artık doğru cevap şıkkı olarak saklanıyor
-                aciklama: guncellenecekSoru.aciklama,
-                report: guncellenecekSoru.report || 0,
-                liked: guncellenecekSoru.liked || 0,
-                unliked: guncellenecekSoru.unliked || 0,
-                soruNumarasi: kullanilacakSoruNumarasi,
-                soruResmi: guncellenecekSoru.soruResmi || null
+                soruMetni: soru.soruMetni,
+                cevaplar: cevaplar,
+                dogruCevap: dogruCevap,
+                aciklama: soru.aciklama,
+                report: soru.report || 0,
+                liked: soru.liked || 0,
+                unliked: soru.unliked || 0,
+                soruNumarasi: mevcutSoruNumarasi,
+                soruResmi: soru.soruResmi || null
             };
-            console.log("Güncellenecek veri:", updatedSoru);
 
-            console.log("Yeni soru ekleniyor...");
-            await set(newSoruRef, updatedSoru);
-            console.log("Yeni soru başarıyla eklendi");
+            await updateDoc(soruRef, updatedSoru);
 
-            // Eski soruyu sil
-            const oldSoruRef = ref(database, `konular/${suAnkiKonuId}/altkonular/${suAnkiAltKonuId}/sorular/${suAnkiSoruId}`);
-            console.log("Eski soru siliniyor...");
-            await remove(oldSoruRef);
-            console.log("Eski soru başarıyla silindi");
-
-            console.log("=== Güncelleme Başarılı ===");
-            
-            // Tüm işlemler başarılı olduktan sonra state'i sıfırla
-            setSoru(null);
-            setCevaplar(["", "", "", "", ""]);
-            setDogruCevap("");
-            setSelectedAltKonu("");
-            setMevcutSoruNumarasi(null);
-            
-            // Kullanıcıya bilgi ver
-            setIsSaving(false);
             toast.success("Soru başarıyla güncellendi!");
             
-            // Eğer onUpdateComplete fonksiyonu tanımlanmışsa çağır
-            if (onUpdateComplete && typeof onUpdateComplete === 'function') {
+            if (onUpdateComplete) {
                 onUpdateComplete();
-            } else {
-                onClose(); // Tanımlanmamışsa normal kapatma işlemi
             }
-        } catch (error) {
-            console.error("=== Güncelleme Hatası ===");
-            console.error("Hata detayı:", error);
-            console.error("Hata mesajı:", error.message);
-            console.error("Hata yığını:", error.stack);
-            console.error("Güncelleme sırasındaki durum:", {
-                guncellenecekSoru,
-                guncellenecekCevaplar,
-                guncellenecekDogruCevap,
-                guncellenecekAltKonu,
-                suAnkiKonuId,
-                suAnkiAltKonuId,
-                suAnkiSoruId
-            });
-            console.error("=== Güncelleme Hatası Sonu ===");
             
-            // Hata durumunda da loading'i kapat
-            setIsSaving(false);
+            onClose();
+        } catch (error) {
+            console.error("Soru güncellenirken hata:", error);
             toast.error("Soru güncellenirken bir hata oluştu");
+        } finally {
+            setIsSaving(false);
         }
     };
 
