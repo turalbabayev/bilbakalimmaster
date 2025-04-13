@@ -32,7 +32,9 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
                     });
                 });
                 
-                setSorular(soruData);
+                // Soruları soruNumarasi'na göre sırala
+                const siraliSorular = soruData.sort((a, b) => (a.soruNumarasi || 0) - (b.soruNumarasi || 0));
+                setSorular(siraliSorular);
                 
                 // Seçimleri sıfırla
                 setSelectedSorular({});
@@ -147,7 +149,7 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
                             
                             {sorular.length > 0 ? (
                                 <div className="space-y-4">
-                                    {sorular.map((soru, index) => (
+                                    {sorular.map((soru) => (
                                         <div key={soru.id} className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 flex items-start">
                                             <input 
                                                 type="checkbox" 
@@ -160,7 +162,7 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
                                                 <div className="flex justify-between items-start mb-2">
                                                     <label htmlFor={`soru-${soru.id}`} className="text-base font-medium text-gray-900 dark:text-white">
                                                         <span className="inline-flex items-center justify-center bg-blue-600 text-white font-semibold rounded-full w-6 h-6 mr-2 text-sm">
-                                                            {soru.soruNumarasi || index + 1}
+                                                            {soru.soruNumarasi}
                                                         </span>
                                                         {soru.baslik && <span className="font-semibold mr-2">{soru.baslik}</span>}
                                                         <span className="text-xs text-gray-500 dark:text-gray-400">ID: {soru.id}</span>

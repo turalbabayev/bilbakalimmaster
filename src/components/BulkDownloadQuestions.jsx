@@ -35,7 +35,9 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                     });
                 });
                 
-                setSorular(soruData);
+                const siraliSorular = soruData.sort((a, b) => (a.soruNumarasi || 0) - (b.soruNumarasi || 0));
+                setSorular(siraliSorular);
+                
                 setSelectedSorular({});
                 setHepsiSecili(false);
                 
@@ -383,33 +385,37 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
-                                {sorular.map((soru, index) => (
-                                    <div key={soru.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800">
-                                        <div className="flex items-start space-x-3">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedSorular[soru.id] || false}
+                            {sorular.length > 0 ? (
+                                <div className="space-y-4">
+                                    {sorular.map((soru) => (
+                                        <div key={soru.id} className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 flex items-start">
+                                            <input 
+                                                type="checkbox" 
+                                                id={`soru-${soru.id}`}
+                                                checked={!!selectedSorular[soru.id]}
                                                 onChange={() => handleSoruToggle(soru.id)}
-                                                className="form-checkbox text-blue-600 mt-1"
+                                                className="mt-1 w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                                             />
-                                            <div className="flex-1">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                                                        {soru.soruNumarasi || index + 1}. Soru
-                                                    </span>
-                                                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                                                        Doğru Cevap: {soru.dogruCevap}
-                                                    </span>
+                                            <div className="ml-3 flex-1">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <label htmlFor={`soru-${soru.id}`} className="text-base font-medium text-gray-900 dark:text-white">
+                                                        <span className="inline-flex items-center justify-center bg-blue-600 text-white font-semibold rounded-full w-6 h-6 mr-2 text-sm">
+                                                            {soru.soruNumarasi}
+                                                        </span>
+                                                        {soru.baslik && <span className="font-semibold mr-2">{soru.baslik}</span>}
+                                                        <span className="text-xs text-gray-500 dark:text-gray-400">ID: {soru.id}</span>
+                                                    </label>
                                                 </div>
-                                                <p className="mt-2 text-gray-700 dark:text-gray-300">
-                                                    {soru.soruMetni.replace(/<[^>]*>/g, '')}
-                                                </p>
+                                                <div className="mb-2" dangerouslySetInnerHTML={{ __html: soru.soruMetni }} />
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                                    Henüz soru bulunmamaktadır.
+                                </div>
+                            )}
                         </>
                     )}
                 </div>
