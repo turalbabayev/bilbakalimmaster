@@ -94,6 +94,11 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
     };
 
     const createDocx = async () => {
+        if (loading) {
+            console.log("İşlem zaten devam ediyor...");
+            return;
+        }
+
         try {
             setLoading(true);
             console.log("Doküman oluşturma başladı");
@@ -220,7 +225,7 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                 }
             }
 
-            console.log("Doküman içeriği hazırlandı");
+            console.log("Doküman içeriği hazırlandı, children sayısı:", children.length);
 
             // Dokümanı oluştur
             const doc = new Document({
@@ -230,19 +235,31 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                 }]
             });
 
-            console.log("Doküman oluşturuldu, indirme başlıyor");
+            console.log("Doküman oluşturuldu, buffer'a dönüştürülüyor...");
 
-            // Dokümanı indir
-            const buffer = await Packer.toBuffer(doc);
-            const blob = new Blob([buffer], { 
-                type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
-            });
-            
-            const fileName = `sorular_${new Date().toISOString().split('T')[0]}.docx`;
-            saveAs(blob, fileName);
-            
-            console.log("Doküman indirildi");
-            toast.success('Sorular başarıyla indirildi!');
+            try {
+                // Dokümanı buffer'a dönüştür
+                const buffer = await Packer.toBuffer(doc);
+                console.log("Buffer oluşturuldu, boyut:", buffer.length);
+
+                // Blob oluştur
+                const blob = new Blob([buffer], { 
+                    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+                });
+                console.log("Blob oluşturuldu, boyut:", blob.size);
+
+                // Dosya adını oluştur
+                const fileName = `sorular_${new Date().toISOString().split('T')[0]}.docx`;
+                
+                // Dosyayı kaydet
+                await saveAs(blob, fileName);
+                console.log("Dosya kaydedildi:", fileName);
+                
+                toast.success('Sorular başarıyla indirildi!');
+            } catch (error) {
+                console.error("Dosya indirme hatası:", error);
+                throw new Error("Dosya indirme işlemi başarısız oldu: " + error.message);
+            }
         } catch (error) {
             console.error("Doküman oluşturulurken hata:", error);
             toast.error("Doküman oluşturulurken bir hata oluştu: " + error.message);
@@ -407,12 +424,19 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                     <button
                         onClick={onClose}
                         className="px-6 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                        disabled={loading}
                     >
                         İptal
                     </button>
                     <button
-                        onClick={createDocx}
-                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                        onClick={() => {
+                            console.log("İndir butonuna tıklandı");
+                            createDocx().catch(error => {
+                                console.error("İndirme işlemi başarısız:", error);
+                                toast.error("İndirme işlemi başarısız oldu!");
+                            });
+                        }}
+                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={loading || (indirmeMiktari === "secili" && seciliSoruSayisi() === 0)}
                     >
                         {loading ? "İndiriliyor..." : "İndir"}
