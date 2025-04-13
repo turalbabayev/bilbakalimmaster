@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, getDocs } from "firebase/firestore";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { toast } from "react-toastify";
@@ -50,39 +50,116 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
     };
 
     useEffect(() => {
-        const loadSoru = async () => {
-            if (!isOpen || !konuId || !altKonuId || !soruId) return;
+        if (isOpen) {
+            setModalKey(prev => prev + 1);
+        }
+    }, [isOpen]);
 
+    useEffect(() => {
+        const fetchData = async () => {
             try {
-                setLoading(true);
-                // Firestore'dan soruyu al
+                console.log("Modal açıldı, veri yükleme başlıyor:", { konuId, altKonuId, soruId, isOpen });
+                
+                if (!konuId || !altKonuId || !soruId) {
+                    console.error("Eksik parametreler:", { konuId, altKonuId, soruId });
+                    alert("Soru güncelleme için gerekli parametreler eksik!");
+                    setLoading(false);
+                    onClose();
+                    return;
+                }
+                
+                // State'i sıfırla
+                setSoru(null);
+                setCevaplar(["", "", "", "", ""]);
+                setDogruCevap("");
+                setSelectedAltKonu("");
+                setMevcutSoruNumarasi(null);
+                
+                // Firestore referanslarını oluştur
+                const konuRef = doc(db, "konular", konuId);
+                const altKonularCollectionRef = collection(konuRef, "altkonular");
                 const soruRef = doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soruId);
-                const soruSnap = await getDoc(soruRef);
-
-                if (!soruSnap.exists()) {
+                
+                // Promise.all ile tüm verileri paralel olarak yükle
+                const [altKonularSnapshot, soruSnapshot] = await Promise.all([
+                    getDocs(altKonularCollectionRef),
+                    getDoc(soruRef)
+                ]);
+                
+                // Alt konuları yükle
+                const altKonularData = {};
+                altKonularSnapshot.forEach((doc) => {
+                    altKonularData[doc.id] = doc.data();
+                });
+                setAltKonular(altKonularData);
+                
+                // Soru kontrolü
+                if (!soruSnapshot.exists()) {
                     console.error("Soru bulunamadı:", { konuId, altKonuId, soruId });
                     setLoading(false);
                     onClose();
                     return;
                 }
-
-                const soruData = soruSnap.data();
+                
+                // Soru verilerini yükle
+                const soruData = soruSnapshot.data();
+                console.log("Soru verisi başarıyla yüklendi:", soruData);
+                
+                // State'leri güvenli bir şekilde güncelle
                 setSoru(soruData);
-                setCevaplar(soruData.cevaplar || ["", "", "", "", ""]);
-                setDogruCevap(soruData.dogruCevap || "");
+                
+                // Cevapları güvenli bir şekilde ayarla
+                const cevaplarData = Array.isArray(soruData.cevaplar) ? 
+                    soruData.cevaplar : 
+                    ["", "", "", "", ""];
+                    
+                // Array uzunluğunu 5'e tamamla
+                const normalizedCevaplar = [...cevaplarData];
+                while (normalizedCevaplar.length < 5) {
+                    normalizedCevaplar.push("");
+                }
+                
+                setCevaplar(normalizedCevaplar);
                 setSelectedAltKonu(altKonuId);
-                setMevcutSoruNumarasi(soruData.soruNumarasi);
-
-            } catch (error) {
-                console.error("Soru yüklenirken hata:", error);
-                toast.error("Soru yüklenirken bir hata oluştu");
-            } finally {
+                
+                // Doğru cevap şıkkını güvenli bir şekilde belirle
+                if (soruData.dogruCevap) {
+                    if (/^[A-E]$/.test(soruData.dogruCevap)) {
+                        setDogruCevap(soruData.dogruCevap);
+                    } else if (Array.isArray(soruData.cevaplar)) {
+                        const index = soruData.cevaplar.findIndex(cevap => 
+                            cevap === soruData.dogruCevap && cevap !== "" && cevap !== null && cevap !== undefined
+                        );
+                        
+                        if (index !== -1) {
+                            const dogruCevapHarfi = String.fromCharCode(65 + index);
+                            setDogruCevap(dogruCevapHarfi);
+                        } else {
+                            setDogruCevap("A");
+                        }
+                    } else {
+                        setDogruCevap("A");
+                    }
+                } else {
+                    setDogruCevap("A");
+                }
+                
+                setMevcutSoruNumarasi(soruData.soruNumarasi || null);
                 setLoading(false);
+                
+            } catch (error) {
+                console.error("Veri yüklenirken hata:", error);
+                setLoading(false);
+                onClose();
             }
         };
 
-        loadSoru();
-    }, [isOpen, konuId, altKonuId, soruId]);
+        if (isOpen) {
+            setLoading(true);
+            fetchData();
+        }
+        
+    }, [isOpen, konuId, altKonuId, soruId, onClose]);
 
     const handleResimYukle = async (e) => {
         const file = e.target.files[0];
@@ -124,6 +201,12 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
             return;
         }
 
+        if (!selectedAltKonu) {
+            alert("Lütfen bir alt konu seçin!");
+            setIsSaving(false);
+            return;
+        }
+
         try {
             // Firestore'da soruyu güncelle
             const soruRef = doc(db, "konular", konuId, "altkonular", altKonuId, "sorular", soruId);
@@ -141,16 +224,16 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
             };
 
             await updateDoc(soruRef, updatedSoru);
-
+            
             toast.success("Soru başarıyla güncellendi!");
             
-            if (onUpdateComplete) {
+            if (onUpdateComplete && typeof onUpdateComplete === 'function') {
                 onUpdateComplete();
+            } else {
+                onClose();
             }
-            
-            onClose();
         } catch (error) {
-            console.error("Soru güncellenirken hata:", error);
+            console.error("Güncelleme sırasında hata:", error);
             toast.error("Soru güncellenirken bir hata oluştu");
         } finally {
             setIsSaving(false);
