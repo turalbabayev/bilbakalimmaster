@@ -74,6 +74,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                 setDogruCevap("");
                 setSelectedAltKonu("");
                 setMevcutSoruNumarasi(null);
+                setSoruResmi(null); // soruResmi state'ini de sıfırla
                 
                 // Firestore referanslarını oluştur
                 const konuRef = doc(db, "konular", konuId);
@@ -107,6 +108,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                 
                 // State'leri güvenli bir şekilde güncelle
                 setSoru(soruData);
+                setSoruResmi(soruData.soruResmi || null); // soruResmi state'ini güncelle
                 
                 // Cevapları güvenli bir şekilde ayarla
                 const cevaplarData = Array.isArray(soruData.cevaplar) ? 
@@ -177,16 +179,18 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
             // Resmi base64'e çevir
             const reader = new FileReader();
             reader.onloadend = () => {
-                setSoruResmi(reader.result);
+                const base64String = reader.result;
+                setSoruResmi(base64String);
                 setSoru(prevSoru => ({
                     ...prevSoru,
-                    soruResmi: reader.result
+                    soruResmi: base64String
                 }));
                 setResimYukleniyor(false);
             };
             reader.readAsDataURL(file);
         } catch (error) {
             console.error("Resim yüklenirken hata oluştu:", error);
+            toast.error("Resim yüklenirken bir hata oluştu!");
             setResimYukleniyor(false);
         }
     };
@@ -205,12 +209,13 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
 
         if (!soru) {
             console.error("Güncellenecek soru bulunamadı!");
+            toast.error("Güncellenecek soru bulunamadı!");
             setIsSaving(false);
             return;
         }
 
         if (!selectedAltKonu) {
-            alert("Lütfen bir alt konu seçin!");
+            toast.error("Lütfen bir alt konu seçin!");
             setIsSaving(false);
             return;
         }
@@ -239,12 +244,11 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
             
             if (onUpdateComplete && typeof onUpdateComplete === 'function') {
                 onUpdateComplete(updatedSoru);
-            } else {
-                onClose();
             }
+            onClose();
         } catch (error) {
             console.error("Güncelleme sırasında hata:", error);
-            toast.error("Soru güncellenirken bir hata oluştu");
+            toast.error("Soru güncellenirken bir hata oluştu: " + error.message);
         } finally {
             setIsSaving(false);
         }
