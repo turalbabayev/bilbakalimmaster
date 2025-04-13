@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { database } from "../firebase";
-import { ref, get, update } from "firebase/database";
+import { db } from "../firebase";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { toast } from "react-hot-toast";
 
 const NumberQuestions = ({ isOpen, onClose }) => {
     const [status, setStatus] = useState("idle"); // idle, running, success, error
@@ -15,75 +16,64 @@ const NumberQuestions = ({ isOpen, onClose }) => {
         setLog(["Soruları numaralandırma işlemi başlatılıyor..."]);
 
         try {
-            // Tüm konuları al
-            addLog("Konular alınıyor...");
-            const konularRef = ref(database, 'konular');
-            const konularSnapshot = await get(konularRef);
-            const konular = konularSnapshot.val();
-
-            if (!konular) {
-                addLog("Konular bulunamadı!");
-                setStatus("error");
-                return;
+            const konularRef = doc(db, "konular");
+            const konularDoc = await getDoc(konularRef);
+            
+            if (!konularDoc.exists()) {
+                throw new Error("Konular bulunamadı!");
             }
+
+            const konular = konularDoc.data();
+            let soruNumarasi = 1;
 
             // Her konu için
-            for (const konuId in konular) {
-                const konu = konular[konuId];
-                addLog(`Konu: ${konu.baslik} (${konuId}) işleniyor...`);
-                
-                // Alt konular varsa
-                if (konu.altkonular) {
-                    // Her alt konu için
-                    for (const altKonuId in konu.altkonular) {
-                        const altKonu = konu.altkonular[altKonuId];
-                        addLog(`Alt Konu: ${altKonu.baslik} (${altKonuId}) işleniyor...`);
-                        
-                        // Alt konunun soruları varsa
-                        if (altKonu.sorular) {
-                            let soruNumarasi = 1;
-                            addLog(`${altKonu.baslik} için sorular numaralandırılıyor...`);
-                            
-                            // Her soru için numara ata
-                            for (const soruId in altKonu.sorular) {
-                                const soruPath = `konular/${konuId}/altkonular/${altKonuId}/sorular/${soruId}`;
-                                await update(ref(database, soruPath), { soruNumarasi: soruNumarasi });
-                                addLog(`${soruPath} için soruNumarasi = ${soruNumarasi} atandı.`);
-                                soruNumarasi++;
-                            }
+            for (const [konuId, konu] of Object.entries(konular)) {
+                const konuRef = doc(db, "konular", konuId);
+                const altKonular = konu.altkonular || {};
+
+                // Her alt konu için
+                for (const [altKonuId, altKonu] of Object.entries(altKonular)) {
+                    const subbranches = altKonu.subbranches || {};
+
+                    // Her alt dal için
+                    for (const [subbranch, subbranch_data] of Object.entries(subbranches)) {
+                        const questions = subbranch_data.questions || {};
+
+                        // Her soru için
+                        for (const [questionId, question] of Object.entries(questions)) {
+                            // Soru numarasını güncelle
+                            questions[questionId] = {
+                                ...question,
+                                soruNumarasi
+                            };
+                            soruNumarasi++;
                         }
-                        
-                        // Alt dallar varsa
-                        if (altKonu.altdallar) {
-                            // Her alt dal için
-                            for (const altDalId in altKonu.altdallar) {
-                                const altDal = altKonu.altdallar[altDalId];
-                                addLog(`Alt Dal: ${altDal.baslik} (${altDalId}) işleniyor...`);
-                                
-                                // Alt dalın soruları varsa
-                                if (altDal.sorular) {
-                                    let soruNumarasi = 1;
-                                    addLog(`${altDal.baslik} için sorular numaralandırılıyor...`);
-                                    
-                                    // Her soru için numara ata
-                                    for (const soruId in altDal.sorular) {
-                                        const soruPath = `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/sorular/${soruId}`;
-                                        await update(ref(database, soruPath), { soruNumarasi: soruNumarasi });
-                                        addLog(`${soruPath} için soruNumarasi = ${soruNumarasi} atandı.`);
-                                        soruNumarasi++;
-                                    }
-                                }
-                            }
-                        }
+
+                        // Alt dalı güncelle
+                        subbranches[subbranch] = {
+                            ...subbranch_data,
+                            questions
+                        };
                     }
+
+                    // Alt konuyu güncelle
+                    altKonular[altKonuId] = {
+                        ...altKonu,
+                        subbranches
+                    };
                 }
+
+                // Konuyu güncelle
+                await updateDoc(konuRef, {
+                    altkonular: altKonular
+                });
             }
-            
-            addLog('Tüm sorular başarıyla numaralandırıldı!');
+
+            toast.success("Tüm soru numaraları başarıyla güncellendi!");
             setStatus("success");
         } catch (error) {
-            addLog(`Sorular numaralandırılırken bir hata oluştu: ${error.message}`);
-            console.error('Sorular numaralandırılırken bir hata oluştu:', error);
+            console.error("Hata:", error);
+            toast.error("Soru numaraları güncellenirken bir hata oluştu!");
             setStatus("error");
         }
     };
