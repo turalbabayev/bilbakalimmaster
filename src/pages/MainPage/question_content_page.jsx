@@ -802,6 +802,9 @@ function QuestionContent() {
                                 onGuncellemeSuccess={refreshQuestions}
                                 onUpdateClick={handleUpdateFromBulkVerification}
                                 onDeleteClick={handleDeleteSoru}
+                                konuId={id}
+                                altKonuId={selectedAltKonuId}
+                                altDalId={expandedAltKonu}
                             />
                         </div>
                         
