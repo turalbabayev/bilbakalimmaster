@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Layout from "../../components/layout";
-import { database } from "../../firebase";
-import { ref, onValue } from "firebase/database";
+import { db } from "../../firebase";
+import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import AddTopics from "../../components/addTopics";
 import DeleteTopics from "../../components/deleteTopics";
 import AddSubtopics from "../../components/addSubtopics";
@@ -26,19 +26,20 @@ function HomePage() {
     const [isDeleteTopicModalOpen, setIsDeleteTopicModalOpen] = useState(false);
 
     useEffect(() => {
-        const konularRef = ref(database, "konular");
-        const unsubscribe = onValue(konularRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                const formattedData = Object.keys(data).map((key) => ({
-                    id: key,
-                    ...data[key],
-                }));
-                setKonular(formattedData);
-            } else {
-                setKonular([]);
-            }
+        const konularRef = collection(db, "konular");
+        const q = query(konularRef, orderBy("createdAt", "desc"));
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data = [];
+            snapshot.forEach((doc) => {
+                data.push({
+                    id: doc.id,
+                    ...doc.data()
+                });
+            });
+            setKonular(data);
         });
+
         return () => unsubscribe();
     }, []);
 
