@@ -120,9 +120,10 @@ function NotesPage() {
                                                     </div>
                                                 </div>
                                                 
-                                                <p className="text-gray-600 dark:text-gray-300 mb-4">
-                                                    {card.akılKartİçeriği}
-                                                </p>
+                                                <div 
+                                                    className="text-gray-600 dark:text-gray-300 mb-4 prose dark:prose-invert max-w-none"
+                                                    dangerouslySetInnerHTML={{ __html: card.akılKartİçeriği }}
+                                                />
 
                                                 {card.akılKartResmi && (
                                                     <div className="mt-4">
