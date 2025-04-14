@@ -739,7 +739,11 @@ function QuestionContent() {
                         <div className="p-8 overflow-y-auto flex-1">
                             <BulkQuestionVerification 
                                 ref={bulkVerificationRef}
-                                sorular={Object.values(altKonular[selectedAltKonuId]?.sorular || {})} 
+                                sorular={altKonular[selectedAltKonuId]?.sorular ? Object.entries(altKonular[selectedAltKonuId].sorular).map(([key, soru]) => ({
+                                    ...soru,
+                                    id: key,
+                                    ref: `konular/${id}/altkonular/${selectedAltKonuId}/sorular/${key}`
+                                })).sort((a, b) => (a.soruNumarasi || 0) - (b.soruNumarasi || 0)) : []}
                                 onSoruGuncelle={handleSoruDogruCevapGuncelle}
                                 onGuncellemeSuccess={refreshQuestions}
                                 onUpdateClick={handleUpdateFromBulkVerification}
