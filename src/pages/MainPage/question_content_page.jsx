@@ -287,118 +287,66 @@ function QuestionContent() {
     const handleUpdateFromBulkVerification = (soru) => {
         console.log('Güncelleme isteği geldi, soru:', soru);
         
-        // Sorunun referansını bul
-        let soruRef = null;
-        
-        // Eğer soru nesnesi içinde doğrudan id varsa ve alt konu ID'si biliniyorsa kısa yol kullan
-        if (selectedAltKonuId && soru && soru.id) {
-            // Alt konuda sorular obje mi yoksa boolean mu?
-            if (altKonular[selectedAltKonuId].sorular && altKonular[selectedAltKonuId].sorular !== true) {
-                // Sorular içinde id'ye göre doğrudan ara
-                for (const soruKey of Object.keys(altKonular[selectedAltKonuId].sorular)) {
-                    const dbSoru = altKonular[selectedAltKonuId].sorular[soruKey];
-                    if (dbSoru.id === soru.id) {
-                        soruRef = `konular/${id}/altkonular/${selectedAltKonuId}/sorular/${soruKey}`;
-                        console.log('Soru ID üzerinden bulundu:', soruRef);
-                        break;
-                    }
-                }
-            }
-        }
-        
-        // Yukarıdaki hızlı arama ile bulunamadıysa içerik üzerinden arama yap
-        if (!soruRef) {
-            // Eğer sadece bu alt konudaki sorular yüklüyse sadece burada ara
-            if (selectedAltKonuId && altKonular[selectedAltKonuId].sorular && altKonular[selectedAltKonuId].sorular !== true) {
-                for (const soruKey of Object.keys(altKonular[selectedAltKonuId].sorular)) {
-                    const dbSoru = altKonular[selectedAltKonuId].sorular[soruKey];
-                    // Soru içeriği eşleşiyor mu kontrol et
-                    if (dbSoru.soruMetni === soru.soruMetni) {
-                        soruRef = `konular/${id}/altkonular/${selectedAltKonuId}/sorular/${soruKey}`;
-                        console.log('Soru içeriğine göre bulundu:', soruRef);
-                        break;
-                    }
-                }
-            } 
+        try {
+            // Sorunun yolunu belirle
+            const soruRef = `konular/${id}/altkonular/${selectedAltKonuId}/sorular/${soru.id}`;
+            console.log('Güncellenecek sorunun yolu:', soruRef);
             
-            // Yine bulunamadıysa ve hiç yüklü soru yoksa, soruyu bulmak için database fetch yap
-            if (!soruRef && Object.keys(altKonular).length > 0) {
-                console.log('Soru yerel cachete bulunamadı, veritabanından yüklenecek...');
-                
-                // Toplu doğrulama modalını geçici olarak gizle 
-                document.querySelector('.bulk-verification-modal')?.classList.add('hidden');
-                
-                // Biraz bekledikten sonra güncelleme modalını aç
-                // Burada soruyu tam olarak bulamadık, ancak kullanıcı soruyu göreceği için güncelleme yapabilir
-                setTimeout(() => {
-                    alert('Soru tam olarak bulunamadı. Lütfen güncelleme ekranında değişikliklerinizi yapın.');
-                    setIsUpdateModalOpen(true);
-                }, 100);
-                
-                return;
-            }
-        }
-        
-        if (soruRef) {
-            console.log('Bulundu, güncelleme modalı açılıyor:', soruRef);
-            setSelectedSoruRef(soruRef);
-            
-            // Toplu doğrulama modalını geçici olarak gizle
+            // Bulk verification modalını geçici olarak gizle
             document.querySelector('.bulk-verification-modal')?.classList.add('hidden');
             
-            // Biraz bekledikten sonra güncelleme modalını aç
-            setTimeout(() => {
-                setIsUpdateModalOpen(true);
-            }, 100);
-        } else {
-            console.error('Soru referansı bulunamadı:', soru);
-            alert('Soru bulunamadı. Lütfen sayfayı yenileyip tekrar deneyin.');
+            // Sorunun referansını ayarla ve modalı aç
+            setSelectedSoruRef(soruRef);
+            setIsUpdateModalOpen(true);
+
+        } catch (error) {
+            console.error('Güncelleme modalı açılırken hata:', error);
+            toast.error('Güncelleme modalı açılırken bir hata oluştu!');
+            // Hata durumunda bulk verification modalını tekrar göster
+            document.querySelector('.bulk-verification-modal')?.classList.remove('hidden');
         }
     };
 
     // Soru güncelleme tamamlandığında çağrılacak fonksiyon
-    const handleUpdateComplete = (updatedQuestion) => {
+    const handleUpdateComplete = async (updatedQuestion) => {
         console.log("Soru güncellendi, veriler yenileniyor...");
         
         // Önce modalları kapat
         setIsUpdateModalOpen(false);
         
-        // Daha sonra, verileri yenileyip bulk verification modalını güncelle
-        // Toplu doğrulama modalını tekrar göster
+        // Bulk verification modalını tekrar göster
         document.querySelector('.bulk-verification-modal')?.classList.remove('hidden');
         
         // Kısa bir gecikme ekleyerek veritabanı işlemlerinin tamamlanmasını sağlayalım
-        setTimeout(() => {
-            // Eğer bir alt konu açıksa, sadece o alt konunun sorularını yenile
-            if (expandedAltKonu) {
-                fetchSorularForAltKonu(expandedAltKonu);
-            }
-            
-            // Güncelleme yapılan soruyu sadece doğrudan al, tüm veriyi çekme
-            if (selectedSoruRef && bulkVerificationRef.current && isBulkVerificationOpen) {
-                try {
-                    // Sadece güncellenen soruyu al
-                    const guncelSoruRef = ref(database, selectedSoruRef);
-                    
-                    get(guncelSoruRef).then((snapshot) => {
-                        if (snapshot.exists()) {
-                            const guncelSoru = snapshot.val();
-                            
-                            if (guncelSoru) {
-                                console.log("Güncel soru bulundu, bulk verification modalı güncelleniyor:", guncelSoru);
-                                bulkVerificationRef.current.updateSonucWithGuncelSoru(guncelSoru);
-                            } else {
-                                console.log("Güncel soru boş geldi.");
-                            }
+        setTimeout(async () => {
+            try {
+                // Eğer bir alt konu açıksa, sadece o alt konunun sorularını yenile
+                if (expandedAltKonu) {
+                    await fetchSorularForAltKonu(expandedAltKonu);
+                }
+                
+                // Güncelleme yapılan soruyu sadece doğrudan al
+                if (selectedSoruRef && bulkVerificationRef.current && isBulkVerificationOpen) {
+                    try {
+                        // Firestore'dan güncel soruyu al
+                        const guncelSoruDoc = await getDoc(doc(db, selectedSoruRef));
+                        
+                        if (guncelSoruDoc.exists()) {
+                            const guncelSoru = { id: guncelSoruDoc.id, ...guncelSoruDoc.data() };
+                            console.log("Güncel soru bulundu, bulk verification modalı güncelleniyor:", guncelSoru);
+                            bulkVerificationRef.current.updateSonucWithGuncelSoru(guncelSoru);
                         } else {
                             console.log("Güncel soru bulunamadı.");
+                            toast.error("Güncel soru bulunamadı!");
                         }
-                    }).catch(error => {
+                    } catch (error) {
                         console.error("Güncel soru verileri alınırken hata:", error);
-                    });
-                } catch (error) {
-                    console.error("Bulk verification güncelleme hatası:", error);
+                        toast.error("Soru verilerini alırken bir hata oluştu!");
+                    }
                 }
+            } catch (error) {
+                console.error("Bulk verification güncelleme hatası:", error);
+                toast.error("Güncelleme sırasında bir hata oluştu!");
             }
         }, 300); // 300ms bekle
     };
