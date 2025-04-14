@@ -3,41 +3,43 @@ import Layout from "../../components/layout";
 import { db } from "../../firebase";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { toast } from "react-hot-toast";
+import AddMindCardModal from "../../components/AddMindCardModal";
 
 function NotesPage() {
     const [mindCards, setMindCards] = useState([]);
     const [currentInfo, setCurrentInfo] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('mindCards'); // 'mindCards' veya 'currentInfo'
+    const [activeTab, setActiveTab] = useState('mindCards');
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+    const fetchData = async () => {
+        try {
+            // Akıl Kartlarını getir
+            const mindCardsRef = collection(db, "mindCards");
+            const mindCardsQuery = query(mindCardsRef, orderBy("createdAt", "desc"));
+            const mindCardsSnapshot = await getDocs(mindCardsQuery);
+            setMindCards(mindCardsSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })));
+
+            // Güncel Bilgileri getir
+            const currentInfoRef = collection(db, "currentInfo");
+            const currentInfoQuery = query(currentInfoRef, orderBy("createdAt", "desc"));
+            const currentInfoSnapshot = await getDocs(currentInfoQuery);
+            setCurrentInfo(currentInfoSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })));
+        } catch (error) {
+            console.error("Veriler yüklenirken hata:", error);
+            toast.error("Veriler yüklenirken bir hata oluştu!");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Akıl Kartlarını getir
-                const mindCardsRef = collection(db, "mindCards");
-                const mindCardsQuery = query(mindCardsRef, orderBy("createdAt", "desc"));
-                const mindCardsSnapshot = await getDocs(mindCardsQuery);
-                setMindCards(mindCardsSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                })));
-
-                // Güncel Bilgileri getir
-                const currentInfoRef = collection(db, "currentInfo");
-                const currentInfoQuery = query(currentInfoRef, orderBy("createdAt", "desc"));
-                const currentInfoSnapshot = await getDocs(currentInfoQuery);
-                setCurrentInfo(currentInfoSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                })));
-            } catch (error) {
-                console.error("Veriler yüklenirken hata:", error);
-                toast.error("Veriler yüklenirken bir hata oluştu!");
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchData();
     }, []);
 
@@ -81,7 +83,7 @@ function NotesPage() {
                             </h2>
                             <button
                                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-md transition-all duration-200 flex items-center"
-                                onClick={() => {/* Yeni ekleme modalını aç */}}
+                                onClick={() => setIsAddModalOpen(true)}
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                                     <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
@@ -102,14 +104,35 @@ function NotesPage() {
                                         mindCards.map(card => (
                                             <div
                                                 key={card.id}
-                                                className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow duration-200"
+                                                className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 hover:shadow-md transition-shadow duration-200"
                                             >
-                                                <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-2">
-                                                    {card.title}
-                                                </h3>
-                                                <p className="text-gray-600 dark:text-gray-300">
-                                                    {card.description}
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-2">
+                                                            {card.akılKartKonusu}
+                                                        </h3>
+                                                        <p className="text-sm text-indigo-600 dark:text-indigo-400 mb-2">
+                                                            {card.akılKartAltKonusu}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                        {card.createdAt?.toDate().toLocaleDateString('tr-TR')}
+                                                    </div>
+                                                </div>
+                                                
+                                                <p className="text-gray-600 dark:text-gray-300 mb-4">
+                                                    {card.akılKartİçeriği}
                                                 </p>
+
+                                                {card.akılKartResmi && (
+                                                    <div className="mt-4">
+                                                        <img
+                                                            src={`data:${card.resimTuru};base64,${card.akılKartResmi}`}
+                                                            alt={card.akılKartKonusu}
+                                                            className="max-h-40 rounded-lg shadow-sm"
+                                                        />
+                                                    </div>
+                                                )}
                                             </div>
                                         ))
                                     ) : (
@@ -146,6 +169,15 @@ function NotesPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Akıl Kartı Ekleme Modalı */}
+            {activeTab === 'mindCards' && (
+                <AddMindCardModal
+                    isOpen={isAddModalOpen}
+                    onClose={() => setIsAddModalOpen(false)}
+                    onSuccess={fetchData}
+                />
+            )}
         </Layout>
     );
 }
