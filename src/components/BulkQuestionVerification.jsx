@@ -670,6 +670,13 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
             setSonuclar(prevSonuclar => {
                 return prevSonuclar.filter(sonuc => sonuc.soru.id !== soruId);
             });
+        },
+        getSonuclar: () => sonuclar,
+        updateSorularAndSonuclar: (yeniSorular, yeniSonuclar) => {
+            // Seçili soruları güncelle
+            setSeciliSorular(yeniSorular.map(soru => soru.id));
+            // Sonuçları güncelle
+            setSonuclar(yeniSonuclar);
         }
     }));
 
