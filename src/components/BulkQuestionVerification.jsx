@@ -519,16 +519,18 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
             }
 
             // Sorunun Firestore'daki yolunu belirle
-            const soruPath = altDalId 
-                ? `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/sorular/${soru.id}`
-                : `konular/${konuId}/altkonular/${altKonuId}/sorular/${soru.id}`;
-
+            const soruPath = `konular/${konuId}/altkonular/${altKonuId}/sorular/${soru.id}`;
             console.log('Silinecek sorunun yolu:', soruPath);
             
             // Soruyu sil
             const soruRef = doc(db, soruPath);
             await deleteDoc(soruRef);
             console.log('Soru başarıyla silindi');
+
+            // Parent componenti bilgilendir ve işlemin tamamlanmasını bekle
+            if (onDeleteClick) {
+                await onDeleteClick(soru);
+            }
 
             // UI güncellemeleri
             setSonuclar(prevSonuclar => 
@@ -538,21 +540,11 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
             // Seçili sorulardan kaldır
             setSeciliSorular(prev => prev.filter(id => id !== soru.id));
 
-            // Parent componenti bilgilendir
-            if (onDeleteClick) {
-                await onDeleteClick(soru);
-            }
-
             // Başarı mesajı göster
             toast.success('Soru başarıyla silindi.');
 
-            // Koleksiyon yolunu belirle
-            const koleksiyonPath = altDalId 
-                ? `konular/${konuId}/altkonular/${altKonuId}/altdallar/${altDalId}/sorular`
-                : `konular/${konuId}/altkonular/${altKonuId}/sorular`;
-
             // Kalan soruların numaralarını güncelle
-            const soruCollectionRef = collection(db, koleksiyonPath);
+            const soruCollectionRef = collection(db, `konular/${konuId}/altkonular/${altKonuId}/sorular`);
             const q = query(soruCollectionRef, orderBy("soruNumarasi", "asc"));
             const querySnapshot = await getDocs(q);
             

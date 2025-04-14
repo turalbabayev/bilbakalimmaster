@@ -405,38 +405,32 @@ function QuestionContent() {
 
     // Soru silme fonksiyonu
     const handleDeleteSoru = async (soru) => {
+        console.log('Silinecek soru:', soru);
+        
         try {
-            console.log('Silinecek soru:', soru);
-            
-            if (!soru || !soru.id) {
-                throw new Error('Geçersiz soru verisi');
-            }
-            
-            // Önce BulkQuestionVerification modalındaki soruyu silelim
-            if (bulkVerificationRef.current) {
-                bulkVerificationRef.current.removeSoruFromSonuclar(soru.id);
-            }
-            
             // Sorunun referansını bul
-            const soruRef = findSoruRefById(soru.id);
+            let soruRef = null;
             
-            if (!soruRef) {
-                throw new Error('Soru referansı bulunamadı');
-            }
+            console.log('Aranan soru ID:', soru.id);
+            console.log('Seçili alt konu:', selectedAltKonuId);
             
-            // Firebase'den soruyu sil
-            const soruDbRef = ref(database, soruRef);
-            await remove(soruDbRef);
+            // Sorunun yolunu belirle
+            soruRef = `konular/${id}/altkonular/${selectedAltKonuId}/sorular/${soru.id}`;
+            console.log('Soru yolu:', soruRef);
             
-            toast.success('Soru başarıyla silindi');
+            // Soruyu sil
+            await deleteDoc(doc(db, soruRef));
+            console.log('Soru silindi:', soruRef);
             
-            // Verileri yenile
-            if (expandedAltKonu) {
-                fetchSorularForAltKonu(expandedAltKonu);
-            }
+            // Soruları yenile
+            await refreshQuestions();
+            
+            toast.success('Soru başarıyla silindi!');
+            return true;
         } catch (error) {
             console.error('Soru silinirken hata:', error);
-            toast.error(`Soru silinirken bir hata oluştu: ${error.message}`);
+            toast.error('Soru silinirken bir hata oluştu!');
+            return false;
         }
     };
 
