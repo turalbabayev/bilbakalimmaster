@@ -25,13 +25,14 @@ const AddSubtopics = ({ konular, closeModal }) => {
             
             // Yeni alt konu verisi
             const yeniAltKonu = {
-                ad: altKonuBaslik,
-                createdAt: serverTimestamp(),
-                sorular: {}
+                baslik: altKonuBaslik
             };
 
             // Firestore'a kaydet
-            await addDoc(altKonularRef, yeniAltKonu);
+            const docRef = await addDoc(altKonularRef, yeniAltKonu);
+            
+            // Sorular alt koleksiyonunu oluştur
+            const sorularRef = collection(db, `konular/${selectedTopic}/altkonular/${docRef.id}/sorular`);
             
             toast.success("Alt konu başarıyla eklendi!");
             setAltKonuBaslik("");
