@@ -23,7 +23,8 @@ const Header = () => {
         { path: "/home", label: "Ana Sayfa" },
         { path: "/question", label: "Sorular" },
         { path: "/announcements", label: "Duyurular" },
-        { path: "/games", label: "Oyunlar" }
+        { path: "/games", label: "Oyunlar" },
+        { path: "/notes", label: "Notlar" }
     ];
 
     const isActive = (path) => {

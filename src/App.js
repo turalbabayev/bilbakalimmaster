@@ -7,6 +7,7 @@ import QuestionContent from './pages/MainPage/question_content_page';
 import SubbranchContent from './pages/MainPage/subbranch_content';
 import AnnouncementPage from './pages/MainPage/announcement_page';
 import GamesPage from './pages/MainPage/games_page';
+import NotesPage from './pages/MainPage/notes_page';
 import ProtectedRouter from './routes/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
@@ -23,6 +24,7 @@ function App() {
             <Route path='/question/:konuId/:altKonuId' element={<ProtectedRouter><SubbranchContent/></ProtectedRouter>} />
             <Route path='/announcements' element={<ProtectedRouter><AnnouncementPage /></ProtectedRouter>} />
             <Route path='/games' element={<ProtectedRouter><GamesPage /></ProtectedRouter>} />
+            <Route path='/notes' element={<ProtectedRouter><NotesPage /></ProtectedRouter>} />
           </Routes>
         </Router>
     </AuthProvider>
