@@ -356,19 +356,37 @@ function QuestionContent() {
         console.log('Silinecek soru:', soru);
         
         try {
-            // Sorunun referansını bul
-            let soruRef = null;
-            
-            console.log('Aranan soru ID:', soru.id);
-            console.log('Seçili alt konu:', selectedAltKonuId);
-            
             // Sorunun yolunu belirle
-            soruRef = `konular/${id}/altkonular/${selectedAltKonuId}/sorular/${soru.id}`;
+            const soruRef = `konular/${id}/altkonular/${selectedAltKonuId}/sorular/${soru.id}`;
             console.log('Soru yolu:', soruRef);
             
             // Soruyu sil
             await deleteDoc(doc(db, soruRef));
             console.log('Soru silindi:', soruRef);
+            
+            // Bulk verification modalındaki soruları güncelle
+            if (bulkVerificationRef.current && isBulkVerificationOpen) {
+                // Mevcut analiz sonuçlarını al
+                const mevcutSonuclar = bulkVerificationRef.current.getSonuclar();
+                
+                // Silinen soruyu sonuçlardan çıkar
+                delete mevcutSonuclar[soru.id];
+                
+                // Güncel soru listesini al
+                const guncelSorular = altKonular[selectedAltKonuId]?.sorular ? 
+                    Object.entries(altKonular[selectedAltKonuId].sorular)
+                        .filter(([key]) => key !== soru.id) // Silinen soruyu filtrele
+                        .map(([key, soru]) => ({
+                            ...soru,
+                            id: key,
+                            ref: `konular/${id}/altkonular/${selectedAltKonuId}/sorular/${key}`
+                        }))
+                        .sort((a, b) => (a.soruNumarasi || 0) - (b.soruNumarasi || 0)) 
+                    : [];
+                
+                // Bulk verification bileşenini güncelle
+                bulkVerificationRef.current.updateSorularAndSonuclar(guncelSorular, mevcutSonuclar);
+            }
             
             // Soruları yenile
             await refreshQuestions();
