@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Layout from "../../components/layout";
 import { db } from "../../firebase";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, deleteDoc, doc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import AddMindCardModal from "../../components/AddMindCardModal";
 
@@ -11,6 +11,7 @@ function NotesPage() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('mindCards');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [deletingId, setDeletingId] = useState(null);
 
     const fetchData = async () => {
         try {
@@ -36,6 +37,22 @@ function NotesPage() {
             toast.error("Veriler yüklenirken bir hata oluştu!");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDelete = async (id) => {
+        if (window.confirm("Bu akıl kartını silmek istediğinizden emin misiniz?")) {
+            setDeletingId(id);
+            try {
+                await deleteDoc(doc(db, "mindCards", id));
+                toast.success("Akıl kartı başarıyla silindi!");
+                fetchData();
+            } catch (error) {
+                console.error("Akıl kartı silinirken hata:", error);
+                toast.error("Akıl kartı silinirken bir hata oluştu!");
+            } finally {
+                setDeletingId(null);
+            }
         }
     };
 
@@ -109,27 +126,47 @@ function NotesPage() {
                                                 <div className="flex justify-between items-start mb-4">
                                                     <div>
                                                         <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-2">
-                                                            {card.akılKartKonusu}
+                                                            {card.topic}
                                                         </h3>
                                                         <p className="text-sm text-indigo-600 dark:text-indigo-400 mb-2">
-                                                            {card.akılKartAltKonusu}
+                                                            {card.subtopic}
                                                         </p>
                                                     </div>
-                                                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                        {card.createdAt?.toDate().toLocaleDateString('tr-TR')}
+                                                    <div className="flex items-center space-x-4">
+                                                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                            {card.createdAt?.toDate().toLocaleDateString('tr-TR')}
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleDelete(card.id)}
+                                                            disabled={deletingId === card.id}
+                                                            className={`p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors duration-200 ${
+                                                                deletingId === card.id ? 'opacity-50 cursor-not-allowed' : ''
+                                                            }`}
+                                                        >
+                                                            {deletingId === card.id ? (
+                                                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                </svg>
+                                                            ) : (
+                                                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                </svg>
+                                                            )}
+                                                        </button>
                                                     </div>
                                                 </div>
                                                 
                                                 <div 
                                                     className="text-gray-600 dark:text-gray-300 mb-4 prose dark:prose-invert max-w-none"
-                                                    dangerouslySetInnerHTML={{ __html: card.akılKartİçeriği }}
+                                                    dangerouslySetInnerHTML={{ __html: card.content }}
                                                 />
 
-                                                {card.akılKartResmi && (
+                                                {card.image && (
                                                     <div className="mt-4">
                                                         <img
-                                                            src={`data:${card.resimTuru};base64,${card.akılKartResmi}`}
-                                                            alt={card.akılKartKonusu}
+                                                            src={`data:${card.imageType};base64,${card.image}`}
+                                                            alt={card.topic}
                                                             className="max-h-40 rounded-lg shadow-sm"
                                                         />
                                                     </div>

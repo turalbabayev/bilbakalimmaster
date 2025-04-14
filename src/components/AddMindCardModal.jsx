@@ -8,10 +8,10 @@ import 'react-quill/dist/quill.snow.css';
 const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
-        akılKartKonusu: "",
-        akılKartAltKonusu: "",
-        akılKartİçeriği: "",
-        akılKartResmi: null,
+        topic: "",
+        subtopic: "",
+        content: "",
+        image: null,
         resimPreview: null
     });
 
@@ -47,7 +47,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
     const handleEditorChange = (content) => {
         setFormData(prev => ({
             ...prev,
-            akılKartİçeriği: content
+            content: content
         }));
     };
 
@@ -58,7 +58,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             reader.onloadend = () => {
                 setFormData(prev => ({
                     ...prev,
-                    akılKartResmi: file,
+                    image: file,
                     resimPreview: reader.result
                 }));
             };
@@ -71,27 +71,27 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         setLoading(true);
 
         try {
-            let resimBase64 = null;
-            let resimTuru = null;
+            let imageBase64 = null;
+            let imageType = null;
 
-            if (formData.akılKartResmi) {
+            if (formData.image) {
                 const reader = new FileReader();
-                resimBase64 = await new Promise((resolve) => {
+                imageBase64 = await new Promise((resolve) => {
                     reader.onloadend = () => {
                         const base64WithoutPrefix = reader.result.split(',')[1];
                         resolve(base64WithoutPrefix);
                     };
-                    reader.readAsDataURL(formData.akılKartResmi);
+                    reader.readAsDataURL(formData.image);
                 });
-                resimTuru = formData.akılKartResmi.type;
+                imageType = formData.image.type;
             }
 
             const mindCardData = {
-                akılKartKonusu: formData.akılKartKonusu,
-                akılKartAltKonusu: formData.akılKartAltKonusu,
-                akılKartİçeriği: formData.akılKartİçeriği,
-                akılKartResmi: resimBase64,
-                resimTuru: resimTuru,
+                topic: formData.topic,
+                subtopic: formData.subtopic,
+                content: formData.content,
+                image: imageBase64,
+                imageType: imageType,
                 createdAt: new Date()
             };
 
@@ -137,8 +137,8 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                             </label>
                             <input
                                 type="text"
-                                name="akılKartKonusu"
-                                value={formData.akılKartKonusu}
+                                name="topic"
+                                value={formData.topic}
                                 onChange={handleInputChange}
                                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                 required
@@ -151,8 +151,8 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                             </label>
                             <input
                                 type="text"
-                                name="akılKartAltKonusu"
-                                value={formData.akılKartAltKonusu}
+                                name="subtopic"
+                                value={formData.subtopic}
                                 onChange={handleInputChange}
                                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                 required
@@ -167,7 +167,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                         <div className="min-h-[200px] bg-white rounded-lg">
                             <ReactQuill
                                 theme="snow"
-                                value={formData.akılKartİçeriği}
+                                value={formData.content}
                                 onChange={handleEditorChange}
                                 modules={modules}
                                 formats={formats}
