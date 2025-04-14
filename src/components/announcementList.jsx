@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { database } from "../firebase";
-import { ref, onValue, remove, update } from "firebase/database";
+import { db } from "../firebase";
+import { collection, onSnapshot, deleteDoc, doc, updateDoc, query, orderBy } from "firebase/firestore";
 import AddAnnouncement from "./addAnnouncement";
+import { toast } from "react-hot-toast";
 
 const AnnouncementList = () => {
     const [duyurular, setDuyurular] = useState([]);
@@ -11,46 +12,50 @@ const AnnouncementList = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const duyurularRef = ref(database, "duyurular");
-        const unsubscribe = onValue(duyurularRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                const duyuruListesi = Object.keys(data).map((key) => ({
-                    id: key,
-                    ...data[key]
-                }));
-                // Tarihe göre sırala (en yeni en üstte)
-                duyuruListesi.sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
-                setDuyurular(duyuruListesi);
-            } else {
-                setDuyurular([]);
-            }
+        // Firestore koleksiyonuna referans oluştur
+        const duyurularRef = collection(db, "duyurular");
+        
+        // Tarihe göre sıralama için query oluştur
+        const q = query(duyurularRef, orderBy("tarih", "desc"));
+        
+        // Realtime listener ekle
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const duyuruListesi = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setDuyurular(duyuruListesi);
+            setIsLoading(false);
+        }, (error) => {
+            console.error("Duyurular dinlenirken hata:", error);
+            toast.error("Duyurular yüklenirken bir hata oluştu!");
             setIsLoading(false);
         });
+
         return () => unsubscribe();
     }, []);
 
     const handleDelete = async (id) => {
         if (window.confirm("Bu duyuruyu silmek istediğinize emin misiniz?")) {
             try {
-                const duyuruRef = ref(database, `duyurular/${id}`);
-                await remove(duyuruRef);
-                alert("Duyuru başarıyla silindi.");
+                const duyuruRef = doc(db, "duyurular", id);
+                await deleteDoc(duyuruRef);
+                toast.success("Duyuru başarıyla silindi!");
             } catch (error) {
                 console.error("Duyuru silinirken bir hata oluştu:", error);
-                alert("Duyuru silinirken bir hata oluştu!");
+                toast.error("Duyuru silinirken bir hata oluştu!");
             }
         }
     };
 
     const handleToggleActive = async (id, currentActive) => {
         try {
-            const duyuruRef = ref(database, `duyurular/${id}`);
-            await update(duyuruRef, { aktif: !currentActive });
-            alert(`Duyuru durumu ${!currentActive ? "aktif" : "pasif"} olarak güncellendi.`);
+            const duyuruRef = doc(db, "duyurular", id);
+            await updateDoc(duyuruRef, { aktif: !currentActive });
+            toast.success(`Duyuru durumu ${!currentActive ? "aktif" : "pasif"} olarak güncellendi.`);
         } catch (error) {
             console.error("Duyuru durumu güncellenirken bir hata oluştu:", error);
-            alert("Duyuru durumu güncellenirken bir hata oluştu!");
+            toast.error("Duyuru durumu güncellenirken bir hata oluştu!");
         }
     };
 
@@ -200,10 +205,12 @@ const AnnouncementList = () => {
                 </div>
             )}
 
-            <AddAnnouncement
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-            />
+            {isModalOpen && (
+                <AddAnnouncement 
+                    isOpen={isModalOpen} 
+                    onClose={() => setIsModalOpen(false)}
+                />
+            )}
         </div>
     );
 };

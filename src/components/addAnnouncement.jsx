@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { database } from "../firebase";
-import { ref, push } from "firebase/database";
-import { getStorage } from "firebase/storage";
+import { db } from "../firebase";
+import { collection, addDoc } from "firebase/firestore";
+import { toast } from "react-hot-toast";
 
 const AddAnnouncement = ({ isOpen, onClose }) => {
     const [duyuruTipi, setDuyuruTipi] = useState("Duyuru");
@@ -38,15 +38,15 @@ const AddAnnouncement = ({ isOpen, onClose }) => {
     const handleDuyuruEkle = async () => {
         // Form doğrulama
         if (duyuruTipi === "Duyuru" && (!duyuruAdi || !duyuruAciklamasi)) {
-            alert("Lütfen duyuru adı ve açıklaması alanlarını doldurun.");
+            toast.error("Lütfen duyuru adı ve açıklaması alanlarını doldurun.");
             return;
         } else if (duyuruTipi === "Etkinlik" && 
             (!duyuruAdi || !etkinlikKisaAciklama || !etkinlikUzunAciklama || !etkinlikUcreti)) {
-            alert("Lütfen tüm etkinlik alanlarını doldurun.");
+            toast.error("Lütfen tüm etkinlik alanlarını doldurun.");
             return;
         } else if (duyuruTipi === "Bilgilendirme" && 
             (!duyuruAdi || !bilgilendirmeKisaAciklama)) {
-            alert("Lütfen bilgilendirme adı ve kısa açıklama alanlarını doldurun.");
+            toast.error("Lütfen bilgilendirme adı ve kısa açıklama alanlarını doldurun.");
             return;
         }
 
@@ -55,6 +55,7 @@ const AddAnnouncement = ({ isOpen, onClose }) => {
         try {
             // Base64 formatında resim verisi oluştur
             let resimBase64 = null;
+            let resimTuru = null;
             
             if (resimFile) {
                 const reader = new FileReader();
@@ -67,6 +68,7 @@ const AddAnnouncement = ({ isOpen, onClose }) => {
                     };
                     reader.readAsDataURL(resimFile);
                 });
+                resimTuru = resimFile.type;
             }
             
             // Ortak alanlar
@@ -74,7 +76,7 @@ const AddAnnouncement = ({ isOpen, onClose }) => {
                 tip: duyuruTipi,
                 baslik: duyuruAdi,
                 resim: resimBase64,
-                resimTuru: resimFile ? resimFile.type : null,
+                resimTuru,
                 tarih: new Date().toISOString(),
                 aktif: true
             };
@@ -92,11 +94,12 @@ const AddAnnouncement = ({ isOpen, onClose }) => {
                 yeniDuyuru.target = targetSayfa;
             }
 
-            // Firebase'e kaydet
-            const duyurularRef = ref(database, "duyurular");
-            await push(duyurularRef, yeniDuyuru);
+            // Firestore'a kaydet
+            const duyurularRef = collection(db, "duyurular");
+            await addDoc(duyurularRef, yeniDuyuru);
             
-            alert("Duyuru başarıyla eklendi!");
+            toast.success("Duyuru başarıyla eklendi!");
+            
             // Formu temizle
             setDuyuruTipi("Duyuru");
             setDuyuruAdi("");
@@ -111,7 +114,7 @@ const AddAnnouncement = ({ isOpen, onClose }) => {
             onClose();
         } catch (error) {
             console.error("Duyuru eklenirken bir hata oluştu:", error);
-            alert("Duyuru eklenirken bir hata oluştu!");
+            toast.error("Duyuru eklenirken bir hata oluştu!");
         } finally {
             setIsSubmitting(false);
         }

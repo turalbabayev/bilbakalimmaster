@@ -16,7 +16,7 @@ import { ref, onValue, update, get, remove, push, set, child, off } from "fireba
 import { getDatabase } from "firebase/database";
 import { toast } from "react-hot-toast";
 import { db } from "../../firebase";
-import { collection, doc, getDoc, getDocs, onSnapshot, deleteDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, onSnapshot, deleteDoc } from "firebase/firestore";
 import UpdateModal from "../../components/updateModal";
 
 function QuestionContent() {
@@ -397,39 +397,6 @@ function QuestionContent() {
             console.error('Soru silinirken hata:', error);
             toast.error('Soru silinirken bir hata oluştu!');
             return false;
-        }
-    };
-
-    const handleAltKonuEkle = async () => {
-        const yeniAltKonuAdi = prompt('Alt konu adını girin:');
-        if (yeniAltKonuAdi) {
-            try {
-                // Firestore'da yeni alt konu oluştur
-                const altKonuRef = collection(db, `konular/${id}/altkonular`);
-                const yeniAltKonu = {
-                    ad: yeniAltKonuAdi,
-                    createdAt: serverTimestamp(),
-                    sorular: {}
-                };
-                
-                // Firestore'a kaydet
-                const docRef = await addDoc(altKonuRef, yeniAltKonu);
-                console.log('Yeni alt konu eklendi:', docRef.id);
-                
-                // UI'ı güncelle
-                setAltKonular(prevState => ({
-                    ...prevState,
-                    [docRef.id]: {
-                        ...yeniAltKonu,
-                        id: docRef.id
-                    }
-                }));
-                
-                toast.success('Alt konu başarıyla eklendi!');
-            } catch (error) {
-                console.error('Alt konu eklenirken hata:', error);
-                toast.error('Alt konu eklenirken bir hata oluştu!');
-            }
         }
     };
 
