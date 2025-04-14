@@ -4,6 +4,7 @@ import { db } from "../../firebase";
 import { collection, getDocs, query, orderBy, deleteDoc, doc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import AddMindCardModal from "../../components/AddMindCardModal";
+import EditMindCardModal from "../../components/EditMindCardModal";
 
 function NotesPage() {
     const [mindCards, setMindCards] = useState([]);
@@ -11,6 +12,8 @@ function NotesPage() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('mindCards');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [selectedCard, setSelectedCard] = useState(null);
     const [deletingId, setDeletingId] = useState(null);
 
     const fetchData = async () => {
@@ -56,6 +59,15 @@ function NotesPage() {
         }
     };
 
+    const handleEdit = (card) => {
+        setSelectedCard(card);
+        setIsEditModalOpen(true);
+    };
+
+    const handleEditSuccess = () => {
+        fetchData();
+    };
+
     useEffect(() => {
         fetchData();
     }, []);
@@ -64,16 +76,14 @@ function NotesPage() {
         <Layout>
             <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
                 <div className="container mx-auto py-8 px-4">
-                    {/* Başlık ve Sekmeler */}
-                    <div className="mb-8">
-                        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Notlar</h1>
+                    <div className="flex flex-col md:flex-row justify-between items-center mb-8 space-y-4 md:space-y-0">
                         <div className="flex space-x-4">
                             <button
                                 onClick={() => setActiveTab('mindCards')}
                                 className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
                                     activeTab === 'mindCards'
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-gray-600'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                                 }`}
                             >
                                 Akıl Kartları
@@ -82,140 +92,123 @@ function NotesPage() {
                                 onClick={() => setActiveTab('currentInfo')}
                                 className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
                                     activeTab === 'currentInfo'
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-gray-600'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                                 }`}
                             >
                                 Güncel Bilgiler
                             </button>
                         </div>
+                        <button
+                            onClick={() => setIsAddModalOpen(true)}
+                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center"
+                        >
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Yeni Kart Ekle
+                        </button>
                     </div>
 
-                    {/* İçerik Alanı */}
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-                        {/* Üst Kısım - Yeni Ekle Butonu */}
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-                                {activeTab === 'mindCards' ? 'Akıl Kartları' : 'Güncel Bilgiler'}
-                            </h2>
-                            <button
-                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-md transition-all duration-200 flex items-center"
-                                onClick={() => setIsAddModalOpen(true)}
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                                </svg>
-                                {activeTab === 'mindCards' ? 'Yeni Kart Ekle' : 'Yeni Bilgi Ekle'}
-                            </button>
+                    {loading ? (
+                        <div className="flex justify-center items-center h-64">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                         </div>
-
-                        {/* İçerik Listesi */}
-                        {loading ? (
-                            <div className="flex justify-center items-center h-64">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {activeTab === 'mindCards' ? (
-                                    mindCards.length > 0 ? (
-                                        mindCards.map(card => (
-                                            <div
-                                                key={card.id}
-                                                className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 hover:shadow-md transition-shadow duration-200"
-                                            >
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <div>
-                                                        <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-2">
-                                                            {card.topic}
-                                                        </h3>
-                                                        <p className="text-sm text-indigo-600 dark:text-indigo-400 mb-2">
-                                                            {card.subtopic}
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex items-center space-x-4">
-                                                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                            {card.createdAt?.toDate().toLocaleDateString('tr-TR')}
-                                                        </div>
-                                                        <button
-                                                            onClick={() => handleDelete(card.id)}
-                                                            disabled={deletingId === card.id}
-                                                            className={`p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors duration-200 ${
-                                                                deletingId === card.id ? 'opacity-50 cursor-not-allowed' : ''
-                                                            }`}
-                                                        >
-                                                            {deletingId === card.id ? (
-                                                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                                </svg>
-                                                            ) : (
-                                                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                                </svg>
-                                                            )}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div 
-                                                    className="text-gray-600 dark:text-gray-300 mb-4 prose dark:prose-invert max-w-none"
-                                                    dangerouslySetInnerHTML={{ __html: card.content }}
-                                                />
-
-                                                {card.image && (
-                                                    <div className="mt-4">
-                                                        <img
-                                                            src={`data:${card.imageType};base64,${card.image}`}
-                                                            alt={card.topic}
-                                                            className="max-h-40 rounded-lg shadow-sm"
-                                                        />
-                                                    </div>
+                    ) : activeTab === 'mindCards' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {mindCards.map((card) => (
+                                <div
+                                    key={card.id}
+                                    className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
+                                >
+                                    {card.imageUrl && (
+                                        <div className="relative h-48 overflow-hidden">
+                                            <img
+                                                src={card.imageUrl}
+                                                alt={card.topic}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                    )}
+                                    <div className="p-6">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div>
+                                                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                                                    {card.topic}
+                                                </h3>
+                                                {card.subtopic && (
+                                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                        {card.subtopic}
+                                                    </p>
                                                 )}
                                             </div>
-                                        ))
-                                    ) : (
-                                        <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                                            Henüz akıl kartı eklenmemiş.
-                                        </p>
-                                    )
-                                ) : (
-                                    currentInfo.length > 0 ? (
-                                        currentInfo.map(info => (
-                                            <div
-                                                key={info.id}
-                                                className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow duration-200"
-                                            >
-                                                <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-2">
-                                                    {info.title}
-                                                </h3>
-                                                <p className="text-gray-600 dark:text-gray-300">
-                                                    {info.content}
-                                                </p>
-                                                <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                                    {new Date(info.createdAt?.toDate()).toLocaleDateString('tr-TR')}
-                                                </div>
+                                            <div className="flex space-x-2">
+                                                <button
+                                                    onClick={() => handleEdit(card)}
+                                                    className="p-2 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors duration-200"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(card.id)}
+                                                    disabled={deletingId === card.id}
+                                                    className={`p-2 ${
+                                                        deletingId === card.id
+                                                            ? 'text-gray-400'
+                                                            : 'text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300'
+                                                    }`}
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
                                             </div>
-                                        ))
-                                    ) : (
-                                        <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                                            Henüz güncel bilgi eklenmemiş.
-                                        </p>
-                                    )
-                                )}
-                            </div>
-                        )}
-                    </div>
+                                        </div>
+                                        <div
+                                            className="prose dark:prose-invert max-w-none"
+                                            dangerouslySetInnerHTML={{ __html: card.content }}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {currentInfo.map((info) => (
+                                <div
+                                    key={info.id}
+                                    className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden"
+                                >
+                                    {/* Güncel bilgiler için içerik */}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Modallar */}
+                    {activeTab === 'mindCards' && (
+                        <AddMindCardModal
+                            isOpen={isAddModalOpen}
+                            onClose={() => setIsAddModalOpen(false)}
+                            onSuccess={fetchData}
+                        />
+                    )}
+
+                    {activeTab === 'mindCards' && (
+                        <EditMindCardModal
+                            isOpen={isEditModalOpen}
+                            onClose={() => {
+                                setIsEditModalOpen(false);
+                                setSelectedCard(null);
+                            }}
+                            onSuccess={handleEditSuccess}
+                            card={selectedCard}
+                        />
+                    )}
                 </div>
             </div>
-
-            {/* Akıl Kartı Ekleme Modalı */}
-            {activeTab === 'mindCards' && (
-                <AddMindCardModal
-                    isOpen={isAddModalOpen}
-                    onClose={() => setIsAddModalOpen(false)}
-                    onSuccess={fetchData}
-                />
-            )}
         </Layout>
     );
 }
