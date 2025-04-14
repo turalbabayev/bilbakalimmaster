@@ -16,7 +16,7 @@ import { ref, onValue, update, get, remove, push, set, child, off } from "fireba
 import { getDatabase } from "firebase/database";
 import { toast } from "react-hot-toast";
 import { db } from "../../firebase";
-import { collection, doc, getDoc, getDocs, onSnapshot } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, onSnapshot, deleteDoc } from "firebase/firestore";
 import UpdateModal from "../../components/updateModal";
 
 function QuestionContent() {
