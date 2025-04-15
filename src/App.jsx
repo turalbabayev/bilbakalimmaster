@@ -3,7 +3,6 @@ import ImportQuestionsFromJSON from "./components/ImportQuestionsFromJSON";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import MainPage from "./pages/MainPage";
-import DenemeSinavlariPage from "./pages/DenemeSinavlari/DenemeSinavlariPage";
 
 function App() {
     return (
@@ -22,7 +21,6 @@ function App() {
                 />
                 <Routes>
                     <Route path="/*" element={<MainPage />} />
-                    <Route path="/deneme-sinavlari" element={<DenemeSinavlariPage />} />
                 </Routes>
             </div>
         </Router>
