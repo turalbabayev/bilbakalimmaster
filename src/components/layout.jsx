@@ -1,14 +1,14 @@
-import { Outlet } from "react-router-dom";
+import React from "react";
 import Header from "./header";
 
-const Layout = () => {
+const Layout = ({ children }) => {
     return (
-        <>
+        <div>
             <Header />
-            <main className="container mx-auto px-4 py-8">
-                <Outlet />
-            </main>
-        </>
+            <div>
+                {children}
+            </div>
+        </div>
     );
 };
 
