@@ -1,7 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import MainPage from "./pages/MainPage";
 import DenemeSinavlariPage from './pages/DenemeSinavlari/DenemeSinavlariPage';
-import Header from './components/Header';
 import { Toaster } from "react-hot-toast";
 import Layout from "./components/layout";
 
@@ -9,7 +8,6 @@ function App() {
     return (
         <Router>
             <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-                <Header />
                 <Toaster
                     position="top-center"
                     reverseOrder={false}
