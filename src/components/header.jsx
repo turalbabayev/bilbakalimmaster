@@ -77,6 +77,26 @@ const Header = () => {
                                     {item.label}
                                 </Link>
                             ))}
+                            <Link
+                                to="/guncel-bilgiler"
+                                className={`${
+                                    location.pathname === '/guncel-bilgiler'
+                                        ? 'bg-gray-900 text-white'
+                                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                                } rounded-md px-3 py-2 text-sm font-medium`}
+                            >
+                                Güncel Bilgiler
+                            </Link>
+                            <Link
+                                to="/deneme-sinavlari"
+                                className={`${
+                                    location.pathname === '/deneme-sinavlari'
+                                        ? 'bg-gray-900 text-white'
+                                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                                } rounded-md px-3 py-2 text-sm font-medium`}
+                            >
+                                Deneme Sınavları
+                            </Link>
                         </div>
                     </nav>
 
