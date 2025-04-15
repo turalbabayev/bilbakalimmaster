@@ -5,10 +5,11 @@ import { collection, getDocs, query, orderBy, deleteDoc, doc } from "firebase/fi
 import { toast } from "react-hot-toast";
 import AddMindCardModal from "../../components/AddMindCardModal";
 import EditMindCardModal from "../../components/EditMindCardModal";
+import AddCurrentInfo from "../../components/AddCurrentInfo";
+import CurrentInfoList from "../../components/CurrentInfoList";
 
 function NotesPage() {
     const [mindCards, setMindCards] = useState([]);
-    const [currentInfo, setCurrentInfo] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('mindCards');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -23,15 +24,6 @@ function NotesPage() {
             const mindCardsQuery = query(mindCardsRef, orderBy("createdAt", "desc"));
             const mindCardsSnapshot = await getDocs(mindCardsQuery);
             setMindCards(mindCardsSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })));
-
-            // Güncel Bilgileri getir
-            const currentInfoRef = collection(db, "currentInfo");
-            const currentInfoQuery = query(currentInfoRef, orderBy("createdAt", "desc"));
-            const currentInfoSnapshot = await getDocs(currentInfoQuery);
-            setCurrentInfo(currentInfoSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             })));
@@ -106,11 +98,11 @@ function NotesPage() {
                             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                             </svg>
-                            Yeni Kart Ekle
+                            {activeTab === 'mindCards' ? 'Yeni Kart Ekle' : 'Yeni Güncel Bilgi Ekle'}
                         </button>
                     </div>
 
-                    {loading ? (
+                    {loading && activeTab === 'mindCards' ? (
                         <div className="flex justify-center items-center h-64">
                             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                         </div>
@@ -175,36 +167,28 @@ function NotesPage() {
                             ))}
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {currentInfo.map((info) => (
-                                <div
-                                    key={info.id}
-                                    className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden"
-                                >
-                                    {/* Güncel bilgiler için içerik */}
-                                </div>
-                            ))}
-                        </div>
+                        <CurrentInfoList />
                     )}
 
                     {/* Modallar */}
-                    {activeTab === 'mindCards' && (
-                        <AddMindCardModal
+                    {activeTab === 'mindCards' ? (
+                        <>
+                            <AddMindCardModal
+                                isOpen={isAddModalOpen}
+                                onClose={() => setIsAddModalOpen(false)}
+                                onSuccess={fetchData}
+                            />
+                            <EditMindCardModal
+                                isOpen={isEditModalOpen}
+                                onClose={() => setIsEditModalOpen(false)}
+                                card={selectedCard}
+                                onSuccess={handleEditSuccess}
+                            />
+                        </>
+                    ) : (
+                        <AddCurrentInfo
                             isOpen={isAddModalOpen}
                             onClose={() => setIsAddModalOpen(false)}
-                            onSuccess={fetchData}
-                        />
-                    )}
-
-                    {activeTab === 'mindCards' && (
-                        <EditMindCardModal
-                            isOpen={isEditModalOpen}
-                            onClose={() => {
-                                setIsEditModalOpen(false);
-                                setSelectedCard(null);
-                            }}
-                            onSuccess={handleEditSuccess}
-                            card={selectedCard}
                         />
                     )}
                 </div>
