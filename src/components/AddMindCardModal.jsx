@@ -54,19 +54,17 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
     const handleImageChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            // Resim boyutu kontrolü (5MB)
             const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
             if (file.size > MAX_FILE_SIZE) {
                 toast.error("Resim boyutu çok büyük! Maksimum 5MB olmalıdır.", {
                     duration: 4000,
-                    position: 'top-center',
                     style: {
                         background: '#ef4444',
                         color: '#fff',
                         fontWeight: 'bold',
                     },
                 });
-                e.target.value = ''; // Input'u temizle
+                e.target.value = '';
                 setFormData(prev => ({
                     ...prev,
                     image: null,
@@ -75,19 +73,18 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setFormData(prev => ({
-                    ...prev,
-                    image: file,
-                    resimPreview: reader.result
-                }));
-                toast.success("Resim başarıyla yüklendi!", {
-                    duration: 2000,
-                    position: 'top-center'
-                });
-            };
-            reader.readAsDataURL(file);
+            setFormData(prev => ({
+                ...prev,
+                image: file,
+                resimPreview: URL.createObjectURL(file)
+            }));
+            toast.success("Resim başarıyla yüklendi!", {
+                duration: 2000,
+                style: {
+                    background: '#22c55e',
+                    color: '#fff',
+                }
+            });
         }
     };
 
