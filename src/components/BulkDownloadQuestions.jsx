@@ -191,11 +191,15 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
 
                     // Doğru cevap ve açıklama
                     if (indirmeTipi === "tum") {
+                        // Doğru cevabın şıkkını bul
+                        const dogruCevapIndex = soru.cevaplar ? soru.cevaplar.findIndex(cevap => cevap === soru.dogruCevap) : -1;
+                        const dogruCevapSik = dogruCevapIndex !== -1 ? String.fromCharCode(65 + dogruCevapIndex) : "";
+
                         children.push(
                             new Paragraph({
                                 children: [
                                     new TextRun({
-                                        text: `Doğru Cevap: ${soru.dogruCevap || ""}`,
+                                        text: `Doğru Cevap: ${dogruCevapSik} - ${soru.dogruCevap || ""}`,
                                         bold: true,
                                         color: "2b5797"
                                     })
