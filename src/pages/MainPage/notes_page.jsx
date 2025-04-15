@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Layout from "../../components/layout";
 import { db } from "../../firebase";
 import { collection, getDocs, query, orderBy, deleteDoc, doc } from "firebase/firestore";
@@ -16,6 +16,7 @@ function NotesPage() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedCard, setSelectedCard] = useState(null);
     const [deletingId, setDeletingId] = useState(null);
+    const currentInfoListRef = useRef(null);
 
     const fetchData = async () => {
         try {
@@ -167,7 +168,7 @@ function NotesPage() {
                             ))}
                         </div>
                     ) : (
-                        <CurrentInfoList />
+                        <CurrentInfoList ref={currentInfoListRef} />
                     )}
 
                     {/* Modallar */}
@@ -189,6 +190,7 @@ function NotesPage() {
                         <AddCurrentInfo
                             isOpen={isAddModalOpen}
                             onClose={() => setIsAddModalOpen(false)}
+                            onSuccess={() => currentInfoListRef.current?.fetchGuncelBilgiler()}
                         />
                     )}
                 </div>

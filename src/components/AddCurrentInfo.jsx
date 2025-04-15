@@ -5,7 +5,7 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { toast } from 'react-hot-toast';
 
-const AddCurrentInfo = ({ isOpen, onClose }) => {
+const AddCurrentInfo = ({ isOpen, onClose, onSuccess }) => {
     const [formData, setFormData] = useState({
         baslik: "",
         icerik: "",
@@ -115,6 +115,7 @@ const AddCurrentInfo = ({ isOpen, onClose }) => {
                 resimPreview: null
             });
 
+            onSuccess?.();
             onClose();
         } catch (error) {
             console.error("Güncel bilgi eklenirken hata:", error);
