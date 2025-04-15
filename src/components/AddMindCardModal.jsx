@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { db } from "../firebase";
+import { db, storage } from "../firebase";
 import { collection, addDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -71,27 +72,20 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         setLoading(true);
 
         try {
-            let imageBase64 = null;
-            let imageType = null;
+            let imageUrl = null;
 
             if (formData.image) {
-                const reader = new FileReader();
-                imageBase64 = await new Promise((resolve) => {
-                    reader.onloadend = () => {
-                        const base64WithoutPrefix = reader.result.split(',')[1];
-                        resolve(base64WithoutPrefix);
-                    };
-                    reader.readAsDataURL(formData.image);
-                });
-                imageType = formData.image.type;
+                // Resmi Firebase Storage'a yükle
+                const storageRef = ref(storage, `mind-cards/${Date.now()}_${formData.image.name}`);
+                const snapshot = await uploadBytes(storageRef, formData.image);
+                imageUrl = await getDownloadURL(snapshot.ref);
             }
 
             const mindCardData = {
                 topic: formData.topic,
                 subtopic: formData.subtopic,
                 content: formData.content,
-                image: imageBase64,
-                imageType: imageType,
+                imageUrl: imageUrl,
                 createdAt: new Date()
             };
 

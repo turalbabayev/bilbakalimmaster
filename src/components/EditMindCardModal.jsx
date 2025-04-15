@@ -48,21 +48,27 @@ const EditMindCardModal = ({ isOpen, onClose, onSuccess, card }) => {
 
             // Eğer yeni bir resim yüklendiyse
             if (image) {
-                // Eski resmi sil
-                if (currentImageUrl) {
-                    const oldImageRef = ref(storage, currentImageUrl);
-                    try {
-                        await deleteObject(oldImageRef);
-                    } catch (error) {
-                        console.error('Eski resim silinirken hata:', error);
+                try {
+                    // Eski resmi sil (eğer varsa)
+                    if (currentImageUrl) {
+                        try {
+                            const oldImageRef = ref(storage, currentImageUrl);
+                            await deleteObject(oldImageRef);
+                        } catch (error) {
+                            console.error('Eski resim silinirken hata:', error);
+                        }
                     }
-                }
 
-                // Yeni resmi yükle
-                const storageRef = ref(storage, `mind-cards/${card.id}/${image.name}`);
-                const snapshot = await uploadBytes(storageRef, image);
-                const downloadURL = await getDownloadURL(snapshot.ref);
-                updateData.imageUrl = downloadURL;
+                    // Yeni resmi yükle
+                    const storageRef = ref(storage, `mind-cards/${card.id}_${Date.now()}_${image.name}`);
+                    const snapshot = await uploadBytes(storageRef, image);
+                    const downloadURL = await getDownloadURL(snapshot.ref);
+                    updateData.imageUrl = downloadURL;
+                } catch (error) {
+                    console.error('Resim yüklenirken hata:', error);
+                    toast.error('Resim yüklenirken bir hata oluştu');
+                    return;
+                }
             }
 
             await updateDoc(cardRef, updateData);
