@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
 import { collection, getDocs, deleteDoc, doc, query, orderBy, updateDoc } from "firebase/firestore";
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 
 const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) => {
     const [loading, setLoading] = useState(false);

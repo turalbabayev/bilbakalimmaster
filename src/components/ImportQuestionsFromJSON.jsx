@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { db } from "../firebase";
 import { collection, getDocs, addDoc, query, orderBy } from "firebase/firestore";
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 
 const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [selectedAltKonu, setSelectedAltKonu] = useState("");

@@ -1,7 +1,8 @@
 import ImportQuestionsFromDocx from "./components/ImportQuestionsFromDocx";
 import ImportQuestionsFromJSON from "./components/ImportQuestionsFromJSON";
 import { Toaster } from "react-hot-toast";
-import { BrowserRouter as Router } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import MainPage from "./pages/MainPage";
 
 function App() {
   return (
@@ -18,7 +19,9 @@ function App() {
             },
           }}
         />
-        {/* Diğer bileşenler buraya gelecek */}
+        <Routes>
+          <Route path="/*" element={<MainPage />} />
+        </Routes>
       </div>
     </Router>
   );

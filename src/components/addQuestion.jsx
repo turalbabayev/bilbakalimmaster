@@ -3,7 +3,7 @@ import { db } from "../firebase";
 import { collection, addDoc } from "firebase/firestore";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { toast } from "react-toastify";
+import { toast } from 'react-hot-toast';
 import 'react-toastify/dist/ReactToastify.css';
 
 const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {

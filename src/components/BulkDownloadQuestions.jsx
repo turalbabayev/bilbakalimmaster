@@ -3,7 +3,7 @@ import { db } from "../firebase";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { saveAs } from "file-saver";
 import { Document, Packer, Paragraph, TextRun } from "docx";
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 
 const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) => {
     const [loading, setLoading] = useState(false);

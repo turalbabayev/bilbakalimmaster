@@ -3,7 +3,7 @@ import { db } from '../firebase';
 import { doc, updateDoc, deleteDoc, collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle } from 'docx';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 
 const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncellemeSuccess, onUpdateClick, onDeleteClick, konuId, altKonuId, altDalId }, ref) => {
     const [sonuclar, setSonuclar] = useState([]);

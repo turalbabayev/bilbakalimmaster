@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { db } from "../firebase";
 import { doc, deleteDoc, collection, getDocs, updateDoc, query, orderBy } from "firebase/firestore";
-import { toast } from "react-toastify";
+import { toast } from 'react-hot-toast';
 import 'react-toastify/dist/ReactToastify.css';
 
 const DeleteQuestion = ({ soruRef, onDelete }) => {
