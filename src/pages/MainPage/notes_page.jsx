@@ -121,15 +121,15 @@ function NotesPage() {
                                     key={card.id}
                                     className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
                                 >
-                                    {card.imageUrl && (
+                                    {card.resim ? (
                                         <div className="relative h-48 overflow-hidden">
                                             <img
-                                                src={card.imageUrl}
+                                                src={`data:${card.resimTuru};base64,${card.resim}`}
                                                 alt={card.topic}
                                                 className="w-full h-full object-cover"
                                             />
                                         </div>
-                                    )}
+                                    ) : null}
                                     <div className="p-6">
                                         <div className="flex justify-between items-start mb-4">
                                             <div>

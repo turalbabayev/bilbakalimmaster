@@ -1,7 +1,6 @@
 import React, { useState } from "react";
-import { db, storage } from "../firebase";
+import { db } from "../firebase";
 import { collection, addDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -55,6 +54,13 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
     const handleImageChange = (e) => {
         const file = e.target.files[0];
         if (file) {
+            // Resim boyutu kontrolü (5MB)
+            const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+            if (file.size > MAX_FILE_SIZE) {
+                toast.error("Resim boyutu çok büyük! Lütfen 5MB'dan küçük bir resim seçin.");
+                return;
+            }
+
             const reader = new FileReader();
             reader.onloadend = () => {
                 setFormData(prev => ({
@@ -72,20 +78,27 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         setLoading(true);
 
         try {
-            let imageUrl = null;
+            let resimBase64 = null;
+            let resimTuru = null;
 
             if (formData.image) {
-                // Resmi Firebase Storage'a yükle
-                const storageRef = ref(storage, `mind-cards/${Date.now()}_${formData.image.name}`);
-                const snapshot = await uploadBytes(storageRef, formData.image);
-                imageUrl = await getDownloadURL(snapshot.ref);
+                const reader = new FileReader();
+                resimBase64 = await new Promise((resolve) => {
+                    reader.onloadend = () => {
+                        const base64WithoutPrefix = reader.result.split(',')[1];
+                        resolve(base64WithoutPrefix);
+                    };
+                    reader.readAsDataURL(formData.image);
+                });
+                resimTuru = formData.image.type;
             }
 
             const mindCardData = {
                 topic: formData.topic,
                 subtopic: formData.subtopic,
                 content: formData.content,
-                imageUrl: imageUrl,
+                resim: resimBase64,
+                resimTuru: resimTuru,
                 createdAt: new Date()
             };
 

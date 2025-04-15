@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { db, storage } from "../firebase";
+import { db } from "../firebase";
 import { doc, updateDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -11,7 +10,7 @@ const EditMindCardModal = ({ isOpen, onClose, onSuccess, card }) => {
     const [subtopic, setSubtopic] = useState('');
     const [content, setContent] = useState('');
     const [image, setImage] = useState(null);
-    const [currentImageUrl, setCurrentImageUrl] = useState('');
+    const [currentImage, setCurrentImage] = useState(null);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -19,13 +18,24 @@ const EditMindCardModal = ({ isOpen, onClose, onSuccess, card }) => {
             setTopic(card.topic || '');
             setSubtopic(card.subtopic || '');
             setContent(card.content || '');
-            setCurrentImageUrl(card.imageUrl || '');
+            setCurrentImage(card.resim ? {
+                base64: card.resim,
+                type: card.resimTuru
+            } : null);
         }
     }, [card]);
 
     const handleImageChange = (e) => {
-        if (e.target.files[0]) {
-            setImage(e.target.files[0]);
+        const file = e.target.files[0];
+        if (file) {
+            // Resim boyutu kontrolü (5MB)
+            const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+            if (file.size > MAX_FILE_SIZE) {
+                toast.error("Resim boyutu çok büyük! Lütfen 5MB'dan küçük bir resim seçin.");
+                return;
+            }
+
+            setImage(file);
         }
     };
 
@@ -48,27 +58,16 @@ const EditMindCardModal = ({ isOpen, onClose, onSuccess, card }) => {
 
             // Eğer yeni bir resim yüklendiyse
             if (image) {
-                try {
-                    // Eski resmi sil (eğer varsa)
-                    if (currentImageUrl) {
-                        try {
-                            const oldImageRef = ref(storage, currentImageUrl);
-                            await deleteObject(oldImageRef);
-                        } catch (error) {
-                            console.error('Eski resim silinirken hata:', error);
-                        }
-                    }
-
-                    // Yeni resmi yükle
-                    const storageRef = ref(storage, `mind-cards/${card.id}_${Date.now()}_${image.name}`);
-                    const snapshot = await uploadBytes(storageRef, image);
-                    const downloadURL = await getDownloadURL(snapshot.ref);
-                    updateData.imageUrl = downloadURL;
-                } catch (error) {
-                    console.error('Resim yüklenirken hata:', error);
-                    toast.error('Resim yüklenirken bir hata oluştu');
-                    return;
-                }
+                const reader = new FileReader();
+                const resimBase64 = await new Promise((resolve) => {
+                    reader.onloadend = () => {
+                        const base64WithoutPrefix = reader.result.split(',')[1];
+                        resolve(base64WithoutPrefix);
+                    };
+                    reader.readAsDataURL(image);
+                });
+                updateData.resim = resimBase64;
+                updateData.resimTuru = image.type;
             }
 
             await updateDoc(cardRef, updateData);
@@ -137,10 +136,10 @@ const EditMindCardModal = ({ isOpen, onClose, onSuccess, card }) => {
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Resim
                             </label>
-                            {currentImageUrl && (
+                            {currentImage && (
                                 <div className="mb-2">
                                     <img
-                                        src={currentImageUrl}
+                                        src={`data:${currentImage.type};base64,${currentImage.base64}`}
                                         alt="Mevcut resim"
                                         className="max-h-40 rounded"
                                     />
