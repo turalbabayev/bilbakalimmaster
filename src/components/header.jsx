@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
+import { Dialog } from '@headlessui/react';
+import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 
 const Header = () => {
     const navigate = useNavigate();
@@ -32,88 +34,77 @@ const Header = () => {
     };
 
     return (
-        <header className="bg-white dark:bg-gray-900 shadow-lg">
-            <div className="container mx-auto">
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-                    {/* Mobile Menu Button */}
-                    <div className="flex items-center justify-between p-4 lg:hidden">
-                        <Link to="/home" className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
-                            BilBakalım
-                        </Link>
-                        <button
-                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="p-2 rounded-lg text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline-none"
-                        >
-                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                {isMobileMenuOpen ? (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                ) : (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                                )}
-                            </svg>
-                        </button>
-                    </div>
-
-                    {/* Desktop Logo - Hidden on Mobile */}
-                    <div className="hidden lg:flex lg:items-center lg:pl-4">
-                        <Link to="/home" className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
-                            BilBakalım
-                        </Link>
-                    </div>
-
-                    {/* Navigation Menu */}
-                    <nav className={`${isMobileMenuOpen ? 'block' : 'hidden'} lg:flex lg:items-center`}>
-                        <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-1">
-                            {menuItems.map((item) => (
-                                <Link
-                                    key={item.path}
-                                    to={item.path}
-                                    className={`px-4 py-3 lg:py-5 text-sm font-medium transition-colors duration-200 ${
-                                        isActive(item.path)
-                                        ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/50'
-                                        : 'text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/50'
-                                    }`}
-                                >
-                                    {item.label}
-                                </Link>
-                            ))}
-                            <Link
-                                to="/guncel-bilgiler"
-                                className={`${
-                                    location.pathname === '/guncel-bilgiler'
-                                        ? 'bg-gray-900 text-white'
-                                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                                } rounded-md px-3 py-2 text-sm font-medium`}
-                            >
-                                Güncel Bilgiler
-                            </Link>
-                            <Link
-                                to="/deneme-sinavlari"
-                                className={`${
-                                    location.pathname === '/deneme-sinavlari'
-                                        ? 'bg-gray-900 text-white'
-                                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                                } rounded-md px-3 py-2 text-sm font-medium`}
-                            >
-                                Deneme Sınavları
-                            </Link>
-                        </div>
-                    </nav>
-
-                    {/* Sign Out Button */}
-                    <div className={`${isMobileMenuOpen ? 'block' : 'hidden'} lg:flex lg:items-center lg:pr-4 p-4 lg:p-0`}>
-                        <button
-                            onClick={handleSignOut}
-                            className="w-full lg:w-auto px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                            Çıkış Yap
-                        </button>
-                    </div>
+        <header className="bg-gray-800">
+            <nav className="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8" aria-label="Global">
+                <div className="flex lg:flex-1">
+                    <Link to="/" className="-m-1.5 p-1.5">
+                        <span className="text-white font-bold text-xl">BilBakalım</span>
+                    </Link>
                 </div>
-            </div>
+                <div className="flex lg:hidden">
+                    <button
+                        type="button"
+                        className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-gray-400"
+                        onClick={() => setIsMobileMenuOpen(true)}
+                    >
+                        <span className="sr-only">Open main menu</span>
+                        <Bars3Icon className="h-6 w-6" aria-hidden="true" />
+                    </button>
+                </div>
+                <div className="hidden lg:flex lg:gap-x-12">
+                    {menuItems.map((item) => (
+                        <Link
+                            key={item.path}
+                            to={item.path}
+                            className={`${
+                                location.pathname === item.path
+                                    ? 'bg-gray-900 text-white'
+                                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                            } rounded-md px-3 py-2 text-sm font-medium`}
+                        >
+                            {item.label}
+                        </Link>
+                    ))}
+                </div>
+            </nav>
+            <Dialog as="div" className="lg:hidden" open={isMobileMenuOpen} onClose={setIsMobileMenuOpen}>
+                <div className="fixed inset-0 z-10" />
+                <Dialog.Panel className="fixed inset-y-0 right-0 z-10 w-full overflow-y-auto bg-gray-800 px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
+                    <div className="flex items-center justify-between">
+                        <Link to="/" className="-m-1.5 p-1.5">
+                            <span className="text-white font-bold text-xl">BilBakalım</span>
+                        </Link>
+                        <button
+                            type="button"
+                            className="-m-2.5 rounded-md p-2.5 text-gray-400"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                            <span className="sr-only">Close menu</span>
+                            <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                        </button>
+                    </div>
+                    <div className="mt-6 flow-root">
+                        <div className="-my-6 divide-y divide-gray-500/10">
+                            <div className="space-y-2 py-6">
+                                {menuItems.map((item) => (
+                                    <Link
+                                        key={item.path}
+                                        to={item.path}
+                                        className={`-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 ${
+                                            location.pathname === item.path
+                                                ? 'bg-gray-900 text-white'
+                                                : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                                        }`}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                        {item.label}
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </Dialog.Panel>
+            </Dialog>
         </header>
     );
 };
