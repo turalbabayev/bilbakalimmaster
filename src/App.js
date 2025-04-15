@@ -25,6 +25,8 @@ function App() {
             <Route path='/announcements' element={<ProtectedRouter><AnnouncementPage /></ProtectedRouter>} />
             <Route path='/games' element={<ProtectedRouter><GamesPage /></ProtectedRouter>} />
             <Route path='/notes' element={<ProtectedRouter><NotesPage /></ProtectedRouter>} />
+            <Route path='/deneme-sinavlari' element={<ProtectedRouter><DenemeSinavlariPage /></ProtectedRouter>} />
+
           </Routes>
         </Router>
     </AuthProvider>

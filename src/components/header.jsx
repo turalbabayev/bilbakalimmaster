@@ -24,7 +24,8 @@ const Header = () => {
         { path: "/question", label: "Sorular" },
         { path: "/announcements", label: "Duyurular" },
         { path: "/games", label: "Oyunlar" },
-        { path: "/notes", label: "Notlar" }
+        { path: "/notes", label: "Notlar" },
+        { path: "/deneme-sinavlari", label: "Deneme Sınavları" }
     ];
 
     const isActive = (path) => {
