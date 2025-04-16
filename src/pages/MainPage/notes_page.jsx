@@ -171,7 +171,7 @@ function NotesPage() {
                                                 <div className="p-6">
                                                     <div className="flex justify-between items-start mb-4">
                                                         <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                                                            {card.topic}
+                                                            {konuBaslik}
                                                         </h3>
                                                         <div className="flex space-x-2">
                                                             <button

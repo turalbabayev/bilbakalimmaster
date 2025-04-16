@@ -9,8 +9,6 @@ import 'react-quill/dist/quill.snow.css';
 const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
-        topic: "",
-        subtopic: "",
         content: "",
         image: null,
         resimPreview: null
@@ -135,8 +133,9 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                 resimTuru = formData.image.type;
             }
 
+            const selectedKonuData = konular.find(k => k.id === selectedKonu);
             const mindCardData = {
-                title: formData.topic,
+                title: selectedKonuData.baslik,
                 content: formData.content,
                 altKonu,
                 resim: resimBase64,
@@ -146,7 +145,6 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
 
             // Önce konu dökümanını oluştur veya güncelle
             const konuRef = doc(db, "miniCards-konular", selectedKonu);
-            const selectedKonuData = konular.find(k => k.id === selectedKonu);
             await setDoc(konuRef, {
                 baslik: selectedKonuData.baslik
             }, { merge: true });
@@ -157,8 +155,6 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
 
             toast.success("Akıl kartı başarıyla eklendi!");
             setFormData({
-                topic: "",
-                subtopic: "",
                 content: "",
                 image: null,
                 resimPreview: null
