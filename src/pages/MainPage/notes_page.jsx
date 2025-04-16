@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Layout from "../../components/layout";
 import { db } from "../../firebase";
-import { collection, getDocs, query, orderBy, deleteDoc, doc, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, deleteDoc, doc, onSnapshot, writeBatch } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import AddMindCardModal from "../../components/AddMindCardModal";
 import EditMindCardModal from "../../components/EditMindCardModal";
@@ -20,6 +20,9 @@ function NotesPage() {
     const [selectedKonu, setSelectedKonu] = useState(null);
     const currentInfoListRef = useRef(null);
     const { topics, loading: topicsLoading } = useTopics();
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [selectedKonuForDelete, setSelectedKonuForDelete] = useState("");
+    const [isDeletingAll, setIsDeletingAll] = useState(false);
 
     useEffect(() => {
         const unsubscribers = [];
@@ -94,6 +97,43 @@ function NotesPage() {
         setSelectedKonu(null);
     };
 
+    const handleBulkDelete = async () => {
+        if (!selectedKonuForDelete) {
+            toast.error("Lütfen bir konu seçin!");
+            return;
+        }
+
+        if (!window.confirm(`${topics.find(t => t.id === selectedKonuForDelete)?.baslik} konusundaki TÜM kartlar silinecek. Emin misiniz?`)) {
+            return;
+        }
+
+        setIsDeletingAll(true);
+        try {
+            const konuRef = doc(db, "miniCards-konular", selectedKonuForDelete);
+            const cardsRef = collection(konuRef, "cards");
+            const cardsQuery = query(cardsRef);
+            const snapshot = await getDocs(cardsQuery);
+
+            // Batch işlemi başlat
+            const batch = writeBatch(db);
+            snapshot.docs.forEach((doc) => {
+                batch.delete(doc.ref);
+            });
+
+            // Batch işlemini uygula
+            await batch.commit();
+            
+            toast.success("Tüm kartlar başarıyla silindi!");
+            setIsDeleteModalOpen(false);
+            setSelectedKonuForDelete("");
+        } catch (error) {
+            console.error("Kartlar silinirken hata:", error);
+            toast.error("Kartlar silinirken bir hata oluştu!");
+        } finally {
+            setIsDeletingAll(false);
+        }
+    };
+
     return (
         <Layout>
             <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
@@ -124,15 +164,33 @@ function NotesPage() {
                                 Güncel Bilgiler
                             </button>
                         </div>
-                        <button
-                            onClick={() => setIsAddModalOpen(true)}
-                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center"
-                        >
-                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                            </svg>
-                            {activeTab === 'mindCards' ? 'Yeni Kart Ekle' : 'Yeni Güncel Bilgi Ekle'}
-                        </button>
+                        <div className="flex space-x-4">
+                            {activeTab === 'mindCards' && (
+                                <>
+                                    <button
+                                        onClick={() => setIsDeleteModalOpen(true)}
+                                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                                    >
+                                        Toplu Sil
+                                    </button>
+                                    <button
+                                        onClick={() => setIsAddModalOpen(true)}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                    >
+                                        Yeni Ekle
+                                    </button>
+                                </>
+                            )}
+                            <button
+                                onClick={() => setIsAddModalOpen(true)}
+                                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center"
+                            >
+                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                                {activeTab === 'mindCards' ? 'Yeni Kart Ekle' : 'Yeni Güncel Bilgi Ekle'}
+                            </button>
+                        </div>
                     </div>
 
                     {activeTab === 'mindCards' && (
@@ -270,6 +328,62 @@ function NotesPage() {
                             onClose={() => setIsAddModalOpen(false)}
                             onSuccess={() => currentInfoListRef.current?.fetchGuncelBilgiler()}
                         />
+                    )}
+
+                    {/* Toplu Silme Modalı */}
+                    {isDeleteModalOpen && (
+                        <div className="fixed inset-0 z-50 overflow-y-auto">
+                            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                                <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+                                    <div 
+                                        className="absolute inset-0 bg-gray-500 opacity-75"
+                                        onClick={() => setIsDeleteModalOpen(false)}
+                                    ></div>
+                                </div>
+
+                                <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                                    <div className="p-6">
+                                        <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">
+                                            Kartları Toplu Sil
+                                        </h2>
+                                        <div className="mb-4">
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                                Konu Seçin
+                                            </label>
+                                            <select
+                                                value={selectedKonuForDelete}
+                                                onChange={(e) => setSelectedKonuForDelete(e.target.value)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                            >
+                                                <option value="">Konu Seçin</option>
+                                                {topics.map((konu) => (
+                                                    <option key={konu.id} value={konu.id}>
+                                                        {konu.baslik}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="mt-6 flex justify-end space-x-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsDeleteModalOpen(false)}
+                                                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
+                                            >
+                                                İptal
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleBulkDelete}
+                                                disabled={isDeletingAll || !selectedKonuForDelete}
+                                                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                                            >
+                                                {isDeletingAll ? "Siliniyor..." : "Tümünü Sil"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>
