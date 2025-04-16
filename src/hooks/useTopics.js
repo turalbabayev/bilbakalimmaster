@@ -10,9 +10,10 @@ export const useTopics = () => {
     useEffect(() => {
         const fetchTopics = async () => {
             try {
-                const querySnapshot = await getDocs(collection(db, 'topics'));
+                const querySnapshot = await getDocs(collection(db, 'miniCards-konular'));
                 const topicsData = querySnapshot.docs.map(doc => ({
                     id: doc.id,
+                    baslik: doc.data().baslik || '',
                     ...doc.data()
                 }));
                 setTopics(topicsData);
