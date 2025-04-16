@@ -29,35 +29,21 @@ function NotesPage() {
             
             const groupedCards = {};
             
-            // Katılım Bankacılığı için özel işlem
-            const katilimBankaciligiIds = [
-                '-OMwqcmZd1wBykLhWy2X',
-                '-OMxIqn_AbJuMHAXQcMl',
-                '-OMxKME94u1eKgCtQjsg',
-                '-OMxOQiPA8iue7tcF71O',
-                '-OMxObWfMWK_gl7F4fYN'
+            // Hariç tutulacak ID'ler
+            const excludedIds = [
+                'OMwqcmZd1wBykLhWy2X',
+                'OMxIqn_AbJuMHAXQcMl',
+                'OMxKME94u1eKgCtQjsg',
+                'OMxOQiPA8iue7tcF71O',
+                'OMxObWfMWK_gl7F4fYN'
             ];
             
-            // Katılım Bankacılığı kartlarını birleştir
-            const katilimBankaciligiCards = [];
-            
-            // Önce tüm konuları işle
+            // Sadece hariç tutulmayan konuları işle
             for (const konuDoc of konularSnapshot.docs) {
                 const konuId = konuDoc.id;
                 
-                // Eğer bu konu Katılım Bankacılığı konularından biriyse, kartları birleştir
-                if (katilimBankaciligiIds.includes(konuId)) {
-                    const cardsRef = collection(konularRef, konuId, "cards");
-                    const cardsQuery = query(cardsRef, orderBy("createdAt", "desc"));
-                    const cardsSnapshot = await getDocs(cardsQuery);
-                    
-                    if (cardsSnapshot.docs.length > 0) {
-                        katilimBankaciligiCards.push(...cardsSnapshot.docs.map(doc => ({
-                            id: doc.id,
-                            ...doc.data()
-                        })));
-                    }
-                    // Bu konuyu ayrıca gösterme
+                // Eğer bu konu hariç tutulan ID'lerden biriyse, atla
+                if (excludedIds.includes(konuId)) {
                     continue;
                 }
 
@@ -76,14 +62,6 @@ function NotesPage() {
                         }))
                     };
                 }
-            }
-            
-            // Eğer Katılım Bankacılığı kartları varsa, birleştirilmiş konuyu ekle
-            if (katilimBankaciligiCards.length > 0) {
-                groupedCards['katilim-bankaciligi'] = {
-                    konuBaslik: 'Katılım Bankacılığı',
-                    cards: katilimBankaciligiCards
-                };
             }
             
             setMindCards(groupedCards);

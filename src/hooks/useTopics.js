@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export const useTopics = () => {
@@ -10,15 +10,8 @@ export const useTopics = () => {
     useEffect(() => {
         const fetchTopics = async () => {
             try {
-                const querySnapshot = await getDocs(collection(db, 'konular'));
-                const topicsData = querySnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    baslik: doc.data().baslik || '',
-                    ...doc.data()
-                }));
-
-                // Katılım Bankacılığı konularını birleştir
-                const katilimBankaciligiIds = [
+                // Hariç tutulacak ID'ler
+                const excludedIds = [
                     'OMwqcmZd1wBykLhWy2X',
                     'OMxIqn_AbJuMHAXQcMl',
                     'OMxKME94u1eKgCtQjsg',
@@ -26,23 +19,18 @@ export const useTopics = () => {
                     'OMxObWfMWK_gl7F4fYN'
                 ];
 
-                // Katılım Bankacılığı konusunu oluştur
-                const katilimBankaciligiTopic = {
-                    id: 'katilim-bankaciligi',
-                    baslik: 'Katılım Bankacılığı',
-                    type: 'special',
-                    originalIds: katilimBankaciligiIds
-                };
+                const querySnapshot = await getDocs(collection(db, 'konular'));
+                
+                // Sadece hariç tutulmayan konuları al
+                const topicsData = querySnapshot.docs
+                    .filter(doc => !excludedIds.includes(doc.id))
+                    .map(doc => ({
+                        id: doc.id,
+                        baslik: doc.data().baslik || '',
+                        ...doc.data()
+                    }));
 
-                // Diğer konuları filtrele (Katılım Bankacılığı konularını çıkar)
-                const filteredTopics = topicsData.filter(topic => 
-                    !katilimBankaciligiIds.includes(topic.id)
-                );
-
-                // Birleştirilmiş konuyu ekle
-                const allTopics = [katilimBankaciligiTopic, ...filteredTopics];
-
-                setTopics(allTopics);
+                setTopics(topicsData);
             } catch (err) {
                 console.error('Error fetching topics:', err);
                 setError(err);
