@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db, storage } from "../firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -30,29 +30,59 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
         }
     }, [card, konuId]);
 
+    const handleImageUpload = async (file) => {
+        try {
+            const timestamp = Date.now();
+            const fileName = `${timestamp}_${file.name}`;
+            const storageRef = ref(storage, `mindCards/${fileName}`);
+            
+            // Metadata ayarlarını ekleyelim
+            const metadata = {
+                contentType: file.type,
+                customMetadata: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type'
+                }
+            };
+            
+            // Upload the file with metadata
+            const uploadTask = await uploadBytes(storageRef, file, metadata);
+            const downloadURL = await getDownloadURL(uploadTask.ref);
+            return downloadURL;
+        } catch (error) {
+            console.error("Resim yükleme hatası:", error);
+            throw error;
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
 
         try {
+            let imageUrl = formData.resim;
+
+            // Eğer yeni bir resim seçildiyse
+            if (formData.resim instanceof File) {
+                imageUrl = await handleImageUpload(formData.resim);
+            }
+
             const cardRef = doc(db, 'miniCards-konular', formData.selectedKonu, 'cards', card.id);
-            const updateData = {
+            const updatedData = {
                 konuId: formData.selectedKonu,
                 altKonu: formData.altKonu,
                 content: formData.content,
-                updatedAt: new Date().toISOString()
+                updatedAt: serverTimestamp(),
             };
 
-            if (formData.resim) {
-                const storageRef = ref(storage, `mindCards/${card.id}`);
-                const snapshot = await uploadBytes(storageRef, formData.resim);
-                const downloadURL = await getDownloadURL(snapshot.ref);
-
-                updateData.resim = downloadURL;
-                updateData.resimTuru = formData.resim.type;
+            // Eğer resim varsa veya yeni resim yüklendiyse
+            if (imageUrl) {
+                updatedData.resim = imageUrl;
+                updatedData.resimTuru = formData.resim.type;
             }
 
-            await updateDoc(cardRef, updateData);
+            await updateDoc(cardRef, updatedData);
             toast.success('Akıl kartı başarıyla güncellendi!');
             onSuccess();
             onClose();

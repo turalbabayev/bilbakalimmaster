@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { db, storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, addDoc, doc } from "firebase/firestore";
+import { collection, addDoc, doc, serverTimestamp } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -79,7 +79,9 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             const metadata = {
                 contentType: file.type,
                 customMetadata: {
-                    'Access-Control-Allow-Origin': '*'
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type'
                 }
             };
             
@@ -102,32 +104,30 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
 
         setLoading(true);
         try {
-            // Konu referansını al
+            let imageUrl = null;
+
+            // Eğer resim seçildiyse
+            if (formData.image instanceof File) {
+                imageUrl = await handleImageUpload(formData.image);
+            }
+
             const konuRef = doc(db, "miniCards-konular", selectedKonu);
-            
-            // Kartları koleksiyonunu al
             const cardsRef = collection(konuRef, "cards");
-            
-            // Kart verilerini hazırla
+
             const cardData = {
                 altKonu: altKonu,
                 content: formData.content,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
             };
-            
-            // Eğer resim varsa yükle
-            if (formData.image) {
-                const downloadURL = await handleImageUpload(formData.image);
-                
-                cardData.resim = downloadURL;
-                cardData.resimTuru = formData.image.type;
+
+            // Eğer resim yüklendiyse
+            if (imageUrl) {
+                cardData.resim = imageUrl;
             }
-            
-            // Kartı ekle
+
             await addDoc(cardsRef, cardData);
-            
-            toast.success("Akıl kartı başarıyla eklendi!");
+            toast.success("Kart başarıyla eklendi!");
             onSuccess();
             onClose();
             
@@ -140,8 +140,8 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             setSelectedKonu("");
             setAltKonu("");
         } catch (error) {
-            console.error("Akıl kartı eklenirken hata:", error);
-            toast.error("Akıl kartı eklenirken bir hata oluştu!");
+            console.error("Kart eklenirken hata:", error);
+            toast.error("Kart eklenirken bir hata oluştu!");
         } finally {
             setLoading(false);
         }
