@@ -231,9 +231,14 @@ function NotesPage() {
                                             )}
                                             <div className="p-6">
                                                 <div className="flex justify-between items-start mb-4">
-                                                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                                                        {card.altKonu}
-                                                    </h3>
+                                                    <div>
+                                                        <span className="text-sm text-gray-500 dark:text-gray-400 mb-2 block">
+                                                            Kart No: {card.kartNo}
+                                                        </span>
+                                                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                                                            {card.altKonu}
+                                                        </h3>
+                                                    </div>
                                                     <div className="flex space-x-2">
                                                         <button
                                                             onClick={() => handleEdit(card, selectedKonu)}

@@ -179,6 +179,21 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                 />
                             </div>
                             
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                                        Kart No
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="kartNo"
+                                        value={formData.kartNo || ''}
+                                        disabled
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    />
+                                </div>
+                            </div>
+                            
                             <div className="flex justify-end space-x-3 mt-6">
                                 <button
                                     type="button"

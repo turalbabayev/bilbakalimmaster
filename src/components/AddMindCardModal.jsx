@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { db } from "../firebase";
-import { collection, addDoc, doc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, doc, serverTimestamp, getDocs, query } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -75,6 +75,19 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         }
     };
 
+    const getNextCardNumber = async (konuId) => {
+        try {
+            const konuRef = doc(db, "miniCards-konular", konuId);
+            const cardsRef = collection(konuRef, "cards");
+            const q = query(cardsRef);
+            const snapshot = await getDocs(q);
+            return snapshot.size + 1;
+        } catch (error) {
+            console.error("Kart numarası alınırken hata:", error);
+            return 1;
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!selectedKonu || !altKonu || !formData.content) {
@@ -93,7 +106,6 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                 const reader = new FileReader();
                 imageBase64 = await new Promise((resolve) => {
                     reader.onloadend = () => {
-                        // data:image/png;base64, gibi önek kısmını kaldır
                         const fullBase64 = reader.result;
                         const base64WithoutPrefix = fullBase64.split(',')[1];
                         resolve(base64WithoutPrefix);
@@ -106,11 +118,15 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             const konuRef = doc(db, "miniCards-konular", selectedKonu);
             const cardsRef = collection(konuRef, "cards");
 
+            // Kart numarasını al
+            const kartNo = await getNextCardNumber(selectedKonu);
+
             const cardData = {
                 altKonu: altKonu,
                 content: formData.content,
                 createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp()
+                updatedAt: serverTimestamp(),
+                kartNo: kartNo
             };
 
             // Eğer resim yüklendiyse
@@ -162,6 +178,10 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             setLoading(true);
             const konuRef = doc(db, "miniCards-konular", selectedKonu);
             const cardsRef = collection(konuRef, "cards");
+
+            // Mevcut kart sayısını al
+            let nextCardNumber = await getNextCardNumber(selectedKonu);
+            
             let successCount = 0;
             let errorCount = 0;
 
@@ -176,7 +196,8 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                         altKonu: item.altKonu,
                         content: item.content,
                         createdAt: serverTimestamp(),
-                        updatedAt: serverTimestamp()
+                        updatedAt: serverTimestamp(),
+                        kartNo: nextCardNumber++
                     });
                     successCount++;
                 } catch (error) {
@@ -371,6 +392,22 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                                             />
                                         </div>
                                     )}
+                                </div>
+                                
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                                            Kart No
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="kartNo"
+                                            value={formData.kartNo || ''}
+                                            onChange={handleInputChange}
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                            required
+                                        />
+                                    </div>
                                 </div>
                                 
                                 <div className="flex justify-end space-x-3 mt-6">
