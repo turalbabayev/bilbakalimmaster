@@ -44,20 +44,28 @@ function NotesPage() {
             // Önce tüm konuları işle
             for (const konuDoc of konularSnapshot.docs) {
                 const konuId = konuDoc.id;
-                const konuData = konuDoc.data();
-                const cardsRef = collection(konularRef, konuId, "cards");
-                const cardsQuery = query(cardsRef, orderBy("createdAt", "desc"));
-                const cardsSnapshot = await getDocs(cardsQuery);
                 
-                if (cardsSnapshot.docs.length > 0) {
-                    // Eğer bu konu Katılım Bankacılığı konularından biriyse
-                    if (katilimBankaciligiIds.includes(konuId)) {
+                // Eğer bu konu Katılım Bankacılığı konularından biriyse
+                if (katilimBankaciligiIds.includes(konuId)) {
+                    const konuData = konuDoc.data();
+                    const cardsRef = collection(konularRef, konuId, "cards");
+                    const cardsQuery = query(cardsRef, orderBy("createdAt", "desc"));
+                    const cardsSnapshot = await getDocs(cardsQuery);
+                    
+                    if (cardsSnapshot.docs.length > 0) {
                         katilimBankaciligiCards.push(...cardsSnapshot.docs.map(doc => ({
                             id: doc.id,
                             ...doc.data()
                         })));
-                    } else {
-                        // Diğer konular için normal işlem
+                    }
+                } else {
+                    // Diğer konular için normal işlem
+                    const konuData = konuDoc.data();
+                    const cardsRef = collection(konularRef, konuId, "cards");
+                    const cardsQuery = query(cardsRef, orderBy("createdAt", "desc"));
+                    const cardsSnapshot = await getDocs(cardsQuery);
+                    
+                    if (cardsSnapshot.docs.length > 0) {
                         groupedCards[konuId] = {
                             konuBaslik: konuData.baslik,
                             cards: cardsSnapshot.docs.map(doc => ({

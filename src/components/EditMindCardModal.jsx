@@ -35,11 +35,28 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
         setLoading(true);
 
         try {
-            const cardRef = doc(db, 'mindCards', card.id);
+            // Seçilen konunun ID'sini kontrol et
+            let targetKonuId = formData.selectedKonu;
+            
+            // Eğer seçilen konu Katılım Bankacılığı ise, orijinal ID'lerden birini seç
+            if (formData.selectedKonu === 'katilim-bankaciligi') {
+                const katilimBankaciligiIds = [
+                    'OMwqcmZd1wBykLhWy2X',
+                    'OMxIqn_AbJuMHAXQcMl',
+                    'OMxKME94u1eKgCtQjsg',
+                    'OMxOQiPA8iue7tcF71O',
+                    'OMxObWfMWK_gl7F4fYN'
+                ];
+                // İlk ID'yi kullan
+                targetKonuId = katilimBankaciligiIds[0];
+            }
+
+            const cardRef = doc(db, 'miniCards-konular', targetKonuId, 'cards', card.id);
             const updateData = {
-                konuId: formData.selectedKonu,
+                konuId: targetKonuId,
                 altKonu: formData.altKonu,
                 content: formData.content,
+                updatedAt: new Date().toISOString()
             };
 
             if (formData.resim) {
@@ -103,17 +120,18 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                 <select
                                     value={formData.selectedKonu}
                                     onChange={(e) => setFormData(prev => ({ ...prev, selectedKonu: e.target.value }))}
-                                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                     required
                                 >
                                     <option value="">Konu Seçin</option>
-                                    {topics.map((topic) => (
-                                        <option key={topic.id} value={topic.id}>
-                                            {topic.baslik}
+                                    {topics.map((konu) => (
+                                        <option key={konu.id} value={konu.id}>
+                                            {konu.baslik}
                                         </option>
                                     ))}
                                 </select>
                             </div>
+                            
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     Alt Konu
@@ -122,54 +140,51 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                     type="text"
                                     value={formData.altKonu}
                                     onChange={(e) => setFormData(prev => ({ ...prev, altKonu: e.target.value }))}
-                                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    placeholder="Alt konu başlığı"
                                     required
                                 />
                             </div>
+                            
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     İçerik
                                 </label>
-                                <ReactQuill
-                                    value={formData.content}
-                                    onChange={(content) => setFormData(prev => ({ ...prev, content }))}
-                                    className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md"
-                                />
+                                <div className="border border-gray-300 rounded-md dark:border-gray-600">
+                                    <ReactQuill
+                                        value={formData.content}
+                                        onChange={(content) => setFormData(prev => ({ ...prev, content }))}
+                                        className="h-64 mb-12 dark:bg-gray-700 dark:text-white"
+                                    />
+                                </div>
                             </div>
+                            
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     Resim (Opsiyonel)
                                 </label>
                                 <input
                                     type="file"
-                                    accept="image/*"
                                     onChange={handleImageChange}
-                                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    accept="image/*"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 />
-                                {card.resim && !formData.resim && (
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                        Mevcut resim korunacak. Yeni bir resim seçmek için yukarıdaki alana tıklayın.
-                                    </p>
-                                )}
                             </div>
-                            <div className="flex justify-end space-x-3">
+                            
+                            <div className="flex justify-end space-x-3 mt-6">
                                 <button
                                     type="button"
                                     onClick={onClose}
-                                    className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors duration-200"
+                                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
                                 >
                                     İptal
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className={`px-4 py-2 bg-blue-600 text-white rounded-md ${
-                                        loading
-                                            ? 'opacity-50 cursor-not-allowed'
-                                            : 'hover:bg-blue-700'
-                                    } transition-colors duration-200`}
+                                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                                 >
-                                    {loading ? 'Güncelleniyor...' : 'Güncelle'}
+                                    {loading ? "Güncelleniyor..." : "Güncelle"}
                                 </button>
                             </div>
                         </form>
