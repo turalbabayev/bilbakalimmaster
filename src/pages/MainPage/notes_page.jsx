@@ -7,7 +7,7 @@ import AddMindCardModal from "../../components/AddMindCardModal";
 import EditMindCardModal from "../../components/EditMindCardModal";
 import AddCurrentInfo from "../../components/AddCurrentInfo";
 import CurrentInfoList from "../../components/CurrentInfoList";
-import { useTopics } from "../../contexts/TopicContext";
+import { useTopics } from "../../hooks/useTopics";
 
 function NotesPage() {
     const [mindCards, setMindCards] = useState({});
