@@ -29,23 +29,6 @@ function NotesPage() {
             
             const groupedCards = {};
             
-            for (const konuDoc of konularSnapshot.docs) {
-                const konuData = konuDoc.data();
-                const cardsRef = collection(konularRef, konuDoc.id, "cards");
-                const cardsQuery = query(cardsRef, orderBy("createdAt", "desc"));
-                const cardsSnapshot = await getDocs(cardsQuery);
-                
-                if (cardsSnapshot.docs.length > 0) {
-                    groupedCards[konuDoc.id] = {
-                        konuBaslik: konuData.baslik,
-                        cards: cardsSnapshot.docs.map(doc => ({
-                            id: doc.id,
-                            ...doc.data()
-                        }))
-                    };
-                }
-            }
-            
             // Katılım Bankacılığı için özel işlem
             const katilimBankaciligiIds = [
                 'OMwqcmZd1wBykLhWy2X',
@@ -57,11 +40,32 @@ function NotesPage() {
             
             // Katılım Bankacılığı kartlarını birleştir
             const katilimBankaciligiCards = [];
-            for (const konuId of katilimBankaciligiIds) {
-                if (groupedCards[konuId]) {
-                    katilimBankaciligiCards.push(...groupedCards[konuId].cards);
-                    // Orijinal konuyu sil
-                    delete groupedCards[konuId];
+            
+            // Önce tüm konuları işle
+            for (const konuDoc of konularSnapshot.docs) {
+                const konuId = konuDoc.id;
+                const konuData = konuDoc.data();
+                const cardsRef = collection(konularRef, konuId, "cards");
+                const cardsQuery = query(cardsRef, orderBy("createdAt", "desc"));
+                const cardsSnapshot = await getDocs(cardsQuery);
+                
+                if (cardsSnapshot.docs.length > 0) {
+                    // Eğer bu konu Katılım Bankacılığı konularından biriyse
+                    if (katilimBankaciligiIds.includes(konuId)) {
+                        katilimBankaciligiCards.push(...cardsSnapshot.docs.map(doc => ({
+                            id: doc.id,
+                            ...doc.data()
+                        })));
+                    } else {
+                        // Diğer konular için normal işlem
+                        groupedCards[konuId] = {
+                            konuBaslik: konuData.baslik,
+                            cards: cardsSnapshot.docs.map(doc => ({
+                                id: doc.id,
+                                ...doc.data()
+                            }))
+                        };
+                    }
                 }
             }
             
