@@ -7,6 +7,7 @@ import AddMindCardModal from "../../components/AddMindCardModal";
 import EditMindCardModal from "../../components/EditMindCardModal";
 import AddCurrentInfo from "../../components/AddCurrentInfo";
 import CurrentInfoList from "../../components/CurrentInfoList";
+import { useTopics } from "../../contexts/TopicContext";
 
 function NotesPage() {
     const [mindCards, setMindCards] = useState({});
@@ -18,6 +19,7 @@ function NotesPage() {
     const [deletingId, setDeletingId] = useState(null);
     const [selectedKonu, setSelectedKonu] = useState(null);
     const currentInfoListRef = useRef(null);
+    const { topics, loading: topicsLoading } = useTopics();
 
     const fetchData = async () => {
         try {
@@ -172,7 +174,7 @@ function NotesPage() {
                                         Konulara Dön
                                     </button>
                                     <h2 className="text-2xl font-semibold text-gray-800 dark:text-white ml-4">
-                                        {mindCards[selectedKonu]?.konuBaslik}
+                                        {topics.find(t => t.id === selectedKonu)?.baslik}
                                     </h2>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -230,20 +232,32 @@ function NotesPage() {
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                {Object.entries(mindCards).map(([konuId, { konuBaslik, cards }]) => (
-                                    <button
-                                        key={konuId}
-                                        onClick={() => handleKonuSelect(konuId)}
-                                        className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 text-left"
-                                    >
-                                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                                            {konuBaslik}
-                                        </h3>
-                                        <p className="text-gray-600 dark:text-gray-400">
-                                            {cards.length} adet kart
-                                        </p>
-                                    </button>
-                                ))}
+                                {topics.map((topic) => {
+                                    const cardCount = mindCards[topic.id]?.cards?.length || 0;
+                                    return (
+                                        <button
+                                            key={topic.id}
+                                            onClick={() => handleKonuSelect(topic.id)}
+                                            className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 text-left"
+                                        >
+                                            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                                                {topic.baslik}
+                                            </h3>
+                                            {cardCount > 0 ? (
+                                                <p className="text-gray-600 dark:text-gray-400">
+                                                    {cardCount} adet kart
+                                                </p>
+                                            ) : (
+                                                <div className="flex items-center text-gray-500 dark:text-gray-400">
+                                                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                    </svg>
+                                                    <span>Henüz kart eklenmemiş</span>
+                                                </div>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         )
                     )}
