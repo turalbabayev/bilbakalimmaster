@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { db, storage } from "../firebase";
+import { db } from "../firebase";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useTopics } from '../hooks/useTopics';
 
 const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
@@ -15,6 +14,7 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
         content: '',
         resim: null,
         resimTuru: '',
+        resimPreview: null
     });
     const [loading, setLoading] = useState(false);
 
@@ -26,46 +26,33 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                 content: card.content || '',
                 resim: null,
                 resimTuru: card.resimTuru || '',
+                resimPreview: card.resim || null
             });
         }
     }, [card, konuId]);
-
-    const handleImageUpload = async (file) => {
-        try {
-            const timestamp = Date.now();
-            const fileName = `${timestamp}_${file.name}`;
-            const storageRef = ref(storage, `mindCards/${fileName}`);
-            
-            // Metadata ayarlarını ekleyelim
-            const metadata = {
-                contentType: file.type,
-                customMetadata: {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                    'Access-Control-Allow-Headers': 'Content-Type'
-                }
-            };
-            
-            // Upload the file with metadata
-            const uploadTask = await uploadBytes(storageRef, file, metadata);
-            const downloadURL = await getDownloadURL(uploadTask.ref);
-            return downloadURL;
-        } catch (error) {
-            console.error("Resim yükleme hatası:", error);
-            throw error;
-        }
-    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            let imageUrl = formData.resim;
+            let imageBase64 = formData.resimPreview;
+            let resimTuru = formData.resimTuru;
 
             // Eğer yeni bir resim seçildiyse
             if (formData.resim instanceof File) {
-                imageUrl = await handleImageUpload(formData.resim);
+                // Resmi base64'e çevir
+                const reader = new FileReader();
+                imageBase64 = await new Promise((resolve) => {
+                    reader.onloadend = () => {
+                        // data:image/png;base64, gibi önek kısmını kaldır
+                        const fullBase64 = reader.result;
+                        const base64WithoutPrefix = fullBase64.split(',')[1];
+                        resolve(base64WithoutPrefix);
+                    };
+                    reader.readAsDataURL(formData.resim);
+                });
+                resimTuru = formData.resim.type;
             }
 
             const cardRef = doc(db, 'miniCards-konular', formData.selectedKonu, 'cards', card.id);
@@ -77,9 +64,9 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
             };
 
             // Eğer resim varsa veya yeni resim yüklendiyse
-            if (imageUrl) {
-                updatedData.resim = imageUrl;
-                updatedData.resimTuru = formData.resim.type;
+            if (imageBase64) {
+                updatedData.resim = imageBase64;
+                updatedData.resimTuru = resimTuru;
             }
 
             await updateDoc(cardRef, updatedData);
@@ -101,11 +88,18 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                 toast.error('Resim boyutu 5MB\'dan küçük olmalıdır.');
                 return;
             }
-            setFormData(prev => ({
-                ...prev,
-                resim: file,
-                resimTuru: file.type
-            }));
+
+            // Resim önizleme için URL oluştur
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFormData(prev => ({
+                    ...prev,
+                    resim: file,
+                    resimTuru: file.type,
+                    resimPreview: reader.result
+                }));
+            };
+            reader.readAsDataURL(file);
         }
     };
 

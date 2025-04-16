@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { db, storage } from "../firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db } from "../firebase";
 import { collection, addDoc, doc, serverTimestamp } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
@@ -61,37 +60,16 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                 return;
             }
 
-            setFormData(prev => ({
-                ...prev,
-                image: file,
-                resimPreview: URL.createObjectURL(file)
-            }));
-        }
-    };
-
-    const handleImageUpload = async (file) => {
-        try {
-            const timestamp = Date.now();
-            const fileName = `${timestamp}_${file.name}`;
-            const storageRef = ref(storage, `mindCards/${fileName}`);
-            
-            // Metadata ayarlarını ekleyelim
-            const metadata = {
-                contentType: file.type,
-                customMetadata: {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                    'Access-Control-Allow-Headers': 'Content-Type'
-                }
+            // Resim önizleme için URL oluştur
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFormData(prev => ({
+                    ...prev,
+                    image: file,
+                    resimPreview: reader.result
+                }));
             };
-            
-            // Upload the file with metadata
-            const uploadTask = await uploadBytes(storageRef, file, metadata);
-            const downloadURL = await getDownloadURL(uploadTask.ref);
-            return downloadURL;
-        } catch (error) {
-            console.error("Resim yükleme hatası:", error);
-            throw error;
+            reader.readAsDataURL(file);
         }
     };
 
@@ -104,11 +82,23 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
 
         setLoading(true);
         try {
-            let imageUrl = null;
+            let imageBase64 = null;
+            let resimTuru = null;
 
             // Eğer resim seçildiyse
-            if (formData.image instanceof File) {
-                imageUrl = await handleImageUpload(formData.image);
+            if (formData.image) {
+                // Resmi base64'e çevir
+                const reader = new FileReader();
+                imageBase64 = await new Promise((resolve) => {
+                    reader.onloadend = () => {
+                        // data:image/png;base64, gibi önek kısmını kaldır
+                        const fullBase64 = reader.result;
+                        const base64WithoutPrefix = fullBase64.split(',')[1];
+                        resolve(base64WithoutPrefix);
+                    };
+                    reader.readAsDataURL(formData.image);
+                });
+                resimTuru = formData.image.type;
             }
 
             const konuRef = doc(db, "miniCards-konular", selectedKonu);
@@ -122,8 +112,9 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             };
 
             // Eğer resim yüklendiyse
-            if (imageUrl) {
-                cardData.resim = imageUrl;
+            if (imageBase64) {
+                cardData.resim = imageBase64;
+                cardData.resimTuru = resimTuru;
             }
 
             await addDoc(cardsRef, cardData);
