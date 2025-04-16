@@ -24,17 +24,14 @@ function NotesPage() {
     const fetchData = async () => {
         try {
             setLoading(true);
-            // Önce konuları getir
-            const konularRef = collection(db, "konular");
+            const konularRef = collection(db, "miniCards-konular");
             const konularSnapshot = await getDocs(konularRef);
             
-            // Her konu için kartları getir
             const groupedCards = {};
             
             for (const konuDoc of konularSnapshot.docs) {
                 const konuData = konuDoc.data();
-                const konuRef = doc(db, "miniCards-konular", konuDoc.id);
-                const cardsRef = collection(konuRef, "cards");
+                const cardsRef = collection(konularRef, konuDoc.id, "cards");
                 const cardsQuery = query(cardsRef, orderBy("createdAt", "desc"));
                 const cardsSnapshot = await getDocs(cardsQuery);
                 
@@ -43,28 +40,37 @@ function NotesPage() {
                         konuBaslik: konuData.baslik,
                         cards: cardsSnapshot.docs.map(doc => ({
                             id: doc.id,
-                            ...doc.data(),
-                            topic: doc.data().title // Geriye uyumluluk için
+                            ...doc.data()
                         }))
                     };
                 }
             }
             
-            // Eğer hiç kart yoksa boş bir array döndür
-            if (Object.keys(groupedCards).length === 0) {
-                const oldCardsRef = collection(db, "mindCards");
-                const oldCardsQuery = query(oldCardsRef, orderBy("createdAt", "desc"));
-                const oldCardsSnapshot = await getDocs(oldCardsQuery);
-                
-                if (oldCardsSnapshot.docs.length > 0) {
-                    groupedCards["eski"] = {
-                        konuBaslik: "Eski Kartlar",
-                        cards: oldCardsSnapshot.docs.map(doc => ({
-                            id: doc.id,
-                            ...doc.data()
-                        }))
-                    };
+            // Katılım Bankacılığı için özel işlem
+            const katilimBankaciligiIds = [
+                'OMwqcmZd1wBykLhWy2X',
+                'OMxIqn_AbJuMHAXQcMl',
+                'OMxKME94u1eKgCtQjsg',
+                'OMxOQiPA8iue7tcF71O',
+                'OMxObWfMWK_gl7F4fYN'
+            ];
+            
+            // Katılım Bankacılığı kartlarını birleştir
+            const katilimBankaciligiCards = [];
+            for (const konuId of katilimBankaciligiIds) {
+                if (groupedCards[konuId]) {
+                    katilimBankaciligiCards.push(...groupedCards[konuId].cards);
+                    // Orijinal konuyu sil
+                    delete groupedCards[konuId];
                 }
+            }
+            
+            // Eğer Katılım Bankacılığı kartları varsa, birleştirilmiş konuyu ekle
+            if (katilimBankaciligiCards.length > 0) {
+                groupedCards['katilim-bankaciligi'] = {
+                    konuBaslik: 'Katılım Bankacılığı',
+                    cards: katilimBankaciligiCards
+                };
             }
             
             setMindCards(groupedCards);
