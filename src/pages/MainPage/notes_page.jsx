@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Layout from "../../components/layout";
 import { db } from "../../firebase";
-import { collection, getDocs, query, orderBy, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, deleteDoc, doc, onSnapshot } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import AddMindCardModal from "../../components/AddMindCardModal";
 import EditMindCardModal from "../../components/EditMindCardModal";
@@ -10,7 +10,7 @@ import CurrentInfoList from "../../components/CurrentInfoList";
 import { useTopics } from "../../hooks/useTopics";
 
 function NotesPage() {
-    const [mindCards, setMindCards] = useState({});
+    const [cards, setCards] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('mindCards');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -21,37 +21,43 @@ function NotesPage() {
     const currentInfoListRef = useRef(null);
     const { topics, loading: topicsLoading } = useTopics();
 
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-            const konularRef = collection(db, "miniCards-konular");
-            const groupedCards = {};
-            
-            // Tüm konular için kartları çek
-            for (const topic of topics) {
-                const cardsRef = collection(konularRef, topic.id, "cards");
-                const cardsQuery = query(cardsRef, orderBy("createdAt", "desc"));
-                const cardsSnapshot = await getDocs(cardsQuery);
-                
-                if (cardsSnapshot.docs.length > 0) {
-                    groupedCards[topic.id] = {
-                        konuBaslik: topic.baslik,
-                        cards: cardsSnapshot.docs.map(doc => ({
-                            id: doc.id,
-                            ...doc.data()
-                        }))
-                    };
-                }
-            }
-            
-            setMindCards(groupedCards);
-            setLoading(false);
-        } catch (error) {
-            console.error("Veriler yüklenirken hata:", error);
-            toast.error("Veriler yüklenirken bir hata oluştu!");
-            setLoading(false);
+    useEffect(() => {
+        const unsubscribers = [];
+
+        const fetchCardsForTopic = (topicId) => {
+            const konuRef = doc(db, "miniCards-konular", topicId);
+            const cardsRef = collection(konuRef, "cards");
+            const q = query(cardsRef, orderBy("createdAt", "desc"));
+
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const topicCards = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    konuId: topicId,
+                    konuBaslik: topics.find(t => t.id === topicId)?.baslik
+                }));
+
+                setCards(prevCards => {
+                    const otherTopicCards = prevCards.filter(card => card.konuId !== topicId);
+                    return [...otherTopicCards, ...topicCards];
+                });
+                setLoading(false);
+            });
+
+            unsubscribers.push(unsubscribe);
+        };
+
+        if (topics.length > 0) {
+            topics.forEach(topic => {
+                fetchCardsForTopic(topic.id);
+            });
         }
-    };
+
+        // Cleanup function
+        return () => {
+            unsubscribers.forEach(unsubscribe => unsubscribe());
+        };
+    }, [topics]);
 
     const handleDelete = async (konuId, cardId) => {
         if (window.confirm("Bu akıl kartını silmek istediğinizden emin misiniz?")) {
@@ -61,7 +67,6 @@ function NotesPage() {
                 const cardRef = doc(konuRef, "cards", cardId);
                 await deleteDoc(cardRef);
                 toast.success("Akıl kartı başarıyla silindi!");
-                fetchData();
             } catch (error) {
                 console.error("Akıl kartı silinirken hata:", error);
                 toast.error("Akıl kartı silinirken bir hata oluştu!");
@@ -77,7 +82,8 @@ function NotesPage() {
     };
 
     const handleEditSuccess = () => {
-        fetchData();
+        // This function is called when the edit modal is closed
+        // You might want to refresh the cards or handle any other necessary actions
     };
 
     const handleKonuSelect = (konuId) => {
@@ -87,10 +93,6 @@ function NotesPage() {
     const handleBackToKonular = () => {
         setSelectedKonu(null);
     };
-
-    useEffect(() => {
-        fetchData();
-    }, []);
 
     return (
         <Layout>
@@ -155,7 +157,7 @@ function NotesPage() {
                                     </h2>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {mindCards[selectedKonu]?.cards.map((card) => (
+                                    {cards.filter(card => card.konuId === selectedKonu).map((card) => (
                                         <div
                                             key={card.id}
                                             className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
@@ -210,7 +212,7 @@ function NotesPage() {
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                 {topics.map((topic) => {
-                                    const cardCount = mindCards[topic.id]?.cards?.length || 0;
+                                    const cardCount = cards.filter(card => card.konuId === topic.id).length;
                                     return (
                                         <button
                                             key={topic.id}
@@ -249,7 +251,10 @@ function NotesPage() {
                             <AddMindCardModal
                                 isOpen={isAddModalOpen}
                                 onClose={() => setIsAddModalOpen(false)}
-                                onSuccess={fetchData}
+                                onSuccess={() => {
+                                    // Refresh cards after adding a new one
+                                    setSelectedKonu(null);
+                                }}
                             />
                             <EditMindCardModal
                                 isOpen={isEditModalOpen}
