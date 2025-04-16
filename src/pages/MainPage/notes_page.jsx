@@ -62,6 +62,25 @@ function NotesPage() {
         };
     }, [topics]);
 
+    useEffect(() => {
+        if (selectedKonu) {
+            const konuRef = doc(db, "miniCards-konular", selectedKonu);
+            const cardsRef = collection(konuRef, "cards");
+            const q = query(cardsRef, orderBy("kartNo", "asc"));
+
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const cardsData = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setCards(cardsData);
+                setLoading(false);
+            });
+
+            return () => unsubscribe();
+        }
+    }, [selectedKonu]);
+
     const handleDelete = async (konuId, cardId) => {
         if (window.confirm("Bu akıl kartını silmek istediğinizden emin misiniz?")) {
             setDeletingId(cardId);
