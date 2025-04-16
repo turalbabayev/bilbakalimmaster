@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../firebase';
 
 export const useTopics = () => {
     const [topics, setTopics] = useState([]);
@@ -8,38 +6,26 @@ export const useTopics = () => {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        const fetchTopics = async () => {
-            try {
-                // Hariç tutulacak ID'ler
-                const excludedIds = [
-                    'OMwqcmZd1wBykLhWy2X',
-                    'OMxIqn_AbJuMHAXQcMl',
-                    'OMxKME94u1eKgCtQjsg',
-                    'OMxOQiPA8iue7tcF71O',
-                    'OMxObWfMWK_gl7F4fYN'
-                ];
+        // Sabit konular listesi
+        const staticTopics = [
+            { id: 'bankacilik', baslik: 'BANKACILIK' },
+            { id: 'muhasebe', baslik: 'MUHASEBE' },
+            { id: 'matematik', baslik: 'MATEMATİK' },
+            { id: 'turkce', baslik: 'TÜRKÇE' },
+            { id: 'tarih', baslik: 'TARİH' },
+            { id: 'cografya', baslik: 'COĞRAFYA' },
+            { id: 'katilim-bankaciligi', baslik: 'Katılım Bankacılığı' },
+            { id: 'halkbank', baslik: 'HALKBANK ÜRÜN VE HİZMETLERİ' },
+            { id: 'ziraat', baslik: 'ZİRAAT BANKASI ÜRÜN VE HİZMETLERİ' },
+            { id: 'ekonomi', baslik: 'EKONOMİ' },
+            { id: 'hukuk', baslik: 'HUKUK' },
+            { id: 'krediler', baslik: 'KREDİLER' },
+            { id: 'genel-kultur', baslik: 'GENEL KÜLTÜR' },
+            { id: 'onemli-terimler', baslik: 'ÖNEMLİ TERİMLER' }
+        ];
 
-                const querySnapshot = await getDocs(collection(db, 'konular'));
-                
-                // Sadece hariç tutulmayan konuları al
-                const topicsData = querySnapshot.docs
-                    .filter(doc => !excludedIds.includes(doc.id))
-                    .map(doc => ({
-                        id: doc.id,
-                        baslik: doc.data().baslik || '',
-                        ...doc.data()
-                    }));
-
-                setTopics(topicsData);
-            } catch (err) {
-                console.error('Error fetching topics:', err);
-                setError(err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchTopics();
+        setTopics(staticTopics);
+        setLoading(false);
     }, []);
 
     return { topics, loading, error };

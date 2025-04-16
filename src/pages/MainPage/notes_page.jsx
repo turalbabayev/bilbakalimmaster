@@ -25,37 +25,17 @@ function NotesPage() {
         try {
             setLoading(true);
             const konularRef = collection(db, "miniCards-konular");
-            const konularSnapshot = await getDocs(konularRef);
-            
             const groupedCards = {};
             
-            // Hariç tutulacak ID'ler
-            const excludedIds = [
-                'OMwqcmZd1wBykLhWy2X',
-                'OMxIqn_AbJuMHAXQcMl',
-                'OMxKME94u1eKgCtQjsg',
-                'OMxOQiPA8iue7tcF71O',
-                'OMxObWfMWK_gl7F4fYN'
-            ];
-            
-            // Sadece hariç tutulmayan konuları işle
-            for (const konuDoc of konularSnapshot.docs) {
-                const konuId = konuDoc.id;
-                
-                // Eğer bu konu hariç tutulan ID'lerden biriyse, atla
-                if (excludedIds.includes(konuId)) {
-                    continue;
-                }
-
-                // Diğer konular için normal işlem
-                const konuData = konuDoc.data();
-                const cardsRef = collection(konularRef, konuId, "cards");
+            // Tüm konular için kartları çek
+            for (const topic of topics) {
+                const cardsRef = collection(konularRef, topic.id, "cards");
                 const cardsQuery = query(cardsRef, orderBy("createdAt", "desc"));
                 const cardsSnapshot = await getDocs(cardsQuery);
                 
                 if (cardsSnapshot.docs.length > 0) {
-                    groupedCards[konuId] = {
-                        konuBaslik: konuData.baslik,
+                    groupedCards[topic.id] = {
+                        konuBaslik: topic.baslik,
                         cards: cardsSnapshot.docs.map(doc => ({
                             id: doc.id,
                             ...doc.data()

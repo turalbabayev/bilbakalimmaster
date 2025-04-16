@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { db, storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, addDoc, getDocs, doc, setDoc } from "firebase/firestore";
+import { collection, addDoc, doc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -14,7 +14,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         image: null,
         resimPreview: null
     });
-    const { topics, loading: topicsLoading } = useTopics();
+    const { topics } = useTopics();
     const [selectedKonu, setSelectedKonu] = useState("");
     const [altKonu, setAltKonu] = useState("");
 
@@ -39,14 +39,6 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         'link'
     ];
 
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
-    };
-
     const handleEditorChange = (content) => {
         setFormData(prev => ({
             ...prev,
@@ -59,14 +51,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         if (file) {
             const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
             if (file.size > MAX_FILE_SIZE) {
-                toast.error("Resim boyutu çok büyük! Maksimum 5MB olmalıdır.", {
-                    duration: 4000,
-                    style: {
-                        background: '#ef4444',
-                        color: '#fff',
-                        fontWeight: 'bold',
-                    },
-                });
+                toast.error("Resim boyutu çok büyük! Maksimum 5MB olmalıdır.");
                 e.target.value = '';
                 setFormData(prev => ({
                     ...prev,
@@ -93,24 +78,8 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
 
         setLoading(true);
         try {
-            // Seçilen konunun ID'sini kontrol et
-            let targetKonuId = selectedKonu;
-            
-            // Eğer seçilen konu Katılım Bankacılığı ise, orijinal ID'lerden birini seç
-            if (selectedKonu === 'katilim-bankaciligi') {
-                const katilimBankaciligiIds = [
-                    'OMwqcmZd1wBykLhWy2X',
-                    'OMxIqn_AbJuMHAXQcMl',
-                    'OMxKME94u1eKgCtQjsg',
-                    'OMxOQiPA8iue7tcF71O',
-                    'OMxObWfMWK_gl7F4fYN'
-                ];
-                // İlk ID'yi kullan
-                targetKonuId = katilimBankaciligiIds[0];
-            }
-
             // Konu referansını al
-            const konuRef = doc(db, "miniCards-konular", targetKonuId);
+            const konuRef = doc(db, "miniCards-konular", selectedKonu);
             
             // Kartları koleksiyonunu al
             const cardsRef = collection(konuRef, "cards");

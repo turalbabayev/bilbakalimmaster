@@ -8,7 +8,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useTopics } from '../hooks/useTopics';
 
 const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
-    const { topics, loading: topicsLoading } = useTopics();
+    const { topics } = useTopics();
     const [formData, setFormData] = useState({
         selectedKonu: '',
         altKonu: '',
@@ -35,25 +35,9 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
         setLoading(true);
 
         try {
-            // Seçilen konunun ID'sini kontrol et
-            let targetKonuId = formData.selectedKonu;
-            
-            // Eğer seçilen konu Katılım Bankacılığı ise, orijinal ID'lerden birini seç
-            if (formData.selectedKonu === 'katilim-bankaciligi') {
-                const katilimBankaciligiIds = [
-                    'OMwqcmZd1wBykLhWy2X',
-                    'OMxIqn_AbJuMHAXQcMl',
-                    'OMxKME94u1eKgCtQjsg',
-                    'OMxOQiPA8iue7tcF71O',
-                    'OMxObWfMWK_gl7F4fYN'
-                ];
-                // İlk ID'yi kullan
-                targetKonuId = katilimBankaciligiIds[0];
-            }
-
-            const cardRef = doc(db, 'miniCards-konular', targetKonuId, 'cards', card.id);
+            const cardRef = doc(db, 'miniCards-konular', formData.selectedKonu, 'cards', card.id);
             const updateData = {
-                konuId: targetKonuId,
+                konuId: formData.selectedKonu,
                 altKonu: formData.altKonu,
                 content: formData.content,
                 updatedAt: new Date().toISOString()
