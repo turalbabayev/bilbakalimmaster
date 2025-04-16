@@ -30,7 +30,7 @@ function NotesPage() {
         const fetchCardsForTopic = (topicId) => {
             const konuRef = doc(db, "miniCards-konular", topicId);
             const cardsRef = collection(konuRef, "cards");
-            const q = query(cardsRef, orderBy("createdAt", "desc"));
+            const q = query(cardsRef, orderBy("kartNo", "asc"));
 
             const unsubscribe = onSnapshot(q, (snapshot) => {
                 const topicCards = snapshot.docs.map(doc => ({
@@ -51,6 +51,10 @@ function NotesPage() {
         };
 
         if (topics.length > 0) {
+            setLoading(true);
+            // Önce cards'ı temizle
+            setCards([]);
+            // Sonra tüm konular için kartları yükle
             topics.forEach(topic => {
                 fetchCardsForTopic(topic.id);
             });
@@ -61,25 +65,6 @@ function NotesPage() {
             unsubscribers.forEach(unsubscribe => unsubscribe());
         };
     }, [topics]);
-
-    useEffect(() => {
-        if (selectedKonu) {
-            const konuRef = doc(db, "miniCards-konular", selectedKonu);
-            const cardsRef = collection(konuRef, "cards");
-            const q = query(cardsRef, orderBy("kartNo", "asc"));
-
-            const unsubscribe = onSnapshot(q, (snapshot) => {
-                const cardsData = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                setCards(cardsData);
-                setLoading(false);
-            });
-
-            return () => unsubscribe();
-        }
-    }, [selectedKonu]);
 
     const handleDelete = async (konuId, cardId) => {
         if (window.confirm("Bu akıl kartını silmek istediğinizden emin misiniz?")) {
