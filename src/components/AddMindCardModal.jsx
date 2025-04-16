@@ -145,8 +145,8 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             };
 
             // Konu altındaki cards koleksiyonuna ekle
-            const konuRef = doc(db, "miniCards", "konular", selectedKonu, "cards");
-            await addDoc(collection(konuRef), mindCardData);
+            const cardsRef = collection(db, "miniCards", "konular", selectedKonu, "cards");
+            await addDoc(cardsRef, mindCardData);
 
             toast.success("Akıl kartı başarıyla eklendi!");
             setFormData({

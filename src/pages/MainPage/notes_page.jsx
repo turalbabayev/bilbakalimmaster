@@ -39,6 +39,24 @@ function NotesPage() {
                         konuBaslik: konuData.baslik,
                         cards: cardsSnapshot.docs.map(doc => ({
                             id: doc.id,
+                            ...doc.data(),
+                            topic: doc.data().title // Geriye uyumluluk için
+                        }))
+                    };
+                }
+            }
+            
+            // Eğer hiç kart yoksa boş bir array döndür
+            if (Object.keys(groupedCards).length === 0) {
+                const oldCardsRef = collection(db, "mindCards");
+                const oldCardsQuery = query(oldCardsRef, orderBy("createdAt", "desc"));
+                const oldCardsSnapshot = await getDocs(oldCardsQuery);
+                
+                if (oldCardsSnapshot.docs.length > 0) {
+                    groupedCards["eski"] = {
+                        konuBaslik: "Eski Kartlar",
+                        cards: oldCardsSnapshot.docs.map(doc => ({
+                            id: doc.id,
                             ...doc.data()
                         }))
                     };
@@ -46,10 +64,10 @@ function NotesPage() {
             }
             
             setMindCards(groupedCards);
+            setLoading(false);
         } catch (error) {
             console.error("Veriler yüklenirken hata:", error);
             toast.error("Veriler yüklenirken bir hata oluştu!");
-        } finally {
             setLoading(false);
         }
     };
