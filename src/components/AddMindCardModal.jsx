@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { db, storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, addDoc, getDocs, doc } from "firebase/firestore";
+import { collection, addDoc, getDocs, doc, setDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -144,8 +144,14 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                 createdAt: new Date()
             };
 
-            // Konu altındaki cards koleksiyonuna ekle
+            // Önce konu dökümanını oluştur veya güncelle
             const konuRef = doc(db, "miniCards-konular", selectedKonu);
+            const selectedKonuData = konular.find(k => k.id === selectedKonu);
+            await setDoc(konuRef, {
+                baslik: selectedKonuData.baslik
+            }, { merge: true });
+
+            // Sonra kartı ekle
             const cardsRef = collection(konuRef, "cards");
             await addDoc(cardsRef, mindCardData);
 

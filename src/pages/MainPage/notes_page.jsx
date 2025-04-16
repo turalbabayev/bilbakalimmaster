@@ -215,6 +215,10 @@ function NotesPage() {
                         )
                     )}
 
+                    {activeTab === 'currentInfo' && (
+                        <CurrentInfoList ref={currentInfoListRef} />
+                    )}
+
                     {/* Modallar */}
                     {activeTab === 'mindCards' ? (
                         <>
