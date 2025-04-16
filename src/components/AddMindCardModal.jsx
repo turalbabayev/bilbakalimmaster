@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { db } from "../firebase";
-import { collection, addDoc } from "firebase/firestore";
+import React, { useState, useEffect } from "react";
+import { db, storage } from "../firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { collection, addDoc, getDocs } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -14,6 +15,28 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         image: null,
         resimPreview: null
     });
+    const [konular, setKonular] = useState([]);
+    const [selectedKonu, setSelectedKonu] = useState("");
+    const [altKonu, setAltKonu] = useState("");
+
+    useEffect(() => {
+        // Konuları Firestore'dan çek
+        const fetchKonular = async () => {
+            try {
+                const konularSnapshot = await getDocs(collection(db, "konular"));
+                const konularData = konularSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setKonular(konularData);
+            } catch (error) {
+                console.error("Konular çekilirken hata:", error);
+                toast.error("Konular yüklenirken bir hata oluştu!");
+            }
+        };
+
+        fetchKonular();
+    }, []);
 
     const modules = {
         toolbar: [
@@ -90,8 +113,12 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!selectedKonu) {
+            toast.error("Lütfen bir konu seçin!");
+            return;
+        }
+        
         setLoading(true);
-
         try {
             let resimBase64 = null;
             let resimTuru = null;
@@ -108,13 +135,20 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                 resimTuru = formData.image.type;
             }
 
+            const selectedKonuData = konular.find(k => k.id === selectedKonu);
+            
             const mindCardData = {
                 topic: formData.topic,
                 subtopic: formData.subtopic,
                 content: formData.content,
                 resim: resimBase64,
                 resimTuru: resimTuru,
-                createdAt: new Date()
+                createdAt: new Date(),
+                konu: {
+                    id: selectedKonu,
+                    baslik: selectedKonuData.baslik
+                },
+                altKonu
             };
 
             const mindCardsRef = collection(db, "mindCards");
@@ -123,7 +157,6 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             toast.success("Akıl kartı başarıyla eklendi!");
             onSuccess();
             onClose();
-            
         } catch (error) {
             console.error("Akıl kartı eklenirken hata:", error);
             toast.error("Akıl kartı eklenirken bir hata oluştu!");
@@ -157,14 +190,19 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Konu
                             </label>
-                            <input
-                                type="text"
-                                name="topic"
-                                value={formData.topic}
-                                onChange={handleInputChange}
+                            <select
+                                value={selectedKonu}
+                                onChange={(e) => setSelectedKonu(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                 required
-                            />
+                            >
+                                <option value="">Konu Seçin</option>
+                                {konular.map((konu) => (
+                                    <option key={konu.id} value={konu.id}>
+                                        {konu.baslik}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <div>
@@ -174,8 +212,8 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                             <input
                                 type="text"
                                 name="subtopic"
-                                value={formData.subtopic}
-                                onChange={handleInputChange}
+                                value={altKonu}
+                                onChange={(e) => setAltKonu(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                 required
                             />
