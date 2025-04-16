@@ -20,25 +20,30 @@ function NotesPage() {
 
     const fetchData = async () => {
         try {
-            // Akıl Kartlarını getir
-            const mindCardsRef = collection(db, "mindCards");
-            const mindCardsQuery = query(mindCardsRef, orderBy("createdAt", "desc"));
-            const mindCardsSnapshot = await getDocs(mindCardsQuery);
+            setLoading(true);
+            // Önce konuları getir
+            const konularRef = collection(db, "konular");
+            const konularSnapshot = await getDocs(konularRef);
             
-            // Kartları konulara göre grupla
+            // Her konu için kartları getir
             const groupedCards = {};
-            mindCardsSnapshot.docs.forEach(doc => {
-                const card = { id: doc.id, ...doc.data() };
-                const konuId = card.konu?.id || "diğer";
+            
+            for (const konuDoc of konularSnapshot.docs) {
+                const konuData = konuDoc.data();
+                const cardsRef = collection(db, "miniCards", "konular", konuDoc.id, "cards");
+                const cardsQuery = query(cardsRef, orderBy("createdAt", "desc"));
+                const cardsSnapshot = await getDocs(cardsQuery);
                 
-                if (!groupedCards[konuId]) {
-                    groupedCards[konuId] = {
-                        konuBaslik: card.konu?.baslik || "Diğer",
-                        cards: []
+                if (cardsSnapshot.docs.length > 0) {
+                    groupedCards[konuDoc.id] = {
+                        konuBaslik: konuData.baslik,
+                        cards: cardsSnapshot.docs.map(doc => ({
+                            id: doc.id,
+                            ...doc.data()
+                        }))
                     };
                 }
-                groupedCards[konuId].cards.push(card);
-            });
+            }
             
             setMindCards(groupedCards);
         } catch (error) {
@@ -49,11 +54,11 @@ function NotesPage() {
         }
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = async (konuId, cardId) => {
         if (window.confirm("Bu akıl kartını silmek istediğinizden emin misiniz?")) {
-            setDeletingId(id);
+            setDeletingId(cardId);
             try {
-                await deleteDoc(doc(db, "mindCards", id));
+                await deleteDoc(doc(db, "miniCards", "konular", konuId, "cards", cardId));
                 toast.success("Akıl kartı başarıyla silindi!");
                 fetchData();
             } catch (error) {
@@ -65,8 +70,8 @@ function NotesPage() {
         }
     };
 
-    const handleEdit = (card) => {
-        setSelectedCard(card);
+    const handleEdit = (card, konuId) => {
+        setSelectedCard({...card, konuId});
         setIsEditModalOpen(true);
     };
 
@@ -149,7 +154,7 @@ function NotesPage() {
                                                         </h3>
                                                         <div className="flex space-x-2">
                                                             <button
-                                                                onClick={() => handleEdit(card)}
+                                                                onClick={() => handleEdit(card, konuId)}
                                                                 className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                                                             >
                                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -157,7 +162,7 @@ function NotesPage() {
                                                                 </svg>
                                                             </button>
                                                             <button
-                                                                onClick={() => handleDelete(card.id)}
+                                                                onClick={() => handleDelete(konuId, card.id)}
                                                                 disabled={deletingId === card.id}
                                                                 className={`${
                                                                     deletingId === card.id
@@ -201,6 +206,7 @@ function NotesPage() {
                                 isOpen={isEditModalOpen}
                                 onClose={() => setIsEditModalOpen(false)}
                                 card={selectedCard}
+                                konuId={selectedCard?.konuId}
                                 onSuccess={handleEditSuccess}
                             />
                         </>

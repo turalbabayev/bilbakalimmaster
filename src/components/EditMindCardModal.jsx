@@ -5,9 +5,9 @@ import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
-const EditMindCardModal = ({ isOpen, onClose, onSuccess, card }) => {
-    const [topic, setTopic] = useState('');
-    const [subtopic, setSubtopic] = useState('');
+const EditMindCardModal = ({ isOpen, onClose, onSuccess, card, konuId }) => {
+    const [title, setTitle] = useState('');
+    const [altKonu, setAltKonu] = useState('');
     const [content, setContent] = useState('');
     const [image, setImage] = useState(null);
     const [currentImage, setCurrentImage] = useState(null);
@@ -15,8 +15,8 @@ const EditMindCardModal = ({ isOpen, onClose, onSuccess, card }) => {
 
     useEffect(() => {
         if (card) {
-            setTopic(card.topic || '');
-            setSubtopic(card.subtopic || '');
+            setTitle(card.title || '');
+            setAltKonu(card.altKonu || '');
             setContent(card.content || '');
             setCurrentImage(card.resim ? {
                 base64: card.resim,
@@ -56,17 +56,17 @@ const EditMindCardModal = ({ isOpen, onClose, onSuccess, card }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!topic.trim()) {
-            toast.error('Konu başlığı boş olamaz');
+        if (!title.trim()) {
+            toast.error('Başlık boş olamaz');
             return;
         }
 
         setLoading(true);
         try {
-            const cardRef = doc(db, 'mindCards', card.id);
+            const cardRef = doc(db, 'miniCards', 'konular', konuId, 'cards', card.id);
             let updateData = {
-                topic,
-                subtopic: subtopic.trim() || null,
+                title,
+                altKonu: altKonu.trim() || null,
                 content,
                 updatedAt: new Date(),
             };
@@ -109,28 +109,28 @@ const EditMindCardModal = ({ isOpen, onClose, onSuccess, card }) => {
                 <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
                     <form onSubmit={handleSubmit} className="p-6">
                         <div className="mb-4">
-                            <label htmlFor="topic" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Konu Başlığı
+                            <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Başlık
                             </label>
                             <input
                                 type="text"
-                                id="topic"
-                                value={topic}
-                                onChange={(e) => setTopic(e.target.value)}
+                                id="title"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                                 required
                             />
                         </div>
 
                         <div className="mb-4">
-                            <label htmlFor="subtopic" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label htmlFor="altKonu" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Alt Konu (İsteğe bağlı)
                             </label>
                             <input
                                 type="text"
-                                id="subtopic"
-                                value={subtopic}
-                                onChange={(e) => setSubtopic(e.target.value)}
+                                id="altKonu"
+                                value={altKonu}
+                                onChange={(e) => setAltKonu(e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                             />
                         </div>

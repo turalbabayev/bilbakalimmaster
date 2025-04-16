@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { db, storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, addDoc, getDocs } from "firebase/firestore";
+import { collection, addDoc, getDocs, doc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -135,26 +135,29 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                 resimTuru = formData.image.type;
             }
 
-            const selectedKonuData = konular.find(k => k.id === selectedKonu);
-            
             const mindCardData = {
-                topic: formData.topic,
-                subtopic: formData.subtopic,
+                title: formData.topic,
                 content: formData.content,
+                altKonu,
                 resim: resimBase64,
                 resimTuru: resimTuru,
-                createdAt: new Date(),
-                konu: {
-                    id: selectedKonu,
-                    baslik: selectedKonuData.baslik
-                },
-                altKonu
+                createdAt: new Date()
             };
 
-            const mindCardsRef = collection(db, "mindCards");
-            await addDoc(mindCardsRef, mindCardData);
+            // Konu altındaki cards koleksiyonuna ekle
+            const konuRef = doc(db, "miniCards", "konular", selectedKonu, "cards");
+            await addDoc(collection(konuRef), mindCardData);
 
             toast.success("Akıl kartı başarıyla eklendi!");
+            setFormData({
+                topic: "",
+                subtopic: "",
+                content: "",
+                image: null,
+                resimPreview: null
+            });
+            setSelectedKonu("");
+            setAltKonu("");
             onSuccess();
             onClose();
         } catch (error) {
