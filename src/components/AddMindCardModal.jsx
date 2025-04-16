@@ -69,6 +69,30 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         }
     };
 
+    const handleImageUpload = async (file) => {
+        try {
+            const timestamp = Date.now();
+            const fileName = `${timestamp}_${file.name}`;
+            const storageRef = ref(storage, `mindCards/${fileName}`);
+            
+            // Metadata ayarlarını ekleyelim
+            const metadata = {
+                contentType: file.type,
+                customMetadata: {
+                    'Access-Control-Allow-Origin': '*'
+                }
+            };
+            
+            // Upload the file with metadata
+            const uploadTask = await uploadBytes(storageRef, file, metadata);
+            const downloadURL = await getDownloadURL(uploadTask.ref);
+            return downloadURL;
+        } catch (error) {
+            console.error("Resim yükleme hatası:", error);
+            throw error;
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!selectedKonu || !altKonu || !formData.content) {
@@ -94,9 +118,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             
             // Eğer resim varsa yükle
             if (formData.image) {
-                const storageRef = ref(storage, `mindCards/${Date.now()}_${formData.image.name}`);
-                const snapshot = await uploadBytes(storageRef, formData.image);
-                const downloadURL = await getDownloadURL(snapshot.ref);
+                const downloadURL = await handleImageUpload(formData.image);
                 
                 cardData.resim = downloadURL;
                 cardData.resimTuru = formData.image.type;
