@@ -30,7 +30,8 @@ function NotesPage() {
             
             for (const konuDoc of konularSnapshot.docs) {
                 const konuData = konuDoc.data();
-                const cardsRef = collection(db, "miniCards", "konular", konuDoc.id, "cards");
+                const konuRef = doc(db, "miniCards-konular", konuDoc.id);
+                const cardsRef = collection(konuRef, "cards");
                 const cardsQuery = query(cardsRef, orderBy("createdAt", "desc"));
                 const cardsSnapshot = await getDocs(cardsQuery);
                 
@@ -76,7 +77,9 @@ function NotesPage() {
         if (window.confirm("Bu akıl kartını silmek istediğinizden emin misiniz?")) {
             setDeletingId(cardId);
             try {
-                await deleteDoc(doc(db, "miniCards", "konular", konuId, "cards", cardId));
+                const konuRef = doc(db, "miniCards-konular", konuId);
+                const cardRef = doc(konuRef, "cards", cardId);
+                await deleteDoc(cardRef);
                 toast.success("Akıl kartı başarıyla silindi!");
                 fetchData();
             } catch (error) {

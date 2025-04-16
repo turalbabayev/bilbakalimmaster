@@ -63,7 +63,8 @@ const EditMindCardModal = ({ isOpen, onClose, onSuccess, card, konuId }) => {
 
         setLoading(true);
         try {
-            const cardRef = doc(db, 'miniCards', 'konular', konuId, 'cards', card.id);
+            const konuRef = doc(db, 'miniCards-konular', konuId);
+            const cardRef = doc(konuRef, 'cards', card.id);
             let updateData = {
                 title,
                 altKonu: altKonu.trim() || null,
