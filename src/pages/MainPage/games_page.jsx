@@ -197,7 +197,8 @@ function GamesPage() {
                 return;
             }
 
-            const nextNumber = await getNextQuestionNumber('hangmanQuestions');
+            const collectionName = showHangman ? 'hangmanQuestions' : 'wordPuzzles';
+            const nextNumber = await getNextQuestionNumber(collectionName);
             
             for (let i = 0; i < questions.length; i++) {
                 const question = questions[i];
@@ -206,7 +207,7 @@ function GamesPage() {
                     continue;
                 }
 
-                await addDoc(collection(db, 'hangmanQuestions'), {
+                await addDoc(collection(db, collectionName), {
                     question: question.question,
                     answer: question.answer,
                     questionNumber: nextNumber + i,
@@ -217,7 +218,11 @@ function GamesPage() {
             toast.success(`${questions.length} soru başarıyla yüklendi`);
             setShowJsonUploadModal(false);
             setJsonContent('');
-            fetchHangmanQuestions();
+            if (showHangman) {
+                fetchHangmanQuestions();
+            } else {
+                fetchWordPuzzles();
+            }
         } catch (error) {
             console.error('Error uploading questions:', error);
             toast.error('Sorular yüklenirken bir hata oluştu');
@@ -326,16 +331,24 @@ function GamesPage() {
                         </button>
                         <h1 className="text-3xl font-bold text-gray-800">{pageTitle}</h1>
                     </div>
-                    <button
-                        onClick={() => {
-                            setEditingQuestion(null);
-                            setFormData({ question: '', answer: '' });
-                            setShowModal(true);
-                        }}
-                        className="bg-blue-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-all transform hover:scale-105 shadow-lg"
-                    >
-                        <FaPlus /> Yeni {showHangman ? 'Soru' : 'Bulmaca'} Ekle
-                    </button>
+                    <div className="flex gap-4">
+                        <button
+                            onClick={() => setShowJsonUploadModal(true)}
+                            className="bg-green-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-green-700 transition-all transform hover:scale-105 shadow-lg"
+                        >
+                            <FaFileUpload /> JSON Yükle
+                        </button>
+                        <button
+                            onClick={() => {
+                                setEditingQuestion(null);
+                                setFormData({ question: '', answer: '' });
+                                setShowModal(true);
+                            }}
+                            className="bg-blue-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-all transform hover:scale-105 shadow-lg"
+                        >
+                            <FaPlus /> Yeni {showHangman ? 'Soru' : 'Bulmaca'} Ekle
+                        </button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-6">
@@ -448,6 +461,56 @@ function GamesPage() {
                                     </button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                )}
+
+                {showJsonUploadModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-2xl p-8 w-full max-w-2xl shadow-2xl transform transition-all">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                                {showHangman ? 'Adam Asmaca Soruları' : 'Kelime Bulmaca Soruları'} JSON Yükle
+                            </h2>
+                            <div className="mb-6">
+                                <p className="text-gray-600 mb-4">
+                                    JSON formatı şu şekilde olmalıdır:
+                                </p>
+                                <pre className="bg-gray-50 p-4 rounded-lg text-sm text-gray-700 mb-4">
+{`[
+    {
+        "question": "${showHangman ? 'Türkiyenin başkenti neresidir?' : 'Başkentimiz olan şehir'}",
+        "answer": "${showHangman ? 'ANKARA' : 'ankara'}"
+    },
+    {
+        "question": "${showHangman ? 'En büyük gezegenimiz hangisidir?' : 'Güneş sisteminin en büyük gezegeni'}",
+        "answer": "${showHangman ? 'JÜPİTER' : 'jüpiter'}"
+    }
+]`}
+                                </pre>
+                                <textarea
+                                    value={jsonContent}
+                                    onChange={(e) => setJsonContent(e.target.value)}
+                                    className="w-full h-64 px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    placeholder="JSON içeriğini buraya yapıştırın..."
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => {
+                                        setShowJsonUploadModal(false);
+                                        setJsonContent('');
+                                    }}
+                                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                >
+                                    İptal
+                                </button>
+                                <button
+                                    onClick={handleJsonUpload}
+                                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                >
+                                    Yükle
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
