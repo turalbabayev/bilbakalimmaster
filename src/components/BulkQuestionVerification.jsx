@@ -7,7 +7,6 @@ import { toast } from 'react-hot-toast';
 
 const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncellemeSuccess, onUpdateClick, onDeleteClick, konuId, altKonuId, altDalId }, ref) => {
     const [sonuclar, setSonuclar] = useState([]);
-    const [analizSonuclari, setAnalizSonuclari] = useState({});
     const [yukleniyor, setYukleniyor] = useState(false);
     const [openaiApiKey, setOpenaiApiKey] = useState(null);
     const [geminiApiKey, setGeminiApiKey] = useState(null);
@@ -45,16 +44,14 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
             return 0;
         });
         
-        // Sıralı soruları state'e kaydet ve mevcut analiz sonuçlarını koru
+        // Sıralı soruları state'e kaydet
         setSonuclar(siraliSorular.map(soru => ({
             soru,
-            analiz: analizSonuclari[soru.id]?.analiz || '',
-            sistemDogruCevap: analizSonuclari[soru.id]?.sistemDogruCevap || '',
-            model: analizSonuclari[soru.id]?.model || null,
-            geminiDogruCevap: analizSonuclari[soru.id]?.geminiDogruCevap || null,
-            cevapUyumsuz: analizSonuclari[soru.id]?.cevapUyumsuz || false
+            analiz: '',
+            sistemDogruCevap: '',
+            model: null
         })));
-    }, [sorular, analizSonuclari]);
+    }, [sorular]);
 
     const handleSoruSecim = (soruId) => {
         setSeciliSorular(prev => {
@@ -601,46 +598,60 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
         return doc.body.textContent || "";
     };
 
-    // Analiz sonuçlarını kaydetme fonksiyonu
-    const saveAnalizSonucu = (soruId, sonuc) => {
-        setAnalizSonuclari(prev => ({
-            ...prev,
-            [soruId]: {
-                analiz: sonuc.analiz,
-                sistemDogruCevap: sonuc.sistemDogruCevap,
-                model: sonuc.model,
-                geminiDogruCevap: sonuc.geminiDogruCevap,
-                cevapUyumsuz: sonuc.cevapUyumsuz
-            }
-        }));
-    };
-
+    // Sonuçları güncelleme fonksiyonu
     const updateSonucWithGuncelSoru = (guncelSoru) => {
         console.log('Güncel soru alındı, sonuçlar güncelleniyor:', guncelSoru);
 
         setSonuclar(prevSonuclar => {
             return prevSonuclar.map(sonuc => {
-                if (sonuc.soru.id === guncelSoru.id) {
-                    // Mevcut analiz sonuçlarını koru
-                    const mevcutAnaliz = analizSonuclari[guncelSoru.id] || {};
-                    
-                    const yeniSonuc = {
-                        ...sonuc,
-                        soru: {
-                            ...guncelSoru
-                        },
-                        sistemDogruCevap: guncelSoru.dogruCevap,
-                        analiz: mevcutAnaliz.analiz || sonuc.analiz,
-                        model: mevcutAnaliz.model || sonuc.model,
-                        geminiDogruCevap: mevcutAnaliz.geminiDogruCevap || sonuc.geminiDogruCevap,
-                        cevapUyumsuz: mevcutAnaliz.geminiDogruCevap && mevcutAnaliz.geminiDogruCevap !== guncelSoru.dogruCevap
-                    };
-
-                    // Analiz sonuçlarını kaydet
-                    saveAnalizSonucu(guncelSoru.id, yeniSonuc);
-
-                    return yeniSonuc;
+                // Eşleştirme için daha güvenli bir algoritma kullanıyoruz
+                // Hem ID üzerinden hem de içerik üzerinden eşleştirme yapacağız
+                let eslesme = false;
+                
+                // 1. ID üzerinden eşleştirme (eğer varsa)
+                if (sonuc.soru.id && guncelSoru.id && sonuc.soru.id === guncelSoru.id) {
+                    eslesme = true;
                 }
+                
+                // 2. Soru metni üzerinden eşleştirme
+                if (!eslesme && sonuc.soru.soruMetni === guncelSoru.soruMetni) {
+                    // Cevapların karşılaştırması için bir fonksiyon
+                    const cevaplarAyni = () => {
+                        if (sonuc.soru.cevaplar && guncelSoru.cevaplar &&
+                            sonuc.soru.cevaplar.length === guncelSoru.cevaplar.length) {
+                            // Cevapların en az %80'i aynı mı kontrol et
+                            let ayniCevapSayisi = 0;
+                            for (let i = 0; i < sonuc.soru.cevaplar.length; i++) {
+                                if (sonuc.soru.cevaplar[i] === guncelSoru.cevaplar[i]) {
+                                    ayniCevapSayisi++;
+                                }
+                            }
+                            return (ayniCevapSayisi / sonuc.soru.cevaplar.length) >= 0.8;
+                        }
+                        return false;
+                    };
+                    
+                    if (cevaplarAyni()) {
+                        eslesme = true;
+                    }
+                }
+                
+                if (eslesme) {
+                    console.log('Eşleşen soru bulundu, doğru cevap güncelleniyor:', guncelSoru.dogruCevap);
+                    
+                    // Doğru cevabı güncelle
+                    return {
+                        ...sonuc,
+                        sistemDogruCevap: guncelSoru.dogruCevap,
+                        soru: {
+                            ...sonuc.soru,
+                            dogruCevap: guncelSoru.dogruCevap
+                        },
+                        // Gemini doğru cevapla sistem doğru cevap uyumsuzluğunu da güncelle
+                        cevapUyumsuz: sonuc.geminiDogruCevap && sonuc.geminiDogruCevap !== guncelSoru.dogruCevap
+                    };
+                }
+                
                 return sonuc;
             });
         });
@@ -648,34 +659,24 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
         console.log('Sonuçlar güncellendi');
     };
 
-    // useImperativeHandle güncellemesi
+    // useImperativeHandle ile bileşen dışından erişilebilecek metodları tanımla
     useImperativeHandle(ref, () => ({
-        updateSonucWithGuncelSoru,
+        // Bu metod, güncel soruyu sonuçlar içinde bulup güncelleyecek
+        updateSonucWithGuncelSoru: (guncelSoru) => {
+            updateSonucWithGuncelSoru(guncelSoru);
+        },
+        // Silinen soruyu sonuçlardan kaldıracak metod
         removeSoruFromSonuclar: (soruId) => {
-            setSonuclar(prevSonuclar => prevSonuclar.filter(sonuc => sonuc.soru.id !== soruId));
-            // Analiz sonuçlarından da kaldır
-            setAnalizSonuclari(prev => {
-                const yeni = { ...prev };
-                delete yeni[soruId];
-                return yeni;
+            setSonuclar(prevSonuclar => {
+                return prevSonuclar.filter(sonuc => sonuc.soru.id !== soruId);
             });
         },
         getSonuclar: () => sonuclar,
         updateSorularAndSonuclar: (yeniSorular, yeniSonuclar) => {
+            // Seçili soruları güncelle
             setSeciliSorular(yeniSorular.map(soru => soru.id));
+            // Sonuçları güncelle
             setSonuclar(yeniSonuclar);
-            // Analiz sonuçlarını da güncelle
-            const yeniAnalizSonuclari = {};
-            yeniSonuclar.forEach(sonuc => {
-                yeniAnalizSonuclari[sonuc.soru.id] = {
-                    analiz: sonuc.analiz,
-                    sistemDogruCevap: sonuc.sistemDogruCevap,
-                    model: sonuc.model,
-                    geminiDogruCevap: sonuc.geminiDogruCevap,
-                    cevapUyumsuz: sonuc.cevapUyumsuz
-                };
-            });
-            setAnalizSonuclari(yeniAnalizSonuclari);
         }
     }));
 

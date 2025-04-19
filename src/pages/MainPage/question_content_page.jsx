@@ -311,37 +311,57 @@ function QuestionContent() {
     const handleUpdateComplete = async (updatedQuestion) => {
         console.log("Soru güncellendi, veriler yenileniyor...");
         
-        // Önce modalları kapat
-        setIsUpdateModalOpen(false);
-        
-        // Bulk verification modalını tekrar göster
-        document.querySelector('.bulk-verification-modal')?.classList.remove('hidden');
-        
         try {
+            // Önce modalları kapat
+            setIsUpdateModalOpen(false);
+            
+            // Bulk verification modalını tekrar göster
+            document.querySelector('.bulk-verification-modal')?.classList.remove('hidden');
+            
+            // Eğer bir alt konu açıksa, sadece o alt konunun sorularını yenile
+            if (expandedAltKonu) {
+                await fetchSorularForAltKonu(expandedAltKonu);
+            }
+            
             // Güncelleme yapılan soruyu sadece doğrudan al
             if (selectedSoruRef && bulkVerificationRef.current && isBulkVerificationOpen) {
                 try {
                     // Firestore'dan güncel soruyu al
-                    const guncelSoruDoc = await getDoc(doc(db, selectedSoruRef));
+                    const [, , , altKonuId, , soruId] = selectedSoruRef.split('/');
+                    const soruRef = doc(db, "konular", id, "altkonular", altKonuId, "sorular", soruId);
+                    const guncelSoruDoc = await getDoc(soruRef);
                     
                     if (guncelSoruDoc.exists()) {
-                        const guncelSoru = { id: guncelSoruDoc.id, ...guncelSoruDoc.data() };
+                        const guncelSoru = { 
+                            id: guncelSoruDoc.id, 
+                            ...guncelSoruDoc.data(),
+                            ref: selectedSoruRef // Referansı da ekle
+                        };
                         console.log("Güncel soru bulundu, bulk verification modalı güncelleniyor:", guncelSoru);
                         
-                        // Alt konular state'ini güncelle
-                        setAltKonular(prevAltKonular => {
-                            const yeniAltKonular = { ...prevAltKonular };
-                            if (yeniAltKonular[selectedAltKonuId]?.sorular) {
-                                yeniAltKonular[selectedAltKonuId].sorular = {
-                                    ...yeniAltKonular[selectedAltKonuId].sorular,
-                                    [guncelSoru.id]: guncelSoru
-                                };
-                            }
-                            return yeniAltKonular;
-                        });
-
-                        // BulkVerification bileşenini güncelle
-                        bulkVerificationRef.current.updateSonucWithGuncelSoru(guncelSoru);
+                        // Önce mevcut sonuçları alalım
+                        const mevcutSonuclar = bulkVerificationRef.current.getSonuclar();
+                        
+                        if (mevcutSonuclar && mevcutSonuclar.length > 0) {
+                            // Güncel soruyu mevcut sonuçlarda bul ve güncelle
+                            const yeniSonuclar = mevcutSonuclar.map(sonuc => {
+                                if (sonuc.soru.id === guncelSoru.id) {
+                                    return {
+                                        ...sonuc,
+                                        sistemDogruCevap: guncelSoru.dogruCevap,
+                                        soru: guncelSoru,
+                                        cevapUyumsuz: sonuc.geminiDogruCevap && sonuc.geminiDogruCevap !== guncelSoru.dogruCevap
+                                    };
+                                }
+                                return sonuc;
+                            });
+                            
+                            // BulkQuestionVerification bileşeninin state'ini güncelle
+                            bulkVerificationRef.current.updateSorularAndSonuclar(
+                                yeniSonuclar.map(s => s.soru), 
+                                yeniSonuclar
+                            );
+                        }
                     } else {
                         console.log("Güncel soru bulunamadı.");
                         toast.error("Güncel soru bulunamadı!");
