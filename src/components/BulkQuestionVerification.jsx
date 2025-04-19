@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast';
 
 const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncellemeSuccess, onUpdateClick, onDeleteClick, konuId, altKonuId, altDalId }, ref) => {
     const [sonuclar, setSonuclar] = useState([]);
+    const [analizSonuclari, setAnalizSonuclari] = useState({});
     const [yukleniyor, setYukleniyor] = useState(false);
     const [openaiApiKey, setOpenaiApiKey] = useState(null);
     const [geminiApiKey, setGeminiApiKey] = useState(null);
@@ -44,14 +45,16 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
             return 0;
         });
         
-        // Sıralı soruları state'e kaydet
+        // Sıralı soruları state'e kaydet ve mevcut analiz sonuçlarını koru
         setSonuclar(siraliSorular.map(soru => ({
             soru,
-            analiz: '',
-            sistemDogruCevap: '',
-            model: null
+            analiz: analizSonuclari[soru.id]?.analiz || '',
+            sistemDogruCevap: analizSonuclari[soru.id]?.sistemDogruCevap || '',
+            model: analizSonuclari[soru.id]?.model || null,
+            geminiDogruCevap: analizSonuclari[soru.id]?.geminiDogruCevap || null,
+            cevapUyumsuz: analizSonuclari[soru.id]?.cevapUyumsuz || false
         })));
-    }, [sorular]);
+    }, [sorular, analizSonuclari]);
 
     const handleSoruSecim = (soruId) => {
         setSeciliSorular(prev => {
@@ -598,64 +601,46 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
         return doc.body.textContent || "";
     };
 
-    // Sonuçları güncelleme fonksiyonu
+    // Analiz sonuçlarını kaydetme fonksiyonu
+    const saveAnalizSonucu = (soruId, sonuc) => {
+        setAnalizSonuclari(prev => ({
+            ...prev,
+            [soruId]: {
+                analiz: sonuc.analiz,
+                sistemDogruCevap: sonuc.sistemDogruCevap,
+                model: sonuc.model,
+                geminiDogruCevap: sonuc.geminiDogruCevap,
+                cevapUyumsuz: sonuc.cevapUyumsuz
+            }
+        }));
+    };
+
     const updateSonucWithGuncelSoru = (guncelSoru) => {
         console.log('Güncel soru alındı, sonuçlar güncelleniyor:', guncelSoru);
 
         setSonuclar(prevSonuclar => {
             return prevSonuclar.map(sonuc => {
-                // Eşleştirme için daha güvenli bir algoritma kullanıyoruz
-                // Hem ID üzerinden hem de içerik üzerinden eşleştirme yapacağız
-                let eslesme = false;
-                
-                // 1. ID üzerinden eşleştirme (eğer varsa)
-                if (sonuc.soru.id && guncelSoru.id && sonuc.soru.id === guncelSoru.id) {
-                    eslesme = true;
-                }
-                
-                // 2. Soru metni üzerinden eşleştirme
-                if (!eslesme && sonuc.soru.soruMetni === guncelSoru.soruMetni) {
-                    // Cevapların karşılaştırması için bir fonksiyon
-                    const cevaplarAyni = () => {
-                        if (sonuc.soru.cevaplar && guncelSoru.cevaplar &&
-                            sonuc.soru.cevaplar.length === guncelSoru.cevaplar.length) {
-                            // Cevapların en az %80'i aynı mı kontrol et
-                            let ayniCevapSayisi = 0;
-                            for (let i = 0; i < sonuc.soru.cevaplar.length; i++) {
-                                if (sonuc.soru.cevaplar[i] === guncelSoru.cevaplar[i]) {
-                                    ayniCevapSayisi++;
-                                }
-                            }
-                            return (ayniCevapSayisi / sonuc.soru.cevaplar.length) >= 0.8;
-                        }
-                        return false;
-                    };
+                if (sonuc.soru.id === guncelSoru.id) {
+                    // Mevcut analiz sonuçlarını koru
+                    const mevcutAnaliz = analizSonuclari[guncelSoru.id] || {};
                     
-                    if (cevaplarAyni()) {
-                        eslesme = true;
-                    }
-                }
-                
-                if (eslesme) {
-                    console.log('Eşleşen soru bulundu, doğru cevap güncelleniyor:', guncelSoru.dogruCevap);
-                    
-                    // Mevcut analiz sonuçlarını koru ve sadece gerekli alanları güncelle
-                    return {
+                    const yeniSonuc = {
                         ...sonuc,
-                        sistemDogruCevap: guncelSoru.dogruCevap,
                         soru: {
-                            ...sonuc.soru,
-                            ...guncelSoru,
-                            dogruCevap: guncelSoru.dogruCevap
+                            ...guncelSoru
                         },
-                        // Analiz sonuçlarını koru
-                        analiz: sonuc.analiz,
-                        model: sonuc.model,
-                        // Gemini doğru cevapla sistem doğru cevap uyumsuzluğunu güncelle
-                        cevapUyumsuz: sonuc.geminiDogruCevap && sonuc.geminiDogruCevap !== guncelSoru.dogruCevap
+                        sistemDogruCevap: guncelSoru.dogruCevap,
+                        analiz: mevcutAnaliz.analiz || sonuc.analiz,
+                        model: mevcutAnaliz.model || sonuc.model,
+                        geminiDogruCevap: mevcutAnaliz.geminiDogruCevap || sonuc.geminiDogruCevap,
+                        cevapUyumsuz: mevcutAnaliz.geminiDogruCevap && mevcutAnaliz.geminiDogruCevap !== guncelSoru.dogruCevap
                     };
+
+                    // Analiz sonuçlarını kaydet
+                    saveAnalizSonucu(guncelSoru.id, yeniSonuc);
+
+                    return yeniSonuc;
                 }
-                
                 return sonuc;
             });
         });
@@ -663,24 +648,34 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
         console.log('Sonuçlar güncellendi');
     };
 
-    // useImperativeHandle ile bileşen dışından erişilebilecek metodları tanımla
+    // useImperativeHandle güncellemesi
     useImperativeHandle(ref, () => ({
-        // Bu metod, güncel soruyu sonuçlar içinde bulup güncelleyecek
-        updateSonucWithGuncelSoru: (guncelSoru) => {
-            updateSonucWithGuncelSoru(guncelSoru);
-        },
-        // Silinen soruyu sonuçlardan kaldıracak metod
+        updateSonucWithGuncelSoru,
         removeSoruFromSonuclar: (soruId) => {
-            setSonuclar(prevSonuclar => {
-                return prevSonuclar.filter(sonuc => sonuc.soru.id !== soruId);
+            setSonuclar(prevSonuclar => prevSonuclar.filter(sonuc => sonuc.soru.id !== soruId));
+            // Analiz sonuçlarından da kaldır
+            setAnalizSonuclari(prev => {
+                const yeni = { ...prev };
+                delete yeni[soruId];
+                return yeni;
             });
         },
         getSonuclar: () => sonuclar,
         updateSorularAndSonuclar: (yeniSorular, yeniSonuclar) => {
-            // Seçili soruları güncelle
             setSeciliSorular(yeniSorular.map(soru => soru.id));
-            // Sonuçları güncelle
             setSonuclar(yeniSonuclar);
+            // Analiz sonuçlarını da güncelle
+            const yeniAnalizSonuclari = {};
+            yeniSonuclar.forEach(sonuc => {
+                yeniAnalizSonuclari[sonuc.soru.id] = {
+                    analiz: sonuc.analiz,
+                    sistemDogruCevap: sonuc.sistemDogruCevap,
+                    model: sonuc.model,
+                    geminiDogruCevap: sonuc.geminiDogruCevap,
+                    cevapUyumsuz: sonuc.cevapUyumsuz
+                };
+            });
+            setAnalizSonuclari(yeniAnalizSonuclari);
         }
     }));
 

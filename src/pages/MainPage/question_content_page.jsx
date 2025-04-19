@@ -318,11 +318,6 @@ function QuestionContent() {
         document.querySelector('.bulk-verification-modal')?.classList.remove('hidden');
         
         try {
-            // Eğer bir alt konu açıksa, sadece o alt konunun sorularını yenile
-            if (expandedAltKonu) {
-                await fetchSorularForAltKonu(expandedAltKonu);
-            }
-            
             // Güncelleme yapılan soruyu sadece doğrudan al
             if (selectedSoruRef && bulkVerificationRef.current && isBulkVerificationOpen) {
                 try {
@@ -332,6 +327,20 @@ function QuestionContent() {
                     if (guncelSoruDoc.exists()) {
                         const guncelSoru = { id: guncelSoruDoc.id, ...guncelSoruDoc.data() };
                         console.log("Güncel soru bulundu, bulk verification modalı güncelleniyor:", guncelSoru);
+                        
+                        // Alt konular state'ini güncelle
+                        setAltKonular(prevAltKonular => {
+                            const yeniAltKonular = { ...prevAltKonular };
+                            if (yeniAltKonular[selectedAltKonuId]?.sorular) {
+                                yeniAltKonular[selectedAltKonuId].sorular = {
+                                    ...yeniAltKonular[selectedAltKonuId].sorular,
+                                    [guncelSoru.id]: guncelSoru
+                                };
+                            }
+                            return yeniAltKonular;
+                        });
+
+                        // BulkVerification bileşenini güncelle
                         bulkVerificationRef.current.updateSonucWithGuncelSoru(guncelSoru);
                     } else {
                         console.log("Güncel soru bulunamadı.");
