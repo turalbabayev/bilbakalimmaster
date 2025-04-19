@@ -360,7 +360,11 @@ function GamesPage() {
         "question": "Soru metni",
         "answer": "CEVAP"
     },
-    ...
+    {
+        "question": "Soru metni",
+        "answer": "CEVAP"
+    }
+
 ]`}
                                 </pre>
                                 <textarea
