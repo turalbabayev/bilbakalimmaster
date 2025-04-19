@@ -11,13 +11,17 @@ function GamesPage() {
     const [loading, setLoading] = useState(true);
     const [showHangman, setShowHangman] = useState(false);
     const [showWordPuzzle, setShowWordPuzzle] = useState(false);
+    const [showMatching, setShowMatching] = useState(false);
     const [questions, setQuestions] = useState([]);
     const [wordPuzzles, setWordPuzzles] = useState([]);
+    const [matchingPairs, setMatchingPairs] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [editingQuestion, setEditingQuestion] = useState(null);
     const [formData, setFormData] = useState({
         question: '',
         answer: '',
+        word: '',
+        matchingWord: ''
     });
     const [showJsonUploadModal, setShowJsonUploadModal] = useState(false);
     const [jsonContent, setJsonContent] = useState('');
@@ -114,6 +118,12 @@ function GamesPage() {
         }
     }, [showWordPuzzle]);
 
+    useEffect(() => {
+        if (showMatching) {
+            fetchMatchingPairs();
+        }
+    }, [showMatching]);
+
     const fetchHangmanQuestions = async () => {
         try {
             const querySnapshot = await getDocs(query(collection(db, 'hangmanQuestions'), orderBy('questionNumber', 'asc')));
@@ -142,6 +152,20 @@ function GamesPage() {
         }
     };
 
+    const fetchMatchingPairs = async () => {
+        try {
+            const querySnapshot = await getDocs(query(collection(db, 'matchingPairs'), orderBy('questionNumber', 'asc')));
+            const pairsData = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setMatchingPairs(pairsData);
+        } catch (error) {
+            console.error('Error fetching matching pairs:', error);
+            toast.error('Eşleştirmeler yüklenirken bir hata oluştu');
+        }
+    };
+
     const getNextQuestionNumber = async (collectionName) => {
         try {
             const querySnapshot = await getDocs(query(collection(db, collectionName), orderBy('questionNumber', 'desc')));
@@ -157,39 +181,63 @@ function GamesPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const collectionName = showHangman ? 'hangmanQuestions' : 'wordPuzzles';
+            let collectionName;
+            let data;
+
+            if (showHangman) {
+                collectionName = 'hangmanQuestions';
+                data = {
+                    question: formData.question,
+                    answer: formData.answer
+                };
+            } else if (showWordPuzzle) {
+                collectionName = 'wordPuzzles';
+                data = {
+                    question: formData.question,
+                    answer: formData.answer
+                };
+            } else if (showMatching) {
+                collectionName = 'matchingPairs';
+                data = {
+                    word: formData.word,
+                    matchingWord: formData.matchingWord
+                };
+            }
+
             if (editingQuestion) {
-                await updateDoc(doc(db, collectionName, editingQuestion.id), formData);
-                toast.success(showHangman ? 'Soru başarıyla güncellendi' : 'Bulmaca başarıyla güncellendi');
+                await updateDoc(doc(db, collectionName, editingQuestion.id), data);
+                toast.success(showMatching ? 'Eşleştirme başarıyla güncellendi' : 'Soru başarıyla güncellendi');
             } else {
                 const nextNumber = await getNextQuestionNumber(collectionName);
                 await addDoc(collection(db, collectionName), {
-                    ...formData,
+                    ...data,
                     questionNumber: nextNumber,
                     createdAt: new Date()
                 });
-                toast.success(showHangman ? 'Soru başarıyla eklendi' : 'Bulmaca başarıyla eklendi');
+                toast.success(showMatching ? 'Eşleştirme başarıyla eklendi' : 'Soru başarıyla eklendi');
             }
             setShowModal(false);
             setEditingQuestion(null);
-            setFormData({ question: '', answer: '' });
+            setFormData({ question: '', answer: '', word: '', matchingWord: '' });
             if (showHangman) {
                 fetchHangmanQuestions();
-            } else {
+            } else if (showWordPuzzle) {
                 fetchWordPuzzles();
+            } else if (showMatching) {
+                fetchMatchingPairs();
             }
         } catch (error) {
             console.error('Error saving:', error);
-            toast.error(showHangman ? 'Soru kaydedilirken bir hata oluştu' : 'Bulmaca kaydedilirken bir hata oluştu');
+            toast.error(showMatching ? 'Eşleştirme kaydedilirken bir hata oluştu' : 'Soru kaydedilirken bir hata oluştu');
         }
     };
 
     const handleJsonUpload = async () => {
         try {
-            let questions;
+            let items;
             try {
-                questions = JSON.parse(jsonContent);
-                if (!Array.isArray(questions)) {
+                items = JSON.parse(jsonContent);
+                if (!Array.isArray(items)) {
                     throw new Error('JSON içeriği bir dizi olmalıdır');
                 }
             } catch (error) {
@@ -197,63 +245,86 @@ function GamesPage() {
                 return;
             }
 
-            const collectionName = showHangman ? 'hangmanQuestions' : 'wordPuzzles';
+            const collectionName = showHangman ? 'hangmanQuestions' : (showWordPuzzle ? 'wordPuzzles' : 'matchingPairs');
             const nextNumber = await getNextQuestionNumber(collectionName);
             
-            for (let i = 0; i < questions.length; i++) {
-                const question = questions[i];
-                if (!question.question || !question.answer) {
-                    toast.error(`Soru ${i + 1}: Soru veya cevap eksik`);
-                    continue;
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (showMatching) {
+                    if (!item.word || !item.matchingWord) {
+                        toast.error(`Eşleştirme ${i + 1}: Kelime veya eşleşen kelime eksik`);
+                        continue;
+                    }
+                } else {
+                    if (!item.question || !item.answer) {
+                        toast.error(`Soru ${i + 1}: Soru veya cevap eksik`);
+                        continue;
+                    }
                 }
 
                 await addDoc(collection(db, collectionName), {
-                    question: question.question,
-                    answer: question.answer,
+                    ...(showMatching ? {
+                        word: item.word,
+                        matchingWord: item.matchingWord
+                    } : {
+                        question: item.question,
+                        answer: item.answer
+                    }),
                     questionNumber: nextNumber + i,
                     createdAt: new Date()
                 });
             }
 
-            toast.success(`${questions.length} soru başarıyla yüklendi`);
+            toast.success(`${items.length} ${showMatching ? 'eşleştirme' : 'soru'} başarıyla yüklendi`);
             setShowJsonUploadModal(false);
             setJsonContent('');
             if (showHangman) {
                 fetchHangmanQuestions();
-            } else {
+            } else if (showWordPuzzle) {
                 fetchWordPuzzles();
+            } else if (showMatching) {
+                fetchMatchingPairs();
             }
         } catch (error) {
-            console.error('Error uploading questions:', error);
-            toast.error('Sorular yüklenirken bir hata oluştu');
+            console.error('Error uploading:', error);
+            toast.error(showMatching ? 'Eşleştirmeler yüklenirken bir hata oluştu' : 'Sorular yüklenirken bir hata oluştu');
         }
     };
 
     const handleDelete = async (id) => {
-        const collectionName = showHangman ? 'hangmanQuestions' : 'wordPuzzles';
-        const itemType = showHangman ? 'soruyu' : 'bulmacayı';
+        const collectionName = showHangman ? 'hangmanQuestions' : (showWordPuzzle ? 'wordPuzzles' : 'matchingPairs');
+        const itemType = showMatching ? 'eşleştirmeyi' : 'soruyu';
         if (window.confirm(`Bu ${itemType} silmek istediğinizden emin misiniz?`)) {
             try {
                 await deleteDoc(doc(db, collectionName, id));
-                toast.success(showHangman ? 'Soru başarıyla silindi' : 'Bulmaca başarıyla silindi');
+                toast.success(showMatching ? 'Eşleştirme başarıyla silindi' : 'Soru başarıyla silindi');
                 if (showHangman) {
                     fetchHangmanQuestions();
-                } else {
+                } else if (showWordPuzzle) {
                     fetchWordPuzzles();
+                } else if (showMatching) {
+                    fetchMatchingPairs();
                 }
             } catch (error) {
                 console.error('Error deleting:', error);
-                toast.error(showHangman ? 'Soru silinirken bir hata oluştu' : 'Bulmaca silinirken bir hata oluştu');
+                toast.error(showMatching ? 'Eşleştirme silinirken bir hata oluştu' : 'Soru silinirken bir hata oluştu');
             }
         }
     };
 
     const handleEdit = (item) => {
         setEditingQuestion(item);
-        setFormData({
-            question: item.question,
-            answer: item.answer,
-        });
+        if (showMatching) {
+            setFormData({
+                word: item.word,
+                matchingWord: item.matchingWord
+            });
+        } else {
+            setFormData({
+                question: item.question,
+                answer: item.answer
+            });
+        }
         setShowModal(true);
     };
 
@@ -312,9 +383,9 @@ function GamesPage() {
         }
     };
 
-    if (showHangman || showWordPuzzle) {
-        const pageTitle = showHangman ? "Adam Asmaca Soruları" : "Kelime Bulmaca Soruları";
-        const items = showHangman ? questions : wordPuzzles;
+    if (showHangman || showWordPuzzle || showMatching) {
+        let pageTitle = showHangman ? "Adam Asmaca Soruları" : (showWordPuzzle ? "Kelime Bulmaca Soruları" : "Eşleştirme Çiftleri");
+        let items = showHangman ? questions : (showWordPuzzle ? wordPuzzles : matchingPairs);
         
         return (
             <div className="container mx-auto px-4 py-8">
@@ -324,6 +395,7 @@ function GamesPage() {
                             onClick={() => {
                                 setShowHangman(false);
                                 setShowWordPuzzle(false);
+                                setShowMatching(false);
                             }}
                             className="text-gray-600 hover:text-gray-800 transition-colors"
                         >
@@ -341,12 +413,12 @@ function GamesPage() {
                         <button
                             onClick={() => {
                                 setEditingQuestion(null);
-                                setFormData({ question: '', answer: '' });
+                                setFormData({ question: '', answer: '', word: '', matchingWord: '' });
                                 setShowModal(true);
                             }}
                             className="bg-blue-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-all transform hover:scale-105 shadow-lg"
                         >
-                            <FaPlus /> Yeni {showHangman ? 'Soru' : 'Bulmaca'} Ekle
+                            <FaPlus /> {showMatching ? 'Yeni Eşleştirme' : 'Yeni Soru'} Ekle
                         </button>
                     </div>
                 </div>
@@ -364,12 +436,25 @@ function GamesPage() {
                                             #{item.questionNumber || '?'}
                                         </span>
                                     </div>
-                                    <h3 className="text-xl text-gray-800 mb-3">
-                                        {item.question}
-                                    </h3>
-                                    <p className="text-gray-600">
-                                        <span className="font-medium">Cevap:</span> {item.answer}
-                                    </p>
+                                    {showMatching ? (
+                                        <>
+                                            <h3 className="text-xl text-gray-800 mb-3">
+                                                {item.word}
+                                            </h3>
+                                            <p className="text-gray-600">
+                                                <span className="font-medium">Eşleşen:</span> {item.matchingWord}
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <h3 className="text-xl text-gray-800 mb-3">
+                                                {item.question}
+                                            </h3>
+                                            <p className="text-gray-600">
+                                                <span className="font-medium">Cevap:</span> {item.answer}
+                                            </p>
+                                        </>
+                                    )}
                                 </div>
                                 <div className="flex gap-2">
                                     <button
@@ -394,16 +479,16 @@ function GamesPage() {
 
                 {items.length === 0 && !loading && (
                     <div className="text-center py-12">
-                        <p className="text-gray-500 text-lg">Henüz {showHangman ? 'soru' : 'bulmaca'} eklenmemiş.</p>
+                        <p className="text-gray-500 text-lg">Henüz {showMatching ? 'eşleştirme' : 'soru'} eklenmemiş.</p>
                         <button
                             onClick={() => {
                                 setEditingQuestion(null);
-                                setFormData({ question: '', answer: '' });
+                                setFormData({ question: '', answer: '', word: '', matchingWord: '' });
                                 setShowModal(true);
                             }}
                             className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
                         >
-                            İlk {showHangman ? 'soruyu' : 'bulmacayı'} ekleyin
+                            İlk {showMatching ? 'eşleştirmeyi' : 'soruyu'} ekleyin
                         </button>
                     </div>
                 )}
@@ -413,41 +498,72 @@ function GamesPage() {
                         <div className="bg-white rounded-lg p-6 w-full max-w-md">
                             <h2 className="text-2xl font-bold mb-4">
                                 {editingQuestion ? 
-                                    (showHangman ? 'Soruyu Düzenle' : 'Bulmacayı Düzenle') : 
-                                    (showHangman ? 'Yeni Soru Ekle' : 'Yeni Bulmaca Ekle')}
+                                    (showMatching ? 'Eşleştirmeyi Düzenle' : 'Soruyu Düzenle') : 
+                                    (showMatching ? 'Yeni Eşleştirme Ekle' : 'Yeni Soru Ekle')}
                             </h2>
                             <form onSubmit={handleSubmit}>
-                                <div className="mb-4">
-                                    <label className="block text-gray-700 text-sm font-bold mb-2">
-                                        {showHangman ? 'Soru' : 'Bulmaca Sorusu'}
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.question}
-                                        onChange={(e) => setFormData({ ...formData, question: e.target.value })}
-                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                        required
-                                    />
-                                </div>
-                                <div className="mb-4">
-                                    <label className="block text-gray-700 text-sm font-bold mb-2">
-                                        Cevap
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.answer}
-                                        onChange={(e) => setFormData({ ...formData, answer: e.target.value })}
-                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                        required
-                                    />
-                                </div>
+                                {showMatching ? (
+                                    <>
+                                        <div className="mb-4">
+                                            <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                Kelime
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={formData.word}
+                                                onChange={(e) => setFormData({ ...formData, word: e.target.value })}
+                                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="mb-4">
+                                            <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                Eşleşen Kelime
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={formData.matchingWord}
+                                                onChange={(e) => setFormData({ ...formData, matchingWord: e.target.value })}
+                                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                required
+                                            />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="mb-4">
+                                            <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                {showHangman ? 'Soru' : 'Bulmaca Sorusu'}
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={formData.question}
+                                                onChange={(e) => setFormData({ ...formData, question: e.target.value })}
+                                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="mb-4">
+                                            <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                Cevap
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={formData.answer}
+                                                onChange={(e) => setFormData({ ...formData, answer: e.target.value })}
+                                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                required
+                                            />
+                                        </div>
+                                    </>
+                                )}
                                 <div className="flex justify-end gap-2">
                                     <button
                                         type="button"
                                         onClick={() => {
                                             setShowModal(false);
                                             setEditingQuestion(null);
-                                            setFormData({ question: '', answer: '' });
+                                            setFormData({ question: '', answer: '', word: '', matchingWord: '' });
                                         }}
                                         className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
                                     >
@@ -469,14 +585,23 @@ function GamesPage() {
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                         <div className="bg-white rounded-2xl p-8 w-full max-w-2xl shadow-2xl transform transition-all">
                             <h2 className="text-2xl font-bold text-gray-800 mb-6">
-                                {showHangman ? 'Adam Asmaca Soruları' : 'Kelime Bulmaca Soruları'} JSON Yükle
+                                {showMatching ? 'Eşleştirme Çiftleri' : (showHangman ? 'Adam Asmaca Soruları' : 'Kelime Bulmaca Soruları')} JSON Yükle
                             </h2>
                             <div className="mb-6">
                                 <p className="text-gray-600 mb-4">
                                     JSON formatı şu şekilde olmalıdır:
                                 </p>
                                 <pre className="bg-gray-50 p-4 rounded-lg text-sm text-gray-700 mb-4">
-{`[
+{showMatching ? `[
+    {
+        "word": "Güneş",
+        "matchingWord": "Ay"
+    },
+    {
+        "word": "Gece",
+        "matchingWord": "Gündüz"
+    }
+]` : `[
     {
         "question": "${showHangman ? 'Türkiyenin başkenti neresidir?' : 'Başkentimiz olan şehir'}",
         "answer": "${showHangman ? 'ANKARA' : 'ankara'}"
@@ -549,6 +674,8 @@ function GamesPage() {
                                             setShowHangman(true);
                                         } else if (game.title === "Kelime Bulmaca") {
                                             setShowWordPuzzle(true);
+                                        } else if (game.title === "Eşleştir") {
+                                            setShowMatching(true);
                                         }
                                     }}
                                     className={`relative overflow-hidden rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl cursor-pointer ${getColorClass(game.color)} text-white`}
