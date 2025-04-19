@@ -4,16 +4,20 @@ import { db } from "../../firebase";
 import { collection, getDocs, addDoc, query, orderBy, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import { useNavigate } from 'react-router-dom';
+import { FaEdit, FaTrash, FaPlus, FaArrowLeft } from "react-icons/fa";
 
 function GamesPage() {
     const [games, setGames] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [isHangmanModalOpen, setIsHangmanModalOpen] = useState(false);
-    const [hangmanQuestion, setHangmanQuestion] = useState("");
-    const [hangmanAnswer, setHangmanAnswer] = useState("");
-    const [hangmanQuestions, setHangmanQuestions] = useState([]);
+    const [showHangman, setShowHangman] = useState(false);
+    const [questions, setQuestions] = useState([]);
+    const [showModal, setShowModal] = useState(false);
     const [editingQuestion, setEditingQuestion] = useState(null);
-    const [showQuestions, setShowQuestions] = useState(false);
+    const [formData, setFormData] = useState({
+        question: '',
+        answer: '',
+        difficulty: 'Kolay'
+    });
     const navigate = useNavigate();
 
     // Varsayılan oyunları yükle
@@ -62,25 +66,6 @@ function GamesPage() {
         }
     ];
 
-    // Soruları yükle
-    const loadHangmanQuestions = async () => {
-        try {
-            const questionsRef = collection(db, "hangman_questions");
-            const q = query(questionsRef, orderBy("createdAt", "desc"));
-            const querySnapshot = await getDocs(q);
-            
-            setHangmanQuestions(
-                querySnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }))
-            );
-        } catch (error) {
-            console.error("Sorular yüklenirken hata:", error);
-            toast.error("Sorular yüklenirken bir hata oluştu!");
-        }
-    };
-
     useEffect(() => {
         const initializeGames = async () => {
             try {
@@ -112,73 +97,81 @@ function GamesPage() {
         };
 
         initializeGames();
-        loadHangmanQuestions();
     }, []);
 
-    const handleHangmanSubmit = async (e) => {
-        e.preventDefault();
-        
-        if (!hangmanQuestion.trim() || !hangmanAnswer.trim()) {
-            toast.error("Soru ve cevap alanları boş bırakılamaz!");
-            return;
+    useEffect(() => {
+        if (showHangman) {
+            fetchHangmanQuestions();
         }
+    }, [showHangman]);
 
+    const fetchHangmanQuestions = async () => {
+        try {
+            const querySnapshot = await getDocs(collection(db, 'hangmanQuestions'));
+            const questionsData = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setQuestions(questionsData);
+        } catch (error) {
+            console.error('Error fetching questions:', error);
+            toast.error('Sorular yüklenirken bir hata oluştu');
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
         try {
             if (editingQuestion) {
-                // Güncelleme
-                await updateDoc(doc(db, "hangman_questions", editingQuestion.id), {
-                    question: hangmanQuestion.trim(),
-                    answer: hangmanAnswer.trim().toUpperCase(),
-                    updatedAt: new Date()
-                });
-                toast.success("Soru başarıyla güncellendi!");
+                await updateDoc(doc(db, 'hangmanQuestions', editingQuestion.id), formData);
+                toast.success('Soru başarıyla güncellendi');
             } else {
-                // Yeni soru ekleme
-                await addDoc(collection(db, "hangman_questions"), {
-                    question: hangmanQuestion.trim(),
-                    answer: hangmanAnswer.trim().toUpperCase(),
-                    createdAt: new Date()
-                });
-                toast.success("Soru başarıyla eklendi!");
+                await addDoc(collection(db, 'hangmanQuestions'), formData);
+                toast.success('Soru başarıyla eklendi');
             }
-            
-            // Formu temizle
-            setHangmanQuestion("");
-            setHangmanAnswer("");
+            setShowModal(false);
             setEditingQuestion(null);
-            
-            // Soruları yeniden yükle
-            await loadHangmanQuestions();
-            
-            // Modalı kapat
-            setIsHangmanModalOpen(false);
-
+            setFormData({ question: '', answer: '', difficulty: 'Kolay' });
+            fetchHangmanQuestions();
         } catch (error) {
-            console.error("Soru işlemi sırasında hata:", error);
-            toast.error("İşlem sırasında bir hata oluştu!");
+            console.error('Error saving question:', error);
+            toast.error('Soru kaydedilirken bir hata oluştu');
         }
     };
 
-    const handleEditQuestion = (question) => {
+    const handleDelete = async (id) => {
+        if (window.confirm('Bu soruyu silmek istediğinizden emin misiniz?')) {
+            try {
+                await deleteDoc(doc(db, 'hangmanQuestions', id));
+                toast.success('Soru başarıyla silindi');
+                fetchHangmanQuestions();
+            } catch (error) {
+                console.error('Error deleting question:', error);
+                toast.error('Soru silinirken bir hata oluştu');
+            }
+        }
+    };
+
+    const handleEdit = (question) => {
         setEditingQuestion(question);
-        setHangmanQuestion(question.question);
-        setHangmanAnswer(question.answer);
-        setIsHangmanModalOpen(true);
+        setFormData({
+            question: question.question,
+            answer: question.answer,
+            difficulty: question.difficulty
+        });
+        setShowModal(true);
     };
 
-    const handleDeleteQuestion = async (questionId) => {
-        if (!window.confirm("Bu soruyu silmek istediğinizden emin misiniz?")) {
-            return;
-        }
-
-        try {
-            await deleteDoc(doc(db, "hangman_questions", questionId));
-            toast.success("Soru başarıyla silindi!");
-            await loadHangmanQuestions();
-        } catch (error) {
-            console.error("Soru silinirken hata:", error);
-            toast.error("Soru silinirken bir hata oluştu!");
-        }
+    const getColorClass = (color) => {
+        const classes = {
+            blue: "bg-blue-500 hover:bg-blue-600",
+            purple: "bg-purple-500 hover:bg-purple-600",
+            green: "bg-green-500 hover:bg-green-600",
+            red: "bg-red-500 hover:bg-red-600",
+            yellow: "bg-yellow-500 hover:bg-yellow-600",
+            pink: "bg-pink-500 hover:bg-pink-600"
+        };
+        return classes[color] || classes.blue;
     };
 
     const getIcon = (iconName) => {
@@ -224,17 +217,138 @@ function GamesPage() {
         }
     };
 
-    const getColorClass = (color) => {
-        const classes = {
-            blue: "bg-blue-500 hover:bg-blue-600",
-            purple: "bg-purple-500 hover:bg-purple-600",
-            green: "bg-green-500 hover:bg-green-600",
-            red: "bg-red-500 hover:bg-red-600",
-            yellow: "bg-yellow-500 hover:bg-yellow-600",
-            pink: "bg-pink-500 hover:bg-pink-600"
-        };
-        return classes[color] || classes.blue;
-    };
+    if (showHangman) {
+        return (
+            <div className="container mx-auto px-4 py-8">
+                <div className="flex justify-between items-center mb-6">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setShowHangman(false)}
+                            className="text-gray-600 hover:text-gray-800"
+                        >
+                            <FaArrowLeft size={24} />
+                        </button>
+                        <h1 className="text-3xl font-bold text-gray-800">Adam Asmaca Soruları</h1>
+                    </div>
+                    <button
+                        onClick={() => {
+                            setEditingQuestion(null);
+                            setFormData({ question: '', answer: '', difficulty: 'Kolay' });
+                            setShowModal(true);
+                        }}
+                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors"
+                    >
+                        <FaPlus /> Yeni Soru Ekle
+                    </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                    {questions.map((question) => (
+                        <div key={question.id} className="bg-white rounded-lg shadow-md p-6">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                                        {question.question}
+                                    </h3>
+                                    <p className="text-gray-600 mb-2">Cevap: {question.answer}</p>
+                                    <span className={`inline-block px-3 py-1 rounded-full text-sm ${
+                                        question.difficulty === 'Kolay' ? 'bg-green-100 text-green-800' :
+                                        question.difficulty === 'Orta' ? 'bg-yellow-100 text-yellow-800' :
+                                        'bg-red-100 text-red-800'
+                                    }`}>
+                                        {question.difficulty}
+                                    </span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleEdit(question)}
+                                        className="text-blue-600 hover:text-blue-800 p-2"
+                                    >
+                                        <FaEdit size={20} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(question.id)}
+                                        className="text-red-600 hover:text-red-800 p-2"
+                                    >
+                                        <FaTrash size={20} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {showModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                            <h2 className="text-2xl font-bold mb-4">
+                                {editingQuestion ? 'Soruyu Düzenle' : 'Yeni Soru Ekle'}
+                            </h2>
+                            <form onSubmit={handleSubmit}>
+                                <div className="mb-4">
+                                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                                        Soru
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.question}
+                                        onChange={(e) => setFormData({ ...formData, question: e.target.value })}
+                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                        required
+                                    />
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                                        Cevap
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.answer}
+                                        onChange={(e) => setFormData({ ...formData, answer: e.target.value })}
+                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                        required
+                                    />
+                                </div>
+                                <div className="mb-6">
+                                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                                        Zorluk Seviyesi
+                                    </label>
+                                    <select
+                                        value={formData.difficulty}
+                                        onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
+                                        className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                    >
+                                        <option value="Kolay">Kolay</option>
+                                        <option value="Orta">Orta</option>
+                                        <option value="Zor">Zor</option>
+                                    </select>
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowModal(false);
+                                            setEditingQuestion(null);
+                                            setFormData({ question: '', answer: '', difficulty: 'Kolay' });
+                                        }}
+                                        className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                                    >
+                                        İptal
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+                                    >
+                                        {editingQuestion ? 'Güncelle' : 'Ekle'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     return (
         <Layout>
@@ -264,7 +378,7 @@ function GamesPage() {
                                     key={game.id}
                                     onClick={() => {
                                         if (game.title === "Adam Asmaca") {
-                                            navigate('/games/hangman');
+                                            setShowHangman(true);
                                         }
                                     }}
                                     className={`relative overflow-hidden rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl cursor-pointer ${getColorClass(game.color)} text-white`}
@@ -287,139 +401,8 @@ function GamesPage() {
                             ))}
                         </div>
                     )}
-
-                    {/* Adam Asmaca Soruları Listesi */}
-                    {showQuestions && (
-                        <div className="mt-8">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                    Adam Asmaca Soruları
-                                </h2>
-                                <button
-                                    onClick={() => {
-                                        setEditingQuestion(null);
-                                        setHangmanQuestion("");
-                                        setHangmanAnswer("");
-                                        setIsHangmanModalOpen(true);
-                                    }}
-                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                                    </svg>
-                                    Yeni Soru Ekle
-                                </button>
-                            </div>
-
-                            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
-                                <div className="overflow-x-auto">
-                                    <table className="w-full">
-                                        <thead className="bg-gray-50 dark:bg-gray-700">
-                                            <tr>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                                    Soru
-                                                </th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                                    Cevap
-                                                </th>
-                                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                                    İşlemler
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                            {hangmanQuestions.map((question) => (
-                                                <tr key={question.id}>
-                                                    <td className="px-6 py-4 whitespace-normal text-sm text-gray-900 dark:text-white">
-                                                        {question.question}
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white font-mono">
-                                                        {question.answer}
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                        <button
-                                                            onClick={() => handleEditQuestion(question)}
-                                                            className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-4"
-                                                        >
-                                                            Düzenle
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDeleteQuestion(question.id)}
-                                                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                                                        >
-                                                            Sil
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
-
-            {/* Adam Asmaca Soru Ekleme/Düzenleme Modalı */}
-            {isHangmanModalOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full p-6">
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-                            {editingQuestion ? "Soruyu Düzenle" : "Yeni Soru Ekle"}
-                        </h2>
-                        
-                        <form onSubmit={handleHangmanSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Soru
-                                </label>
-                                <input
-                                    type="text"
-                                    value={hangmanQuestion}
-                                    onChange={(e) => setHangmanQuestion(e.target.value)}
-                                    placeholder="Örn: Türkiye'nin başkenti neresidir?"
-                                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                />
-                            </div>
-                            
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Cevap
-                                </label>
-                                <input
-                                    type="text"
-                                    value={hangmanAnswer}
-                                    onChange={(e) => setHangmanAnswer(e.target.value)}
-                                    placeholder="Örn: ANKARA"
-                                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent uppercase"
-                                />
-                            </div>
-                            
-                            <div className="flex justify-end space-x-3 mt-6">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setIsHangmanModalOpen(false);
-                                        setEditingQuestion(null);
-                                        setHangmanQuestion("");
-                                        setHangmanAnswer("");
-                                    }}
-                                    className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                                >
-                                    İptal
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-                                >
-                                    {editingQuestion ? "Güncelle" : "Ekle"}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
         </Layout>
     );
 }
