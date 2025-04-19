@@ -260,6 +260,11 @@ function GamesPage() {
                             {games.map((game) => (
                                 <div
                                     key={game.id}
+                                    onClick={() => {
+                                        if (game.title === "Adam Asmaca") {
+                                            setShowQuestions(true);
+                                        }
+                                    }}
                                     className={`relative overflow-hidden rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl cursor-pointer ${getColorClass(game.color)} text-white`}
                                 >
                                     <div className="p-6">
