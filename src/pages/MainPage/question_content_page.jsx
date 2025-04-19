@@ -317,38 +317,35 @@ function QuestionContent() {
         // Bulk verification modalını tekrar göster
         document.querySelector('.bulk-verification-modal')?.classList.remove('hidden');
         
-        // Kısa bir gecikme ekleyerek veritabanı işlemlerinin tamamlanmasını sağlayalım
-        setTimeout(async () => {
-            try {
-                // Eğer bir alt konu açıksa, sadece o alt konunun sorularını yenile
-                if (expandedAltKonu) {
-                    await fetchSorularForAltKonu(expandedAltKonu);
-                }
-                
-                // Güncelleme yapılan soruyu sadece doğrudan al
-                if (selectedSoruRef && bulkVerificationRef.current && isBulkVerificationOpen) {
-                    try {
-                        // Firestore'dan güncel soruyu al
-                        const guncelSoruDoc = await getDoc(doc(db, selectedSoruRef));
-                        
-                        if (guncelSoruDoc.exists()) {
-                            const guncelSoru = { id: guncelSoruDoc.id, ...guncelSoruDoc.data() };
-                            console.log("Güncel soru bulundu, bulk verification modalı güncelleniyor:", guncelSoru);
-                            bulkVerificationRef.current.updateSonucWithGuncelSoru(guncelSoru);
-                        } else {
-                            console.log("Güncel soru bulunamadı.");
-                            toast.error("Güncel soru bulunamadı!");
-                        }
-                    } catch (error) {
-                        console.error("Güncel soru verileri alınırken hata:", error);
-                        toast.error("Soru verilerini alırken bir hata oluştu!");
-                    }
-                }
-            } catch (error) {
-                console.error("Bulk verification güncelleme hatası:", error);
-                toast.error("Güncelleme sırasında bir hata oluştu!");
+        try {
+            // Eğer bir alt konu açıksa, sadece o alt konunun sorularını yenile
+            if (expandedAltKonu) {
+                await fetchSorularForAltKonu(expandedAltKonu);
             }
-        }, 300); // 300ms bekle
+            
+            // Güncelleme yapılan soruyu sadece doğrudan al
+            if (selectedSoruRef && bulkVerificationRef.current && isBulkVerificationOpen) {
+                try {
+                    // Firestore'dan güncel soruyu al
+                    const guncelSoruDoc = await getDoc(doc(db, selectedSoruRef));
+                    
+                    if (guncelSoruDoc.exists()) {
+                        const guncelSoru = { id: guncelSoruDoc.id, ...guncelSoruDoc.data() };
+                        console.log("Güncel soru bulundu, bulk verification modalı güncelleniyor:", guncelSoru);
+                        bulkVerificationRef.current.updateSonucWithGuncelSoru(guncelSoru);
+                    } else {
+                        console.log("Güncel soru bulunamadı.");
+                        toast.error("Güncel soru bulunamadı!");
+                    }
+                } catch (error) {
+                    console.error("Güncel soru verileri alınırken hata:", error);
+                    toast.error("Soru verilerini alırken bir hata oluştu!");
+                }
+            }
+        } catch (error) {
+            console.error("Bulk verification güncelleme hatası:", error);
+            toast.error("Güncelleme sırasında bir hata oluştu!");
+        }
     };
 
     // Soru silme fonksiyonu

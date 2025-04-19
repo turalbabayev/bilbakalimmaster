@@ -639,15 +639,19 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
                 if (eslesme) {
                     console.log('Eşleşen soru bulundu, doğru cevap güncelleniyor:', guncelSoru.dogruCevap);
                     
-                    // Doğru cevabı güncelle
+                    // Mevcut analiz sonuçlarını koru ve sadece gerekli alanları güncelle
                     return {
                         ...sonuc,
                         sistemDogruCevap: guncelSoru.dogruCevap,
                         soru: {
                             ...sonuc.soru,
+                            ...guncelSoru,
                             dogruCevap: guncelSoru.dogruCevap
                         },
-                        // Gemini doğru cevapla sistem doğru cevap uyumsuzluğunu da güncelle
+                        // Analiz sonuçlarını koru
+                        analiz: sonuc.analiz,
+                        model: sonuc.model,
+                        // Gemini doğru cevapla sistem doğru cevap uyumsuzluğunu güncelle
                         cevapUyumsuz: sonuc.geminiDogruCevap && sonuc.geminiDogruCevap !== guncelSoru.dogruCevap
                     };
                 }
