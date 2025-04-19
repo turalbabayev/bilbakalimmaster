@@ -16,7 +16,6 @@ function GamesPage() {
     const [formData, setFormData] = useState({
         question: '',
         answer: '',
-        difficulty: 'Kolay'
     });
     const navigate = useNavigate();
 
@@ -131,7 +130,7 @@ function GamesPage() {
             }
             setShowModal(false);
             setEditingQuestion(null);
-            setFormData({ question: '', answer: '', difficulty: 'Kolay' });
+            setFormData({ question: '', answer: '' });
             fetchHangmanQuestions();
         } catch (error) {
             console.error('Error saving question:', error);
@@ -157,7 +156,6 @@ function GamesPage() {
         setFormData({
             question: question.question,
             answer: question.answer,
-            difficulty: question.difficulty
         });
         setShowModal(true);
     };
@@ -220,11 +218,11 @@ function GamesPage() {
     if (showHangman) {
         return (
             <div className="container mx-auto px-4 py-8">
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex justify-between items-center mb-8">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => setShowHangman(false)}
-                            className="text-gray-600 hover:text-gray-800"
+                            className="text-gray-600 hover:text-gray-800 transition-colors"
                         >
                             <FaArrowLeft size={24} />
                         </button>
@@ -233,42 +231,45 @@ function GamesPage() {
                     <button
                         onClick={() => {
                             setEditingQuestion(null);
-                            setFormData({ question: '', answer: '', difficulty: 'Kolay' });
+                            setFormData({ question: '', answer: '' });
                             setShowModal(true);
                         }}
-                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors"
+                        className="bg-blue-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-all transform hover:scale-105 shadow-lg"
                     >
                         <FaPlus /> Yeni Soru Ekle
                     </button>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
-                    {questions.map((question) => (
-                        <div key={question.id} className="bg-white rounded-lg shadow-md p-6">
+                <div className="grid grid-cols-1 gap-6">
+                    {questions.map((question, index) => (
+                        <div 
+                            key={question.id} 
+                            className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border border-gray-100"
+                        >
                             <div className="flex justify-between items-start">
-                                <div>
-                                    <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <span className="bg-blue-100 text-blue-800 text-lg font-semibold px-4 py-1 rounded-full">
+                                            #{index + 1}
+                                        </span>
+                                    </div>
+                                    <h3 className="text-xl text-gray-800 mb-3">
                                         {question.question}
                                     </h3>
-                                    <p className="text-gray-600 mb-2">Cevap: {question.answer}</p>
-                                    <span className={`inline-block px-3 py-1 rounded-full text-sm ${
-                                        question.difficulty === 'Kolay' ? 'bg-green-100 text-green-800' :
-                                        question.difficulty === 'Orta' ? 'bg-yellow-100 text-yellow-800' :
-                                        'bg-red-100 text-red-800'
-                                    }`}>
-                                        {question.difficulty}
-                                    </span>
+                                    <p className="text-gray-600">
+                                        <span className="font-medium">Cevap:</span> {question.answer}
+                                    </p>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 ml-4">
                                     <button
                                         onClick={() => handleEdit(question)}
-                                        className="text-blue-600 hover:text-blue-800 p-2"
+                                        className="text-blue-600 hover:text-blue-800 p-2 hover:bg-blue-50 rounded-lg transition-colors"
                                     >
                                         <FaEdit size={20} />
                                     </button>
                                     <button
                                         onClick={() => handleDelete(question.id)}
-                                        className="text-red-600 hover:text-red-800 p-2"
+                                        className="text-red-600 hover:text-red-800 p-2 hover:bg-red-50 rounded-lg transition-colors"
                                     >
                                         <FaTrash size={20} />
                                     </button>
@@ -280,12 +281,12 @@ function GamesPage() {
 
                 {showModal && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                        <div className="bg-white rounded-lg p-6 w-full max-w-md">
-                            <h2 className="text-2xl font-bold mb-4">
+                        <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl transform transition-all">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-6">
                                 {editingQuestion ? 'Soruyu Düzenle' : 'Yeni Soru Ekle'}
                             </h2>
-                            <form onSubmit={handleSubmit}>
-                                <div className="mb-4">
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                <div>
                                     <label className="block text-gray-700 text-sm font-bold mb-2">
                                         Soru
                                     </label>
@@ -293,11 +294,12 @@ function GamesPage() {
                                         type="text"
                                         value={formData.question}
                                         onChange={(e) => setFormData({ ...formData, question: e.target.value })}
-                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                        placeholder="Sorunuzu yazın..."
                                         required
                                     />
                                 </div>
-                                <div className="mb-4">
+                                <div>
                                     <label className="block text-gray-700 text-sm font-bold mb-2">
                                         Cevap
                                     </label>
@@ -305,45 +307,48 @@ function GamesPage() {
                                         type="text"
                                         value={formData.answer}
                                         onChange={(e) => setFormData({ ...formData, answer: e.target.value })}
-                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                        placeholder="Cevabı yazın..."
                                         required
                                     />
                                 </div>
-                                <div className="mb-6">
-                                    <label className="block text-gray-700 text-sm font-bold mb-2">
-                                        Zorluk Seviyesi
-                                    </label>
-                                    <select
-                                        value={formData.difficulty}
-                                        onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
-                                        className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                    >
-                                        <option value="Kolay">Kolay</option>
-                                        <option value="Orta">Orta</option>
-                                        <option value="Zor">Zor</option>
-                                    </select>
-                                </div>
-                                <div className="flex justify-end gap-2">
+                                <div className="flex justify-end gap-3 mt-8">
                                     <button
                                         type="button"
                                         onClick={() => {
                                             setShowModal(false);
                                             setEditingQuestion(null);
-                                            setFormData({ question: '', answer: '', difficulty: 'Kolay' });
+                                            setFormData({ question: '', answer: '' });
                                         }}
-                                        className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                                        className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                                     >
                                         İptal
                                     </button>
                                     <button
                                         type="submit"
-                                        className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+                                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                                     >
                                         {editingQuestion ? 'Güncelle' : 'Ekle'}
                                     </button>
                                 </div>
                             </form>
                         </div>
+                    </div>
+                )}
+
+                {questions.length === 0 && !loading && (
+                    <div className="text-center py-12">
+                        <p className="text-gray-500 text-lg">Henüz soru eklenmemiş.</p>
+                        <button
+                            onClick={() => {
+                                setEditingQuestion(null);
+                                setFormData({ question: '', answer: '' });
+                                setShowModal(true);
+                            }}
+                            className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                            İlk soruyu ekleyin
+                        </button>
                     </div>
                 )}
             </div>
