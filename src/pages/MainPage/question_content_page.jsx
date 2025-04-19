@@ -314,50 +314,41 @@ function QuestionContent() {
         // Önce modalları kapat
         setIsUpdateModalOpen(false);
         
-        try {
-            // Güncel soruyu Firestore'dan al
-            const guncelSoruDoc = await getDoc(selectedSoruRef);
-            
-            if (guncelSoruDoc.exists()) {
-                const guncelSoru = { 
-                    id: guncelSoruDoc.id, 
-                    ...guncelSoruDoc.data(),
-                    ref: selectedSoruRef
-                };
-                
-                // BulkVerification ref'inden mevcut sonuçları al
-                const mevcutSonuclar = bulkVerificationRef.current.getSonuclar();
-                
-                if (mevcutSonuclar && mevcutSonuclar.length > 0) {
-                    // Güncel soruyu mevcut sonuçlarda bul ve güncelle
-                    const yeniSonuclar = mevcutSonuclar.map(sonuc => {
-                        if (sonuc.soru.id === guncelSoru.id) {
-                            return {
-                                ...sonuc,
-                                sistemDogruCevap: guncelSoru.dogruCevap,
-                                soru: guncelSoru,
-                                cevapUyumsuz: sonuc.geminiDogruCevap && sonuc.geminiDogruCevap !== guncelSoru.dogruCevap
-                            };
-                        }
-                        return sonuc;
-                    });
-                    
-                    // BulkQuestionVerification bileşeninin state'ini güncelle
-                    bulkVerificationRef.current.updateSorularAndSonuclar(
-                        yeniSonuclar.map(s => s.soru), 
-                        yeniSonuclar
-                    );
+        // Bulk verification modalını tekrar göster
+        document.querySelector('.bulk-verification-modal')?.classList.remove('hidden');
+        
+        // Kısa bir gecikme ekleyerek veritabanı işlemlerinin tamamlanmasını sağlayalım
+        setTimeout(async () => {
+            try {
+                // Eğer bir alt konu açıksa, sadece o alt konunun sorularını yenile
+                if (expandedAltKonu) {
+                    await fetchSorularForAltKonu(expandedAltKonu);
                 }
+                
+                // Güncelleme yapılan soruyu sadece doğrudan al
+                if (selectedSoruRef && bulkVerificationRef.current && isBulkVerificationOpen) {
+                    try {
+                        // Firestore'dan güncel soruyu al
+                        const guncelSoruDoc = await getDoc(doc(db, selectedSoruRef));
+                        
+                        if (guncelSoruDoc.exists()) {
+                            const guncelSoru = { id: guncelSoruDoc.id, ...guncelSoruDoc.data() };
+                            console.log("Güncel soru bulundu, bulk verification modalı güncelleniyor:", guncelSoru);
+                            bulkVerificationRef.current.updateSonucWithGuncelSoru(guncelSoru);
+                        } else {
+                            console.log("Güncel soru bulunamadı.");
+                            toast.error("Güncel soru bulunamadı!");
+                        }
+                    } catch (error) {
+                        console.error("Güncel soru verileri alınırken hata:", error);
+                        toast.error("Soru verilerini alırken bir hata oluştu!");
+                    }
+                }
+            } catch (error) {
+                console.error("Bulk verification güncelleme hatası:", error);
+                toast.error("Güncelleme sırasında bir hata oluştu!");
             }
-            
-            // Toplu doğrulama modalını tekrar göster
-            document.querySelector('.bulk-verification-modal')?.classList.remove('hidden');
-            
-            toast.success("Soru başarıyla güncellendi!");
-        } catch (error) {
-            console.error("Soru güncellenirken hata:", error);
-            toast.error("Soru güncellenirken bir hata oluştu!");
-        }
+        }, 300); // 300ms bekle
     };
 
     // Soru silme fonksiyonu
