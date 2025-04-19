@@ -288,6 +288,10 @@ function QuestionContent() {
         console.log('Güncelleme isteği geldi, soru:', soru);
         
         try {
+            if (!soru || !soru.id) {
+                throw new Error('Geçersiz soru verisi');
+            }
+
             // Sorunun yolunu belirle
             const soruRef = `konular/${id}/altkonular/${selectedAltKonuId}/sorular/${soru.id}`;
             console.log('Güncellenecek sorunun yolu:', soruRef);
@@ -318,27 +322,29 @@ function QuestionContent() {
                 };
                 
                 // BulkVerification ref'inden mevcut sonuçları al
-                const mevcutSonuclar = bulkVerificationRef.current.getSonuclar();
-                
-                if (mevcutSonuclar && mevcutSonuclar.length > 0) {
-                    // Güncel soruyu mevcut sonuçlarda bul ve güncelle
-                    const yeniSonuclar = mevcutSonuclar.map(sonuc => {
-                        if (sonuc.soru.id === guncelSoru.id) {
-                            return {
-                                ...sonuc,
-                                sistemDogruCevap: guncelSoru.dogruCevap,
-                                soru: guncelSoru,
-                                cevapUyumsuz: sonuc.geminiDogruCevap && sonuc.geminiDogruCevap !== guncelSoru.dogruCevap
-                            };
-                        }
-                        return sonuc;
-                    });
+                if (bulkVerificationRef.current) {
+                    const mevcutSonuclar = bulkVerificationRef.current.getSonuclar();
                     
-                    // BulkQuestionVerification bileşeninin state'ini güncelle
-                    bulkVerificationRef.current.updateSorularAndSonuclar(
-                        yeniSonuclar.map(s => s.soru), 
-                        yeniSonuclar
-                    );
+                    if (mevcutSonuclar && mevcutSonuclar.length > 0) {
+                        // Güncel soruyu mevcut sonuçlarda bul ve güncelle
+                        const yeniSonuclar = mevcutSonuclar.map(sonuc => {
+                            if (sonuc.soru.id === guncelSoru.id) {
+                                return {
+                                    ...sonuc,
+                                    sistemDogruCevap: guncelSoru.dogruCevap,
+                                    soru: guncelSoru,
+                                    cevapUyumsuz: sonuc.geminiDogruCevap && sonuc.geminiDogruCevap !== guncelSoru.dogruCevap
+                                };
+                            }
+                            return sonuc;
+                        });
+                        
+                        // BulkQuestionVerification bileşeninin state'ini güncelle
+                        bulkVerificationRef.current.updateSorularAndSonuclar(
+                            yeniSonuclar.map(s => s.soru), 
+                            yeniSonuclar
+                        );
+                    }
                 }
             }
             

@@ -579,11 +579,8 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
 
             // Parent componenti bilgilendir
             if (onUpdateClick) {
-                await onUpdateClick(soru);
+                onUpdateClick(soru);
             }
-
-            // Başarı mesajı göster
-            toast.success('Güncelleme modalı açılıyor...');
 
         } catch (error) {
             console.error('Güncelleme işlemi başlatılırken hata:', error);
