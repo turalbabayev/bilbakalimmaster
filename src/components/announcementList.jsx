@@ -5,57 +5,128 @@ import AddAnnouncement from "./addAnnouncement";
 import { toast } from "react-hot-toast";
 
 const AnnouncementList = () => {
-    const [duyurular, setDuyurular] = useState([]);
+    const [announcements, setAnnouncements] = useState([]);
+    const [informations, setInformations] = useState([]);
+    const [events, setEvents] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editMode, setEditMode] = useState(false);
-    const [selectedDuyuru, setSelectedDuyuru] = useState(null);
+    const [selectedItem, setSelectedItem] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('announcements');
 
     useEffect(() => {
-        // Firestore koleksiyonuna referans oluştur
-        const duyurularRef = collection(db, "duyurular");
+        // Duyurular koleksiyonunu dinle
+        const announcementsRef = collection(db, "announcements");
+        const announcementsQuery = query(announcementsRef, orderBy("tarih", "desc"));
         
-        // Tarihe göre sıralama için query oluştur
-        const q = query(duyurularRef, orderBy("tarih", "desc"));
+        // Bilgilendirmeler koleksiyonunu dinle
+        const informationsRef = collection(db, "informations");
+        const informationsQuery = query(informationsRef, orderBy("tarih", "desc"));
         
-        // Realtime listener ekle
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const duyuruListesi = snapshot.docs.map(doc => ({
+        // Etkinlikler koleksiyonunu dinle
+        const eventsRef = collection(db, "events");
+        const eventsQuery = query(eventsRef, orderBy("tarih", "desc"));
+        
+        const unsubscribeAnnouncements = onSnapshot(announcementsQuery, (snapshot) => {
+            const announcementList = snapshot.docs.map(doc => ({
                 id: doc.id,
-                ...doc.data()
+                ...doc.data(),
+                tip: "Duyuru"
             }));
-            setDuyurular(duyuruListesi);
+            setAnnouncements(announcementList);
             setIsLoading(false);
         }, (error) => {
             console.error("Duyurular dinlenirken hata:", error);
             toast.error("Duyurular yüklenirken bir hata oluştu!");
-            setIsLoading(false);
         });
 
-        return () => unsubscribe();
+        const unsubscribeInformations = onSnapshot(informationsQuery, (snapshot) => {
+            const informationList = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                tip: "Bilgilendirme"
+            }));
+            setInformations(informationList);
+        }, (error) => {
+            console.error("Bilgilendirmeler dinlenirken hata:", error);
+            toast.error("Bilgilendirmeler yüklenirken bir hata oluştu!");
+        });
+
+        const unsubscribeEvents = onSnapshot(eventsQuery, (snapshot) => {
+            const eventList = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                tip: "Etkinlik"
+            }));
+            setEvents(eventList);
+        }, (error) => {
+            console.error("Etkinlikler dinlenirken hata:", error);
+            toast.error("Etkinlikler yüklenirken bir hata oluştu!");
+        });
+
+        return () => {
+            unsubscribeAnnouncements();
+            unsubscribeInformations();
+            unsubscribeEvents();
+        };
     }, []);
 
-    const handleDelete = async (id) => {
-        if (window.confirm("Bu duyuruyu silmek istediğinize emin misiniz?")) {
+    const handleDelete = async (id, type) => {
+        let collectionName;
+        let itemType;
+        
+        switch (type) {
+            case "Duyuru":
+                collectionName = "announcements";
+                itemType = "duyuruyu";
+                break;
+            case "Bilgilendirme":
+                collectionName = "informations";
+                itemType = "bilgilendirmeyi";
+                break;
+            case "Etkinlik":
+                collectionName = "events";
+                itemType = "etkinliği";
+                break;
+            default:
+                return;
+        }
+
+        if (window.confirm(`Bu ${itemType} silmek istediğinizden emin misiniz?`)) {
             try {
-                const duyuruRef = doc(db, "duyurular", id);
-                await deleteDoc(duyuruRef);
-                toast.success("Duyuru başarıyla silindi!");
+                await deleteDoc(doc(db, collectionName, id));
+                toast.success(`${type} başarıyla silindi`);
             } catch (error) {
-                console.error("Duyuru silinirken bir hata oluştu:", error);
-                toast.error("Duyuru silinirken bir hata oluştu!");
+                console.error('Error deleting:', error);
+                toast.error(`${type} silinirken bir hata oluştu`);
             }
         }
     };
 
-    const handleToggleActive = async (id, currentActive) => {
+    const handleToggleActive = async (id, currentActive, type) => {
+        let collectionName;
+        
+        switch (type) {
+            case "Duyuru":
+                collectionName = "announcements";
+                break;
+            case "Bilgilendirme":
+                collectionName = "informations";
+                break;
+            case "Etkinlik":
+                collectionName = "events";
+                break;
+            default:
+                return;
+        }
+
         try {
-            const duyuruRef = doc(db, "duyurular", id);
-            await updateDoc(duyuruRef, { aktif: !currentActive });
-            toast.success(`Duyuru durumu ${!currentActive ? "aktif" : "pasif"} olarak güncellendi.`);
+            const itemRef = doc(db, collectionName, id);
+            await updateDoc(itemRef, { aktif: !currentActive });
+            toast.success(`${type} durumu ${!currentActive ? "aktif" : "pasif"} olarak güncellendi.`);
         } catch (error) {
-            console.error("Duyuru durumu güncellenirken bir hata oluştu:", error);
-            toast.error("Duyuru durumu güncellenirken bir hata oluştu!");
+            console.error(`${type} durumu güncellenirken bir hata oluştu:`, error);
+            toast.error(`${type} durumu güncellenirken bir hata oluştu!`);
         }
     };
 
@@ -70,19 +141,58 @@ const AnnouncementList = () => {
         return new Date(dateString).toLocaleDateString('tr-TR', options);
     };
 
+    const getActiveItems = () => {
+        switch (activeTab) {
+            case 'announcements':
+                return announcements;
+            case 'informations':
+                return informations;
+            case 'events':
+                return events;
+            default:
+                return [];
+        }
+    };
+
     return (
-        <div className="container mx-auto py-8 px-4">
+        <div className="container mx-auto px-4 py-8">
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Duyurular</h1>
                 <button
                     className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-md transition-all duration-200 flex items-center"
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={() => {
+                        setSelectedItem(null);
+                        setIsModalOpen(true);
+                    }}
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
                     </svg>
-                    Yeni Duyuru Ekle
+                    Yeni Ekle
                 </button>
+            </div>
+
+            <div className="mb-6">
+                <div className="flex space-x-4 border-b border-gray-200 dark:border-gray-700">
+                    <button
+                        className={`py-2 px-4 ${activeTab === 'announcements' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-500'}`}
+                        onClick={() => setActiveTab('announcements')}
+                    >
+                        Duyurular
+                    </button>
+                    <button
+                        className={`py-2 px-4 ${activeTab === 'informations' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-500'}`}
+                        onClick={() => setActiveTab('informations')}
+                    >
+                        Bilgilendirmeler
+                    </button>
+                    <button
+                        className={`py-2 px-4 ${activeTab === 'events' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-500'}`}
+                        onClick={() => setActiveTab('events')}
+                    >
+                        Etkinlikler
+                    </button>
+                </div>
             </div>
 
             {isLoading ? (
@@ -92,102 +202,91 @@ const AnnouncementList = () => {
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                 </div>
-            ) : duyurular.length > 0 ? (
+            ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {duyurular.map((duyuru) => (
+                    {getActiveItems().map((item) => (
                         <div 
-                            key={duyuru.id} 
-                            className={`bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-all duration-200 hover:shadow-xl border ${duyuru.aktif ? 'border-green-500' : 'border-red-500'}`}
+                            key={item.id} 
+                            className={`bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-all duration-200 hover:shadow-xl border ${item.aktif ? 'border-green-500' : 'border-red-500'}`}
                         >
-                            {duyuru.resim ? (
+                            {item.resim && (
                                 <div className="h-48 bg-gray-200 dark:bg-gray-700 relative">
                                     <img 
-                                        src={`data:${duyuru.resimTuru || 'image/png'};base64,${duyuru.resim}`}
-                                        alt={duyuru.baslik} 
+                                        src={`data:${item.resimTuru || 'image/png'};base64,${item.resim}`}
+                                        alt={item.baslik} 
                                         className="w-full h-full object-cover"
                                     />
-                                    <div className="absolute top-2 right-2 bg-gray-800 bg-opacity-75 text-white px-2 py-1 rounded-lg text-sm">
-                                        {duyuru.tip}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="h-48 bg-gray-200 dark:bg-gray-700 flex items-center justify-center relative">
-                                    <p className="text-gray-500 dark:text-gray-400">Resim yok</p>
-                                    <div className="absolute top-2 right-2 bg-gray-800 bg-opacity-75 text-white px-2 py-1 rounded-lg text-sm">
-                                        {duyuru.tip}
-                                    </div>
                                 </div>
                             )}
                             
                             <div className="p-6">
                                 <div className="flex justify-between items-start mb-3">
                                     <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
-                                        {duyuru.baslik}
+                                        {item.baslik}
                                     </h2>
-                                    <span className={`text-sm px-2 py-1 rounded-full ${duyuru.aktif ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}`}>
-                                        {duyuru.aktif ? 'Aktif' : 'Pasif'}
+                                    <span className={`text-sm px-2 py-1 rounded-full ${item.aktif ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}`}>
+                                        {item.aktif ? 'Aktif' : 'Pasif'}
                                     </span>
                                 </div>
                                 
-                                {/* Duyuru tipi: Duyuru */}
-                                {duyuru.tip === "Duyuru" && (
+                                {item.tip === "Duyuru" && (
                                     <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3">
-                                        {duyuru.aciklama}
+                                        {item.aciklama}
                                     </p>
                                 )}
                                 
-                                {/* Duyuru tipi: Etkinlik */}
-                                {duyuru.tip === "Etkinlik" && (
+                                {item.tip === "Etkinlik" && (
                                     <>
                                         <p className="text-gray-600 dark:text-gray-300 mb-2 line-clamp-2">
-                                            <span className="font-semibold">Kısa Açıklama:</span> {duyuru.kisaAciklama}
+                                            <span className="font-semibold">Kısa Açıklama:</span> {item.kisaAciklama}
                                         </p>
                                         <p className="text-gray-600 dark:text-gray-300 mb-2 line-clamp-2">
-                                            <span className="font-semibold">Uzun Açıklama:</span> {duyuru.uzunAciklama}
+                                            <span className="font-semibold">Uzun Açıklama:</span> {item.uzunAciklama}
                                         </p>
                                         <p className="text-emerald-600 dark:text-emerald-400 mb-3 font-semibold">
-                                            Ücret: {duyuru.ucret} TL
+                                            Ücret: {item.ucret} TL
                                         </p>
-                                        <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-lg mb-3">
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Ödeme Sonrası İçerik:</p>
-                                            <p className="text-gray-600 dark:text-gray-300 text-sm line-clamp-1">
-                                                {duyuru.odemeSonrasiIcerik || "Belirtilmemiş"}
-                                            </p>
-                                        </div>
+                                        {item.odemeSonrasiIcerik && (
+                                            <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-lg mb-3">
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Ödeme Sonrası İçerik:</p>
+                                                <p className="text-gray-600 dark:text-gray-300 text-sm line-clamp-1">
+                                                    {item.odemeSonrasiIcerik}
+                                                </p>
+                                            </div>
+                                        )}
                                     </>
                                 )}
                                 
-                                {/* Duyuru tipi: Bilgilendirme */}
-                                {duyuru.tip === "Bilgilendirme" && (
+                                {item.tip === "Bilgilendirme" && (
                                     <>
                                         <p className="text-gray-600 dark:text-gray-300 mb-2 line-clamp-3">
-                                            {duyuru.kisaAciklama}
+                                            {item.kisaAciklama}
                                         </p>
                                         <div className="bg-blue-50 dark:bg-blue-900 p-2 rounded-lg mb-3">
                                             <p className="text-sm text-blue-700 dark:text-blue-300">
-                                                <span className="font-semibold">Hedef Sayfa:</span> {duyuru.target}
+                                                <span className="font-semibold">Hedef Sayfa:</span> {item.target}
                                             </p>
                                         </div>
                                     </>
                                 )}
                                 
                                 <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                                    {formatDate(duyuru.tarih)}
+                                    {formatDate(item.tarih)}
                                 </div>
                                 
                                 <div className="flex justify-end space-x-2">
                                     <button
-                                        onClick={() => handleToggleActive(duyuru.id, duyuru.aktif)}
+                                        onClick={() => handleToggleActive(item.id, item.aktif, item.tip)}
                                         className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                                            duyuru.aktif 
+                                            item.aktif 
                                             ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-300 dark:hover:bg-red-800' 
                                             : 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800'
                                         }`}
                                     >
-                                        {duyuru.aktif ? 'Pasif Yap' : 'Aktif Yap'}
+                                        {item.aktif ? 'Pasif Yap' : 'Aktif Yap'}
                                     </button>
                                     <button
-                                        onClick={() => handleDelete(duyuru.id)}
+                                        onClick={() => handleDelete(item.id, item.tip)}
                                         className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg transition-colors"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -199,9 +298,15 @@ const AnnouncementList = () => {
                         </div>
                     ))}
                 </div>
-            ) : (
+            )}
+
+            {!isLoading && getActiveItems().length === 0 && (
                 <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-8 text-center">
-                    <p className="text-gray-600 dark:text-gray-400">Henüz duyuru bulunmuyor.</p>
+                    <p className="text-gray-600 dark:text-gray-400">
+                        {activeTab === 'announcements' && "Henüz duyuru bulunmuyor."}
+                        {activeTab === 'informations' && "Henüz bilgilendirme bulunmuyor."}
+                        {activeTab === 'events' && "Henüz etkinlik bulunmuyor."}
+                    </p>
                 </div>
             )}
 
@@ -209,6 +314,7 @@ const AnnouncementList = () => {
                 <AddAnnouncement 
                     isOpen={isModalOpen} 
                     onClose={() => setIsModalOpen(false)}
+                    selectedType={activeTab === 'announcements' ? 'Duyuru' : activeTab === 'informations' ? 'Bilgilendirme' : 'Etkinlik'}
                 />
             )}
         </div>
