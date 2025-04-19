@@ -753,7 +753,7 @@ function QuestionContent() {
                 </>
             )}
             {isBulkVerificationOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4 bulk-verification-modal">
+                <div className={`fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 bulk-verification-modal ${isUpdateModalOpen ? 'hidden' : 'z-40'}`}>
                     <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-11/12 max-w-5xl max-h-[calc(100vh-40px)] overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col">
                         <div className="p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
                             <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center">
@@ -792,6 +792,20 @@ function QuestionContent() {
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+            {isUpdateModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                    <UpdateQuestion
+                        isOpen={isUpdateModalOpen}
+                        onClose={() => {
+                            setIsUpdateModalOpen(false);
+                        }}
+                        onUpdateComplete={handleUpdateComplete}
+                        konuId={id}
+                        altKonuId={selectedSoruRef ? selectedSoruRef.split("/")[3] : ""}
+                        soruId={selectedSoruRef ? selectedSoruRef.split("/")[5] : ""}
+                    />
                 </div>
             )}
         </Layout>
