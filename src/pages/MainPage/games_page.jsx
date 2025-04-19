@@ -4,7 +4,7 @@ import { db } from "../../firebase";
 import { collection, getDocs, addDoc, query, orderBy, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import { useNavigate } from 'react-router-dom';
-import { FaEdit, FaTrash, FaPlus, FaArrowLeft } from "react-icons/fa";
+import { FaEdit, FaTrash, FaPlus, FaArrowLeft, FaFileUpload } from "react-icons/fa";
 
 function GamesPage() {
     const [games, setGames] = useState([]);
@@ -17,6 +17,8 @@ function GamesPage() {
         question: '',
         answer: '',
     });
+    const [showJsonUploadModal, setShowJsonUploadModal] = useState(false);
+    const [jsonContent, setJsonContent] = useState('');
     const navigate = useNavigate();
 
     // Varsayılan oyunları yükle
@@ -106,7 +108,7 @@ function GamesPage() {
 
     const fetchHangmanQuestions = async () => {
         try {
-            const querySnapshot = await getDocs(collection(db, 'hangmanQuestions'));
+            const querySnapshot = await getDocs(query(collection(db, 'hangmanQuestions'), orderBy('questionNumber', 'asc')));
             const questionsData = querySnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
@@ -118,6 +120,18 @@ function GamesPage() {
         }
     };
 
+    const getNextQuestionNumber = async () => {
+        try {
+            const querySnapshot = await getDocs(query(collection(db, 'hangmanQuestions'), orderBy('questionNumber', 'desc')));
+            if (querySnapshot.empty) return 1;
+            const lastQuestion = querySnapshot.docs[0].data();
+            return (lastQuestion.questionNumber || 0) + 1;
+        } catch (error) {
+            console.error('Error getting next question number:', error);
+            return 1;
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
@@ -125,7 +139,12 @@ function GamesPage() {
                 await updateDoc(doc(db, 'hangmanQuestions', editingQuestion.id), formData);
                 toast.success('Soru başarıyla güncellendi');
             } else {
-                await addDoc(collection(db, 'hangmanQuestions'), formData);
+                const nextNumber = await getNextQuestionNumber();
+                await addDoc(collection(db, 'hangmanQuestions'), {
+                    ...formData,
+                    questionNumber: nextNumber,
+                    createdAt: new Date()
+                });
                 toast.success('Soru başarıyla eklendi');
             }
             setShowModal(false);
@@ -135,6 +154,46 @@ function GamesPage() {
         } catch (error) {
             console.error('Error saving question:', error);
             toast.error('Soru kaydedilirken bir hata oluştu');
+        }
+    };
+
+    const handleJsonUpload = async () => {
+        try {
+            let questions;
+            try {
+                questions = JSON.parse(jsonContent);
+                if (!Array.isArray(questions)) {
+                    throw new Error('JSON içeriği bir dizi olmalıdır');
+                }
+            } catch (error) {
+                toast.error('Geçersiz JSON formatı');
+                return;
+            }
+
+            const nextNumber = await getNextQuestionNumber();
+            
+            for (let i = 0; i < questions.length; i++) {
+                const question = questions[i];
+                if (!question.question || !question.answer) {
+                    toast.error(`Soru ${i + 1}: Soru veya cevap eksik`);
+                    continue;
+                }
+
+                await addDoc(collection(db, 'hangmanQuestions'), {
+                    question: question.question,
+                    answer: question.answer,
+                    questionNumber: nextNumber + i,
+                    createdAt: new Date()
+                });
+            }
+
+            toast.success(`${questions.length} soru başarıyla yüklendi`);
+            setShowJsonUploadModal(false);
+            setJsonContent('');
+            fetchHangmanQuestions();
+        } catch (error) {
+            console.error('Error uploading questions:', error);
+            toast.error('Sorular yüklenirken bir hata oluştu');
         }
     };
 
@@ -228,20 +287,28 @@ function GamesPage() {
                         </button>
                         <h1 className="text-3xl font-bold text-gray-800">Adam Asmaca Soruları</h1>
                     </div>
-                    <button
-                        onClick={() => {
-                            setEditingQuestion(null);
-                            setFormData({ question: '', answer: '' });
-                            setShowModal(true);
-                        }}
-                        className="bg-blue-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-all transform hover:scale-105 shadow-lg"
-                    >
-                        <FaPlus /> Yeni Soru Ekle
-                    </button>
+                    <div className="flex gap-4">
+                        <button
+                            onClick={() => setShowJsonUploadModal(true)}
+                            className="bg-green-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-green-700 transition-all transform hover:scale-105 shadow-lg"
+                        >
+                            <FaFileUpload /> JSON Yükle
+                        </button>
+                        <button
+                            onClick={() => {
+                                setEditingQuestion(null);
+                                setFormData({ question: '', answer: '' });
+                                setShowModal(true);
+                            }}
+                            className="bg-blue-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-all transform hover:scale-105 shadow-lg"
+                        >
+                            <FaPlus /> Yeni Soru Ekle
+                        </button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-6">
-                    {questions.map((question, index) => (
+                    {questions.map((question) => (
                         <div 
                             key={question.id} 
                             className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border border-gray-100"
@@ -250,7 +317,7 @@ function GamesPage() {
                                 <div className="flex-1">
                                     <div className="flex items-center gap-3 mb-4">
                                         <span className="bg-blue-100 text-blue-800 text-lg font-semibold px-4 py-1 rounded-full">
-                                            #{index + 1}
+                                            #{question.questionNumber || '?'}
                                         </span>
                                     </div>
                                     <h3 className="text-xl text-gray-800 mb-3">
@@ -278,6 +345,51 @@ function GamesPage() {
                         </div>
                     ))}
                 </div>
+
+                {showJsonUploadModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-2xl p-8 w-full max-w-2xl shadow-2xl transform transition-all">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-6">JSON Soruları Yükle</h2>
+                            <div className="mb-6">
+                                <p className="text-gray-600 mb-4">
+                                    JSON formatı şu şekilde olmalıdır:
+                                </p>
+                                <pre className="bg-gray-50 p-4 rounded-lg text-sm text-gray-700 mb-4">
+{`[
+    {
+        "question": "Soru metni",
+        "answer": "CEVAP"
+    },
+    ...
+]`}
+                                </pre>
+                                <textarea
+                                    value={jsonContent}
+                                    onChange={(e) => setJsonContent(e.target.value)}
+                                    className="w-full h-64 px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    placeholder="JSON içeriğini buraya yapıştırın..."
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => {
+                                        setShowJsonUploadModal(false);
+                                        setJsonContent('');
+                                    }}
+                                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                >
+                                    İptal
+                                </button>
+                                <button
+                                    onClick={handleJsonUpload}
+                                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                >
+                                    Yükle
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {showModal && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
