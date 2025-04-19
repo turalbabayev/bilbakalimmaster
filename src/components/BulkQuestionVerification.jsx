@@ -33,10 +33,7 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
     }, []);
     
     useEffect(() => {
-        // Sorular değiştiğinde seçili soruları temizle ve soruları sırala
-        setSeciliSorular([]);
-        
-        // Soruları sıralı olarak filtrele
+        // Sorular değiştiğinde seçili soruları ve sonuçları koru
         const siraliSorular = [...sorular].sort((a, b) => {
             if (a.soruNumarasi && b.soruNumarasi) {
                 return a.soruNumarasi - b.soruNumarasi;
@@ -44,13 +41,35 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
             return 0;
         });
         
-        // Sıralı soruları state'e kaydet
-        setSonuclar(siraliSorular.map(soru => ({
-            soru,
-            analiz: '',
-            sistemDogruCevap: '',
-            model: null
-        })));
+        // Mevcut sonuçları koru ve sadece yeni soruları ekle
+        setSonuclar(prevSonuclar => {
+            // Mevcut sonuçları ID'ye göre map'le
+            const mevcutSonucMap = new Map(prevSonuclar.map(sonuc => [sonuc.soru.id, sonuc]));
+            
+            return siraliSorular.map(soru => {
+                // Eğer bu soru için mevcut bir sonuç varsa, onu kullan
+                const mevcutSonuc = mevcutSonucMap.get(soru.id);
+                if (mevcutSonuc) {
+                    return {
+                        ...mevcutSonuc,
+                        soru: {
+                            ...soru,
+                            // Eğer güncellenmiş bir doğru cevap varsa onu kullan
+                            dogruCevap: soru.dogruCevap || mevcutSonuc.soru.dogruCevap
+                        }
+                    };
+                }
+                // Yoksa yeni bir sonuç oluştur
+                return {
+                    soru,
+                    analiz: '',
+                    sistemDogruCevap: '',
+                    geminiDogruCevap: '',
+                    model: null,
+                    cevapUyumsuz: false
+                };
+            });
+        });
     }, [sorular]);
 
     const handleSoruSecim = (soruId) => {
@@ -595,33 +614,33 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
         return doc.body.textContent || "";
     };
 
-    // Sonuçları güncelleme fonksiyonu
-    const updateSonucWithGuncelSoru = (guncelSoru) => {
-        console.log('Güncel soru alındı, sonuçlar güncelleniyor:', guncelSoru);
-
-        setSonuclar(prevSonuclar => {
-            return prevSonuclar.map(sonuc => {
-                if (sonuc.soru.id === guncelSoru.id) {
-                    return {
-                        ...sonuc,
-                        soru: guncelSoru,
-                        sistemDogruCevap: guncelSoru.dogruCevap,
-                        // Gemini doğru cevapla sistem doğru cevap uyumsuzluğunu da güncelle
-                        cevapUyumsuz: sonuc.geminiDogruCevap && sonuc.geminiDogruCevap !== guncelSoru.dogruCevap
-                    };
-                }
-                return sonuc;
-            });
-        });
-    };
-
     // useImperativeHandle ile bileşen dışından erişilebilecek metodları tanımla
     useImperativeHandle(ref, () => ({
-        updateSonucWithGuncelSoru,
+        updateSonucWithGuncelSoru: (guncelSoru) => {
+            setSonuclar(prevSonuclar => {
+                return prevSonuclar.map(sonuc => {
+                    if (sonuc.soru.id === guncelSoru.id) {
+                        return {
+                            ...sonuc,
+                            soru: guncelSoru,
+                            sistemDogruCevap: guncelSoru.dogruCevap,
+                            cevapUyumsuz: sonuc.geminiDogruCevap && sonuc.geminiDogruCevap !== guncelSoru.dogruCevap
+                        };
+                    }
+                    return sonuc;
+                });
+            });
+        },
         getSonuclar: () => sonuclar,
         updateSorularAndSonuclar: (yeniSorular, yeniSonuclar) => {
             // Seçili soruları güncelle
-            setSeciliSorular(yeniSorular.map(soru => soru.id));
+            setSeciliSorular(prevSeciliSorular => {
+                // Sadece hala var olan soruları tut
+                return prevSeciliSorular.filter(id => 
+                    yeniSorular.some(soru => soru.id === id)
+                );
+            });
+            
             // Sonuçları güncelle
             setSonuclar(yeniSonuclar);
         }
