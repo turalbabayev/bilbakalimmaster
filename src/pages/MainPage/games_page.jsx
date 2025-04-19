@@ -3,6 +3,7 @@ import Layout from "../../components/layout";
 import { db } from "../../firebase";
 import { collection, getDocs, addDoc, query, orderBy, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
+import { useNavigate } from 'react-router-dom';
 
 function GamesPage() {
     const [games, setGames] = useState([]);
@@ -13,6 +14,7 @@ function GamesPage() {
     const [hangmanQuestions, setHangmanQuestions] = useState([]);
     const [editingQuestion, setEditingQuestion] = useState(null);
     const [showQuestions, setShowQuestions] = useState(false);
+    const navigate = useNavigate();
 
     // Varsayılan oyunları yükle
     const defaultGames = [
@@ -262,7 +264,7 @@ function GamesPage() {
                                     key={game.id}
                                     onClick={() => {
                                         if (game.title === "Adam Asmaca") {
-                                            setShowQuestions(true);
+                                            navigate('/games/hangman');
                                         }
                                     }}
                                     className={`relative overflow-hidden rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl cursor-pointer ${getColorClass(game.color)} text-white`}
