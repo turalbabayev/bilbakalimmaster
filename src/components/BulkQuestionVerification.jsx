@@ -604,73 +604,23 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
 
         setSonuclar(prevSonuclar => {
             return prevSonuclar.map(sonuc => {
-                // Eşleştirme için daha güvenli bir algoritma kullanıyoruz
-                // Hem ID üzerinden hem de içerik üzerinden eşleştirme yapacağız
-                let eslesme = false;
-                
-                // 1. ID üzerinden eşleştirme (eğer varsa)
-                if (sonuc.soru.id && guncelSoru.id && sonuc.soru.id === guncelSoru.id) {
-                    eslesme = true;
-                }
-                
-                // 2. Soru metni üzerinden eşleştirme
-                if (!eslesme && sonuc.soru.soruMetni === guncelSoru.soruMetni) {
-                    // Cevapların karşılaştırması için bir fonksiyon
-                    const cevaplarAyni = () => {
-                        if (sonuc.soru.cevaplar && guncelSoru.cevaplar &&
-                            sonuc.soru.cevaplar.length === guncelSoru.cevaplar.length) {
-                            // Cevapların en az %80'i aynı mı kontrol et
-                            let ayniCevapSayisi = 0;
-                            for (let i = 0; i < sonuc.soru.cevaplar.length; i++) {
-                                if (sonuc.soru.cevaplar[i] === guncelSoru.cevaplar[i]) {
-                                    ayniCevapSayisi++;
-                                }
-                            }
-                            return (ayniCevapSayisi / sonuc.soru.cevaplar.length) >= 0.8;
-                        }
-                        return false;
-                    };
-                    
-                    if (cevaplarAyni()) {
-                        eslesme = true;
-                    }
-                }
-                
-                if (eslesme) {
-                    console.log('Eşleşen soru bulundu, doğru cevap güncelleniyor:', guncelSoru.dogruCevap);
-                    
-                    // Doğru cevabı güncelle
+                if (sonuc.soru.id === guncelSoru.id) {
                     return {
                         ...sonuc,
+                        soru: guncelSoru,
                         sistemDogruCevap: guncelSoru.dogruCevap,
-                        soru: {
-                            ...sonuc.soru,
-                            dogruCevap: guncelSoru.dogruCevap
-                        },
                         // Gemini doğru cevapla sistem doğru cevap uyumsuzluğunu da güncelle
                         cevapUyumsuz: sonuc.geminiDogruCevap && sonuc.geminiDogruCevap !== guncelSoru.dogruCevap
                     };
                 }
-                
                 return sonuc;
             });
         });
-
-        console.log('Sonuçlar güncellendi');
     };
 
     // useImperativeHandle ile bileşen dışından erişilebilecek metodları tanımla
     useImperativeHandle(ref, () => ({
-        // Bu metod, güncel soruyu sonuçlar içinde bulup güncelleyecek
-        updateSonucWithGuncelSoru: (guncelSoru) => {
-            updateSonucWithGuncelSoru(guncelSoru);
-        },
-        // Silinen soruyu sonuçlardan kaldıracak metod
-        removeSoruFromSonuclar: (soruId) => {
-            setSonuclar(prevSonuclar => {
-                return prevSonuclar.filter(sonuc => sonuc.soru.id !== soruId);
-            });
-        },
+        updateSonucWithGuncelSoru,
         getSonuclar: () => sonuclar,
         updateSorularAndSonuclar: (yeniSorular, yeniSonuclar) => {
             // Seçili soruları güncelle
@@ -718,75 +668,79 @@ const BulkQuestionVerification = forwardRef(({ sorular, onSoruGuncelle, onGuncel
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">Sorular</h2>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
-                        {seciliSorular.length} soru seçildi
-                    </span>
+            {dogrulamaSecenegi === 'secili' && (
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <h2 className="text-xl font-bold mb-4">Sorular</h2>
+                    <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                        {[...sorular]
+                            .sort((a, b) => (a.soruNumarasi || 0) - (b.soruNumarasi || 0))
+                            .map((soru, index) => (
+                            <div key={soru.id} className="flex items-start space-x-3">
+                                <input 
+                                    type="checkbox" 
+                                    id={`soru-${soru.id}`}
+                                    checked={seciliSorular.includes(soru.id)}
+                                    onChange={() => handleSoruSecim(soru.id)}
+                                    className="mt-1"
+                                />
+                                <label htmlFor={`soru-${soru.id}`} className="flex-1 cursor-pointer">
+                                    <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                                        <p className="font-medium text-gray-800 dark:text-gray-200">
+                                            {soru.soruNumarasi || index + 1}. {stripHtml(soru.soruMetni).length > 100 ? stripHtml(soru.soruMetni).substring(0, 100) + '...' : stripHtml(soru.soruMetni)}
+                                        </p>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                            Doğru Cevap: {soru.dogruCevap}
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-                <div className="space-y-3 max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
-                    {sorular.sort((a, b) => (a.soruNumarasi || 0) - (b.soruNumarasi || 0)).map((soru, index) => (
-                        <div key={soru.id} className="flex items-start space-x-3">
-                            <input 
-                                type="checkbox" 
-                                id={`soru-${soru.id}`}
-                                checked={seciliSorular.includes(soru.id)}
-                                onChange={() => handleSoruSecim(soru.id)}
-                                className="mt-1"
-                            />
-                            <label htmlFor={`soru-${soru.id}`} className="flex-1 cursor-pointer">
-                                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                                    <p className="font-medium text-gray-800 dark:text-gray-200">
-                                        {soru.soruNumarasi || index + 1}. {stripHtml(soru.soruMetni).length > 100 ? stripHtml(soru.soruMetni).substring(0, 100) + '...' : stripHtml(soru.soruMetni)}
-                                    </p>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                        Doğru Cevap: {soru.dogruCevap}
-                                    </p>
-                                </div>
-                            </label>
-                        </div>
-                    ))}
-                </div>
-            </div>
+            )}
 
-            <div className="flex justify-end space-x-4">
-                <button
-                    onClick={() => sorulariDogrula('gpt')}
-                    disabled={yukleniyor || !openaiApiKey || seciliSorular.length === 0}
-                    className={`w-48 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${aktifModel === 'gpt' ? 'ring-2 ring-offset-2 ring-purple-500' : ''}`}
-                >
-                    {!openaiApiKey ? 'OpenAI API Anahtarı Yükleniyor...' : yukleniyor && aktifModel === 'gpt' ? 
-                        <div className="flex items-center justify-center">
-                            <span className="animate-pulse mr-2">🧠</span>
-                            <span className="animate-bounce delay-75">A</span>
-                            <span className="animate-bounce delay-100">n</span>
-                            <span className="animate-bounce delay-150">a</span>
-                            <span className="animate-bounce delay-200">l</span>
-                            <span className="animate-bounce delay-250">i</span>
-                            <span className="animate-bounce delay-300">z</span>
-                            <span className="animate-pulse ml-2">🔍</span>
-                        </div> 
-                        : 'GPT ile Doğrula'}
-                </button>
-                <button
-                    onClick={() => sorulariDogrula('gemini')}
-                    disabled={yukleniyor || !geminiApiKey || seciliSorular.length === 0}
-                    className={`w-48 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${aktifModel === 'gemini' ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
-                >
-                    {!geminiApiKey ? 'Gemini API Anahtarı Yükleniyor...' : yukleniyor && aktifModel === 'gemini' ? 
-                        <div className="flex items-center justify-center">
-                            <span className="animate-pulse mr-2">🤖</span>
-                            <span className="animate-bounce delay-75">A</span>
-                            <span className="animate-bounce delay-100">n</span>
-                            <span className="animate-bounce delay-150">a</span>
-                            <span className="animate-bounce delay-200">l</span>
-                            <span className="animate-bounce delay-250">i</span>
-                            <span className="animate-bounce delay-300">z</span>
-                            <span className="animate-pulse ml-2">🔍</span>
-                        </div> 
-                        : 'Gemini ile Doğrula'}
-                </button>
+            <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {seciliSorular.length} soru seçildi
+                </span>
+                <div className="flex space-x-4">
+                    <button
+                        onClick={() => sorulariDogrula('gpt')}
+                        disabled={yukleniyor || !openaiApiKey || seciliSorular.length === 0}
+                        className={`w-48 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${aktifModel === 'gpt' ? 'ring-2 ring-offset-2 ring-purple-500' : ''}`}
+                    >
+                        {!openaiApiKey ? 'OpenAI API Anahtarı Yükleniyor...' : yukleniyor && aktifModel === 'gpt' ? 
+                            <div className="flex items-center justify-center">
+                                <span className="animate-pulse mr-2">🧠</span>
+                                <span className="animate-bounce delay-75">A</span>
+                                <span className="animate-bounce delay-100">n</span>
+                                <span className="animate-bounce delay-150">a</span>
+                                <span className="animate-bounce delay-200">l</span>
+                                <span className="animate-bounce delay-250">i</span>
+                                <span className="animate-bounce delay-300">z</span>
+                                <span className="animate-pulse ml-2">🔍</span>
+                            </div> 
+                            : 'GPT ile Doğrula'}
+                    </button>
+                    <button
+                        onClick={() => sorulariDogrula('gemini')}
+                        disabled={yukleniyor || !geminiApiKey || seciliSorular.length === 0}
+                        className={`w-48 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${aktifModel === 'gemini' ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
+                    >
+                        {!geminiApiKey ? 'Gemini API Anahtarı Yükleniyor...' : yukleniyor && aktifModel === 'gemini' ? 
+                            <div className="flex items-center justify-center">
+                                <span className="animate-pulse mr-2">🤖</span>
+                                <span className="animate-bounce delay-75">A</span>
+                                <span className="animate-bounce delay-100">n</span>
+                                <span className="animate-bounce delay-150">a</span>
+                                <span className="animate-bounce delay-200">l</span>
+                                <span className="animate-bounce delay-250">i</span>
+                                <span className="animate-bounce delay-300">z</span>
+                                <span className="animate-pulse ml-2">🔍</span>
+                            </div> 
+                            : 'Gemini AI ile Doğrula'}
+                    </button>
+                </div>
             </div>
 
             {yukleniyor && (
