@@ -10,7 +10,9 @@ function GamesPage() {
     const [games, setGames] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showHangman, setShowHangman] = useState(false);
+    const [showWordPuzzle, setShowWordPuzzle] = useState(false);
     const [questions, setQuestions] = useState([]);
+    const [wordPuzzles, setWordPuzzles] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [editingQuestion, setEditingQuestion] = useState(null);
     const [formData, setFormData] = useState({
@@ -106,6 +108,12 @@ function GamesPage() {
         }
     }, [showHangman]);
 
+    useEffect(() => {
+        if (showWordPuzzle) {
+            fetchWordPuzzles();
+        }
+    }, [showWordPuzzle]);
+
     const fetchHangmanQuestions = async () => {
         try {
             const querySnapshot = await getDocs(query(collection(db, 'hangmanQuestions'), orderBy('questionNumber', 'asc')));
@@ -120,9 +128,23 @@ function GamesPage() {
         }
     };
 
-    const getNextQuestionNumber = async () => {
+    const fetchWordPuzzles = async () => {
         try {
-            const querySnapshot = await getDocs(query(collection(db, 'hangmanQuestions'), orderBy('questionNumber', 'desc')));
+            const querySnapshot = await getDocs(query(collection(db, 'wordPuzzles'), orderBy('questionNumber', 'asc')));
+            const puzzlesData = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setWordPuzzles(puzzlesData);
+        } catch (error) {
+            console.error('Error fetching word puzzles:', error);
+            toast.error('Bulmacalar yüklenirken bir hata oluştu');
+        }
+    };
+
+    const getNextQuestionNumber = async (collectionName) => {
+        try {
+            const querySnapshot = await getDocs(query(collection(db, collectionName), orderBy('questionNumber', 'desc')));
             if (querySnapshot.empty) return 1;
             const lastQuestion = querySnapshot.docs[0].data();
             return (lastQuestion.questionNumber || 0) + 1;
@@ -135,25 +157,30 @@ function GamesPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            const collectionName = showHangman ? 'hangmanQuestions' : 'wordPuzzles';
             if (editingQuestion) {
-                await updateDoc(doc(db, 'hangmanQuestions', editingQuestion.id), formData);
-                toast.success('Soru başarıyla güncellendi');
+                await updateDoc(doc(db, collectionName, editingQuestion.id), formData);
+                toast.success(showHangman ? 'Soru başarıyla güncellendi' : 'Bulmaca başarıyla güncellendi');
             } else {
-                const nextNumber = await getNextQuestionNumber();
-                await addDoc(collection(db, 'hangmanQuestions'), {
+                const nextNumber = await getNextQuestionNumber(collectionName);
+                await addDoc(collection(db, collectionName), {
                     ...formData,
                     questionNumber: nextNumber,
                     createdAt: new Date()
                 });
-                toast.success('Soru başarıyla eklendi');
+                toast.success(showHangman ? 'Soru başarıyla eklendi' : 'Bulmaca başarıyla eklendi');
             }
             setShowModal(false);
             setEditingQuestion(null);
             setFormData({ question: '', answer: '' });
-            fetchHangmanQuestions();
+            if (showHangman) {
+                fetchHangmanQuestions();
+            } else {
+                fetchWordPuzzles();
+            }
         } catch (error) {
-            console.error('Error saving question:', error);
-            toast.error('Soru kaydedilirken bir hata oluştu');
+            console.error('Error saving:', error);
+            toast.error(showHangman ? 'Soru kaydedilirken bir hata oluştu' : 'Bulmaca kaydedilirken bir hata oluştu');
         }
     };
 
@@ -170,7 +197,7 @@ function GamesPage() {
                 return;
             }
 
-            const nextNumber = await getNextQuestionNumber();
+            const nextNumber = await getNextQuestionNumber('hangmanQuestions');
             
             for (let i = 0; i < questions.length; i++) {
                 const question = questions[i];
@@ -198,23 +225,29 @@ function GamesPage() {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Bu soruyu silmek istediğinizden emin misiniz?')) {
+        const collectionName = showHangman ? 'hangmanQuestions' : 'wordPuzzles';
+        const itemType = showHangman ? 'soruyu' : 'bulmacayı';
+        if (window.confirm(`Bu ${itemType} silmek istediğinizden emin misiniz?`)) {
             try {
-                await deleteDoc(doc(db, 'hangmanQuestions', id));
-                toast.success('Soru başarıyla silindi');
-                fetchHangmanQuestions();
+                await deleteDoc(doc(db, collectionName, id));
+                toast.success(showHangman ? 'Soru başarıyla silindi' : 'Bulmaca başarıyla silindi');
+                if (showHangman) {
+                    fetchHangmanQuestions();
+                } else {
+                    fetchWordPuzzles();
+                }
             } catch (error) {
-                console.error('Error deleting question:', error);
-                toast.error('Soru silinirken bir hata oluştu');
+                console.error('Error deleting:', error);
+                toast.error(showHangman ? 'Soru silinirken bir hata oluştu' : 'Bulmaca silinirken bir hata oluştu');
             }
         }
     };
 
-    const handleEdit = (question) => {
-        setEditingQuestion(question);
+    const handleEdit = (item) => {
+        setEditingQuestion(item);
         setFormData({
-            question: question.question,
-            answer: question.answer,
+            question: item.question,
+            answer: item.answer,
         });
         setShowModal(true);
     };
@@ -274,69 +307,69 @@ function GamesPage() {
         }
     };
 
-    if (showHangman) {
+    if (showHangman || showWordPuzzle) {
+        const pageTitle = showHangman ? "Adam Asmaca Soruları" : "Kelime Bulmaca Soruları";
+        const items = showHangman ? questions : wordPuzzles;
+        
         return (
             <div className="container mx-auto px-4 py-8">
                 <div className="flex justify-between items-center mb-8">
                     <div className="flex items-center gap-4">
                         <button
-                            onClick={() => setShowHangman(false)}
+                            onClick={() => {
+                                setShowHangman(false);
+                                setShowWordPuzzle(false);
+                            }}
                             className="text-gray-600 hover:text-gray-800 transition-colors"
                         >
                             <FaArrowLeft size={24} />
                         </button>
-                        <h1 className="text-3xl font-bold text-gray-800">Adam Asmaca Soruları</h1>
+                        <h1 className="text-3xl font-bold text-gray-800">{pageTitle}</h1>
                     </div>
-                    <div className="flex gap-4">
-                        <button
-                            onClick={() => setShowJsonUploadModal(true)}
-                            className="bg-green-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-green-700 transition-all transform hover:scale-105 shadow-lg"
-                        >
-                            <FaFileUpload /> JSON Yükle
-                        </button>
-                        <button
-                            onClick={() => {
-                                setEditingQuestion(null);
-                                setFormData({ question: '', answer: '' });
-                                setShowModal(true);
-                            }}
-                            className="bg-blue-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-all transform hover:scale-105 shadow-lg"
-                        >
-                            <FaPlus /> Yeni Soru Ekle
-                        </button>
-                    </div>
+                    <button
+                        onClick={() => {
+                            setEditingQuestion(null);
+                            setFormData({ question: '', answer: '' });
+                            setShowModal(true);
+                        }}
+                        className="bg-blue-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-all transform hover:scale-105 shadow-lg"
+                    >
+                        <FaPlus /> Yeni {showHangman ? 'Soru' : 'Bulmaca'} Ekle
+                    </button>
                 </div>
 
                 <div className="grid grid-cols-1 gap-6">
-                    {questions.map((question) => (
+                    {items.map((item) => (
                         <div 
-                            key={question.id} 
+                            key={item.id} 
                             className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border border-gray-100"
                         >
                             <div className="flex justify-between items-start">
                                 <div className="flex-1">
                                     <div className="flex items-center gap-3 mb-4">
                                         <span className="bg-blue-100 text-blue-800 text-lg font-semibold px-4 py-1 rounded-full">
-                                            #{question.questionNumber || '?'}
+                                            #{item.questionNumber || '?'}
                                         </span>
                                     </div>
                                     <h3 className="text-xl text-gray-800 mb-3">
-                                        {question.question}
+                                        {item.question}
                                     </h3>
                                     <p className="text-gray-600">
-                                        <span className="font-medium">Cevap:</span> {question.answer}
+                                        <span className="font-medium">Cevap:</span> {item.answer}
                                     </p>
                                 </div>
-                                <div className="flex gap-2 ml-4">
+                                <div className="flex gap-2">
                                     <button
-                                        onClick={() => handleEdit(question)}
-                                        className="text-blue-600 hover:text-blue-800 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                                        onClick={() => handleEdit(item)}
+                                        className="text-blue-600 hover:text-blue-800 p-2"
+                                        title="Düzenle"
                                     >
                                         <FaEdit size={20} />
                                     </button>
                                     <button
-                                        onClick={() => handleDelete(question.id)}
-                                        className="text-red-600 hover:text-red-800 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                        onClick={() => handleDelete(item.id)}
+                                        className="text-red-600 hover:text-red-800 p-2"
+                                        title="Sil"
                                     >
                                         <FaTrash size={20} />
                                     </button>
@@ -346,115 +379,9 @@ function GamesPage() {
                     ))}
                 </div>
 
-                {showJsonUploadModal && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                        <div className="bg-white rounded-2xl p-8 w-full max-w-2xl shadow-2xl transform transition-all">
-                            <h2 className="text-2xl font-bold text-gray-800 mb-6">JSON Soruları Yükle</h2>
-                            <div className="mb-6">
-                                <p className="text-gray-600 mb-4">
-                                    JSON formatı şu şekilde olmalıdır:
-                                </p>
-                                <pre className="bg-gray-50 p-4 rounded-lg text-sm text-gray-700 mb-4">
-{`[
-    {
-        "question": "Soru metni",
-        "answer": "CEVAP"
-    },
-    {
-        "question": "Soru metni",
-        "answer": "CEVAP"
-    }
-
-]`}
-                                </pre>
-                                <textarea
-                                    value={jsonContent}
-                                    onChange={(e) => setJsonContent(e.target.value)}
-                                    className="w-full h-64 px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                    placeholder="JSON içeriğini buraya yapıştırın..."
-                                />
-                            </div>
-                            <div className="flex justify-end gap-3">
-                                <button
-                                    onClick={() => {
-                                        setShowJsonUploadModal(false);
-                                        setJsonContent('');
-                                    }}
-                                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                                >
-                                    İptal
-                                </button>
-                                <button
-                                    onClick={handleJsonUpload}
-                                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                                >
-                                    Yükle
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {showModal && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                        <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl transform transition-all">
-                            <h2 className="text-2xl font-bold text-gray-800 mb-6">
-                                {editingQuestion ? 'Soruyu Düzenle' : 'Yeni Soru Ekle'}
-                            </h2>
-                            <form onSubmit={handleSubmit} className="space-y-6">
-                                <div>
-                                    <label className="block text-gray-700 text-sm font-bold mb-2">
-                                        Soru
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.question}
-                                        onChange={(e) => setFormData({ ...formData, question: e.target.value })}
-                                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                        placeholder="Sorunuzu yazın..."
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-gray-700 text-sm font-bold mb-2">
-                                        Cevap
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.answer}
-                                        onChange={(e) => setFormData({ ...formData, answer: e.target.value })}
-                                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                        placeholder="Cevabı yazın..."
-                                        required
-                                    />
-                                </div>
-                                <div className="flex justify-end gap-3 mt-8">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setShowModal(false);
-                                            setEditingQuestion(null);
-                                            setFormData({ question: '', answer: '' });
-                                        }}
-                                        className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                                    >
-                                        İptal
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                                    >
-                                        {editingQuestion ? 'Güncelle' : 'Ekle'}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                )}
-
-                {questions.length === 0 && !loading && (
+                {items.length === 0 && !loading && (
                     <div className="text-center py-12">
-                        <p className="text-gray-500 text-lg">Henüz soru eklenmemiş.</p>
+                        <p className="text-gray-500 text-lg">Henüz {showHangman ? 'soru' : 'bulmaca'} eklenmemiş.</p>
                         <button
                             onClick={() => {
                                 setEditingQuestion(null);
@@ -463,8 +390,65 @@ function GamesPage() {
                             }}
                             className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
                         >
-                            İlk soruyu ekleyin
+                            İlk {showHangman ? 'soruyu' : 'bulmacayı'} ekleyin
                         </button>
+                    </div>
+                )}
+
+                {showModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                            <h2 className="text-2xl font-bold mb-4">
+                                {editingQuestion ? 
+                                    (showHangman ? 'Soruyu Düzenle' : 'Bulmacayı Düzenle') : 
+                                    (showHangman ? 'Yeni Soru Ekle' : 'Yeni Bulmaca Ekle')}
+                            </h2>
+                            <form onSubmit={handleSubmit}>
+                                <div className="mb-4">
+                                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                                        {showHangman ? 'Soru' : 'Bulmaca Sorusu'}
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.question}
+                                        onChange={(e) => setFormData({ ...formData, question: e.target.value })}
+                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                        required
+                                    />
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                                        Cevap
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.answer}
+                                        onChange={(e) => setFormData({ ...formData, answer: e.target.value })}
+                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                        required
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowModal(false);
+                                            setEditingQuestion(null);
+                                            setFormData({ question: '', answer: '' });
+                                        }}
+                                        className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                                    >
+                                        İptal
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+                                    >
+                                        {editingQuestion ? 'Güncelle' : 'Ekle'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 )}
             </div>
@@ -500,6 +484,8 @@ function GamesPage() {
                                     onClick={() => {
                                         if (game.title === "Adam Asmaca") {
                                             setShowHangman(true);
+                                        } else if (game.title === "Kelime Bulmaca") {
+                                            setShowWordPuzzle(true);
                                         }
                                     }}
                                     className={`relative overflow-hidden rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl cursor-pointer ${getColorClass(game.color)} text-white`}
