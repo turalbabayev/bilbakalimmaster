@@ -122,8 +122,9 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                 const prompt = `
                 Sen bir eğitim uzmanısın. Sana vereceğim akıl kartını analiz etmeni istiyorum. Bu kart öğrencilerin çalışırken kullanacağı bir özet bilgi kartı.
 
-                Kart İçeriği:
-                ${kart.content}
+                Kart Bilgileri:
+                Akıl Kartı Başlık İçeriği: ${kart.altKonu}
+                İçerik: ${kart.content}
                 
                 Lütfen cevabını TAM OLARAK aşağıdaki formatta ver. Format dışına ASLA çıkma:
 
