@@ -21,15 +21,17 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
     useEffect(() => {
         if (card) {
             setFormData({
-                selectedKonu: konuId || '',
-                altKonu: card.altKonu || '',
-                content: card.content || '',
+                ...formData,
+                content: card.content,
+                altKonu: card.altKonu,
+                konuId: card.konuId,
+                selectedKonu: card.konuId || '',
                 resim: null,
                 resimTuru: card.resimTuru || '',
                 resimPreview: card.resim || null
             });
         }
-    }, [card, konuId]);
+    }, [card]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
