@@ -14,6 +14,7 @@ const AddAnnouncement = ({ isOpen, onClose, selectedType }) => {
         target: "",
         resim: "",
         resimTuru: "",
+        resimPreview: null,
         aktif: true,
         tarih: new Date().toISOString()
     });
@@ -26,20 +27,95 @@ const AddAnnouncement = ({ isOpen, onClose, selectedType }) => {
         }));
     };
 
-    const handleImageChange = (e) => {
+    const handleImageChange = async (e) => {
         const file = e.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const base64String = reader.result.split(',')[1];
-                setFormData(prev => ({
-                    ...prev,
-                    resim: base64String,
-                    resimTuru: file.type
-                }));
-            };
-            reader.readAsDataURL(file);
+            // Resim boyutu kontrolü (2MB)
+            const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+            if (file.size > MAX_FILE_SIZE) {
+                toast.error("Resim boyutu çok büyük! Lütfen 2MB'dan küçük bir resim seçin veya sıkıştırın.");
+                e.target.value = '';
+                return;
+            }
+
+            try {
+                // Resmi sıkıştır
+                const compressedImage = await compressImage(file);
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const base64String = reader.result.split(',')[1];
+                    setFormData(prev => ({
+                        ...prev,
+                        resim: base64String,
+                        resimTuru: file.type,
+                        resimPreview: reader.result
+                    }));
+                    toast.success("Resim başarıyla yüklendi ve sıkıştırıldı!");
+                };
+                reader.readAsDataURL(compressedImage);
+            } catch (error) {
+                console.error("Resim işlenirken hata:", error);
+                toast.error("Resim işlenirken bir hata oluştu!");
+            }
         }
+    };
+
+    // Resim sıkıştırma fonksiyonu
+    const compressImage = (file) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    // Maksimum boyutlar
+                    const MAX_WIDTH = 1200;
+                    const MAX_HEIGHT = 1200;
+
+                    // En boy oranını koru
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height = Math.round((height * MAX_WIDTH) / width);
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width = Math.round((width * MAX_HEIGHT) / height);
+                            height = MAX_HEIGHT;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Resmi sıkıştırılmış formatta al
+                    canvas.toBlob(
+                        (blob) => {
+                            if (!blob) {
+                                reject(new Error('Canvas to Blob failed'));
+                                return;
+                            }
+                            resolve(new File([blob], file.name, {
+                                type: 'image/jpeg',
+                                lastModified: Date.now()
+                            }));
+                        },
+                        'image/jpeg',
+                        0.7 // Kalite (0-1 arası)
+                    );
+                };
+                img.onerror = reject;
+                img.src = event.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -209,14 +285,43 @@ const AddAnnouncement = ({ isOpen, onClose, selectedType }) => {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Resim (Opsiyonel)
+                            Resim (Opsiyonel - Max 2MB)
                         </label>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageChange}
-                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                        />
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-4">
+                                <div className="relative flex-1">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageChange}
+                                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                                    />
+                                </div>
+                                {formData.resimPreview && (
+                                    <button
+                                        onClick={() => setFormData(prev => ({ ...prev, resim: "", resimTuru: "", resimPreview: null }))}
+                                        className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                                    >
+                                        Resmi Sil
+                                    </button>
+                                )}
+                            </div>
+                            {formData.resimPreview && (
+                                <div className="mt-4">
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                        Resim önizleme:
+                                    </p>
+                                    <div className="relative">
+                                        <img
+                                            src={formData.resimPreview}
+                                            alt="Önizleme"
+                                            className="max-w-full h-auto rounded-lg shadow-md"
+                                            style={{ maxHeight: '300px' }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex items-center">
