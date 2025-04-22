@@ -128,23 +128,29 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
         for (const kart of dogrulanacakKartlar) {
             try {
                 const prompt = `
-                Sen bir eğitim uzmanısın. Sana vereceğim akıl kartını analiz etmeni istiyorum. Bu kart öğrencilerin çalışırken kullanacağı bir özet bilgi kartı.
+                Sen bir eğitim uzmanısın. Sana vereceğim akıl kartını analiz etmeni ve daha iyi bir içerik önerisi sunmanı istiyorum.
 
                 Kart Bilgileri:
-                Akıl Kartı Başlık İçeriği: ${kart.altKonu}
-                İçerik: ${kart.content}
+                Alt Konu: ${kart.altKonu}
+                Mevcut İçerik: ${kart.content}
                 
                 Lütfen cevabını TAM OLARAK aşağıdaki formatta ver. Format dışına ASLA çıkma:
 
-                İçerik Analizi: [İçeriğin kalitesi, anlaşılırlığı ve doğruluğu hakkında kısa analiz]
-                İyileştirme Önerileri: [Varsa eksik noktalar ve iyileştirme önerileri]
+                İçerik Analizi: [Mevcut içeriğin kalitesi ve anlaşılırlığı hakkında kısa analiz]
+
+                Önerilen İçerik:
+                [Mevcut içerikle aynı uzunlukta, emojiler ve vurgularla zenginleştirilmiş, öğrenci seviyesine uygun alternatif içerik yaz. Kesinlikle daha uzun OLMAMALI.]
+
+                İyileştirme Nedeni: [Neden bu değişiklikleri önerdiğinin kısa açıklaması]
+                
                 Tekrarlanan Bilgi: [Var/Yok]
                 Genel Değerlendirme: [Çok İyi/İyi/Orta/Geliştirilmeli]
 
                 ÖNEMLİ NOTLAR:
-                1. Değerlendirmeni öğrenci seviyesine uygunluk açısından yap.
-                2. İçeriğin kısa ve öz olmasına dikkat et.
-                3. Bu formatın dışına ASLA çıkma ve başka bir şey ekleme.
+                1. Önerilen içerik mevcut içerikle nerdeyse aynı uzunlukta olmalı. Doğruysa bizim içeriğin aynısını yazabilirsin.
+                2. Öğrenci seviyesine uygun, kısa ve öz olmalı.
+                3. Emojiler ve vurgular kullanılmalı.
+                4. Bu formatın dışına ASLA çıkma.
                 `;
 
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`, {
@@ -521,9 +527,24 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                                                     );
                                                 }
                                                 
-                                                if (line.toLowerCase().includes('iyileştirme önerileri:')) {
+                                                if (line.toLowerCase().includes('önerilen içerik:')) {
                                                     return (
-                                                        <p key={i} className="font-medium text-purple-600 dark:text-purple-400 mt-3">
+                                                        <>
+                                                            <p key={i} className="font-medium text-emerald-600 dark:text-emerald-400 mt-6 mb-2">
+                                                                {line}
+                                                            </p>
+                                                            <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-lg border-l-4 border-emerald-500">
+                                                                {sonuc.analiz.split('\n')
+                                                                    .slice(sonuc.analiz.split('\n').findIndex(l => l.toLowerCase().includes('önerilen içerik:')) + 1)
+                                                                    .find(l => l.trim() !== '' && !l.toLowerCase().includes('iyileştirme nedeni:'))}
+                                                            </div>
+                                                        </>
+                                                    );
+                                                }
+                                                
+                                                if (line.toLowerCase().includes('iyileştirme nedeni:')) {
+                                                    return (
+                                                        <p key={i} className="font-medium text-purple-600 dark:text-purple-400 mt-6">
                                                             {line}
                                                         </p>
                                                     );
