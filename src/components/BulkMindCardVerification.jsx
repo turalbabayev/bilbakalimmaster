@@ -141,6 +141,9 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                 💡 Önerilen İçerik:
                 [Mevcut içerikle AYNI uzunlukta veya daha kısa, öğrenci seviyesine uygun içerik. İçerik doğruysa aynen kopyala. Değilse emojilerle zenginleştir.]
 
+                ❗ Alternatif Bilgi:
+                [Eğer bu konuda farklı/güncel bir bilgi veya alternatif bir yaklaşım varsa 1-2 cümle ile belirt. Yoksa "Yok" yaz.]
+
                 İyileştirme Nedeni: [1 cümle ile neden bu değişikliği önerdiğini açıkla]
                 
                 Tekrarlanan Bilgi: [Var/Yok]
@@ -150,7 +153,8 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                 1. Önerilen içerik mevcut içerikle aynı uzunlukta veya daha kısa olmalı.
                 2. İçerik doğruysa aynen kopyala, değişiklik önerme.
                 3. Değişiklik önerirken emojiler kullan.
-                4. Uzun açıklamalar yapma, kısa ve öz ol.
+                4. Alternatif bilgi varsa mutlaka belirt.
+                5. Uzun açıklamalar yapma, kısa ve öz ol.
                 `;
 
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`, {
@@ -564,6 +568,29 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                                                             {line}
                                                         </p>
                                                     );
+                                                }
+                                                
+                                                if (line.toLowerCase().includes('alternatif bilgi:')) {
+                                                    const alternatifBilgi = sonuc.analiz.split('\n')
+                                                        .slice(sonuc.analiz.split('\n').findIndex(l => l.toLowerCase().includes('alternatif bilgi:')) + 1)
+                                                        .find(l => l.trim() !== '' && !l.toLowerCase().includes('iyileştirme nedeni:'));
+
+                                                    if (alternatifBilgi && !alternatifBilgi.toLowerCase().includes('yok')) {
+                                                        return (
+                                                            <>
+                                                                <p key={i} className="font-medium text-orange-600 dark:text-orange-400 mt-6 mb-2 text-lg flex items-center">
+                                                                    <span className="mr-2">❗</span>
+                                                                    Alternatif Bilgi:
+                                                                </p>
+                                                                <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg border-2 border-orange-500 shadow-lg">
+                                                                    <div className="text-lg font-medium text-gray-800 dark:text-gray-200">
+                                                                        {alternatifBilgi}
+                                                                    </div>
+                                                                </div>
+                                                            </>
+                                                        );
+                                                    }
+                                                    return null;
                                                 }
                                                 
                                                 return <p key={i} className="mt-2">{line}</p>;
