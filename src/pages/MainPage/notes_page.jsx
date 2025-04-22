@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Layout from "../../components/layout";
 import { db } from "../../firebase";
-import { collection, getDocs, query, orderBy, deleteDoc, doc, onSnapshot, writeBatch } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, deleteDoc, doc, onSnapshot, writeBatch, updateDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import AddMindCardModal from "../../components/AddMindCardModal";
 import EditMindCardModal from "../../components/EditMindCardModal";
@@ -9,6 +9,7 @@ import AddCurrentInfo from "../../components/AddCurrentInfo";
 import CurrentInfoList from "../../components/CurrentInfoList";
 import { useTopics } from "../../hooks/useTopics";
 import AddTopicModal from "../../components/AddTopicModal";
+import BulkMindCardVerification from "../../components/BulkMindCardVerification";
 
 function NotesPage() {
     const [cards, setCards] = useState([]);
@@ -16,10 +17,12 @@ function NotesPage() {
     const [activeTab, setActiveTab] = useState('mindCards');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isBulkVerificationOpen, setIsBulkVerificationOpen] = useState(false);
     const [selectedCard, setSelectedCard] = useState(null);
     const [deletingId, setDeletingId] = useState(null);
     const [selectedKonu, setSelectedKonu] = useState(null);
     const currentInfoListRef = useRef(null);
+    const bulkVerificationRef = useRef(null);
     const { topics, loading: topicsLoading } = useTopics();
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [selectedKonuForDelete, setSelectedKonuForDelete] = useState("");
@@ -140,6 +143,59 @@ function NotesPage() {
         }
     };
 
+    const handleCardUpdate = async (card, updatedContent) => {
+        try {
+            const cardRef = doc(db, 'miniCards-konular', card.konuId, 'cards', card.id);
+            await updateDoc(cardRef, {
+                content: updatedContent,
+                updatedAt: serverTimestamp()
+            });
+            toast.success('Kart başarıyla güncellendi!');
+        } catch (error) {
+            console.error('Kart güncellenirken hata:', error);
+            toast.error('Kart güncellenirken bir hata oluştu!');
+        }
+    };
+
+    const handleUpdateFromBulkVerification = (card) => {
+        setSelectedCard(card);
+        setIsEditModalOpen(true);
+    };
+
+    const refreshCards = () => {
+        // Kartları yeniden yükle
+        const unsubscribers = [];
+        setLoading(true);
+        setCards([]);
+
+        topics.forEach(topic => {
+            const konuRef = doc(db, "miniCards-konular", topic.id);
+            const cardsRef = collection(konuRef, "cards");
+            const q = query(cardsRef, orderBy("kartNo", "asc"));
+
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const topicCards = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    konuId: topic.id,
+                    konuBaslik: topic.baslik
+                }));
+
+                setCards(prevCards => {
+                    const otherTopicCards = prevCards.filter(card => card.konuId !== topic.id);
+                    return [...otherTopicCards, ...topicCards];
+                });
+                setLoading(false);
+            });
+
+            unsubscribers.push(unsubscribe);
+        });
+
+        return () => {
+            unsubscribers.forEach(unsubscribe => unsubscribe());
+        };
+    };
+
     return (
         <Layout>
             <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
@@ -232,6 +288,15 @@ function NotesPage() {
                                     <h2 className="text-2xl font-semibold text-gray-800 dark:text-white ml-4">
                                         {topics.find(t => t.id === selectedKonu)?.baslik}
                                     </h2>
+                                    <button
+                                        onClick={() => setIsBulkVerificationOpen(true)}
+                                        className="ml-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center"
+                                    >
+                                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                        </svg>
+                                        Toplu Doğrula
+                                    </button>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {cards.filter(card => card.konuId === selectedKonu).map((card) => (
@@ -356,55 +421,84 @@ function NotesPage() {
 
                     {/* Toplu Silme Modalı */}
                     {isDeleteModalOpen && (
-                        <div className="fixed inset-0 z-50 overflow-y-auto">
-                            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-                                <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-                                    <div 
-                                        className="absolute inset-0 bg-gray-500 opacity-75"
-                                        onClick={() => setIsDeleteModalOpen(false)}
-                                    ></div>
+                        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
+                                <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+                                    Toplu Kart Silme
+                                </h2>
+                                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                                    Seçtiğiniz konudaki tüm kartlar silinecektir. Bu işlem geri alınamaz.
+                                </p>
+                                <div className="mb-4">
+                                    <select
+                                        value={selectedKonuForDelete}
+                                        onChange={(e) => setSelectedKonuForDelete(e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    >
+                                        <option value="">Konu Seçin</option>
+                                        {topics.map((topic) => (
+                                            <option key={topic.id} value={topic.id}>
+                                                {topic.baslik}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
+                                <div className="flex justify-end space-x-3">
+                                    <button
+                                        onClick={() => setIsDeleteModalOpen(false)}
+                                        className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                    >
+                                        İptal
+                                    </button>
+                                    <button
+                                        onClick={handleBulkDelete}
+                                        disabled={isDeletingAll || !selectedKonuForDelete}
+                                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                                    >
+                                        {isDeletingAll ? 'Siliniyor...' : 'Tümünü Sil'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
-                                <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                                    <div className="p-6">
-                                        <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">
-                                            Kartları Toplu Sil
-                                        </h2>
-                                        <div className="mb-4">
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                                Konu Seçin
-                                            </label>
-                                            <select
-                                                value={selectedKonuForDelete}
-                                                onChange={(e) => setSelectedKonuForDelete(e.target.value)}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                            >
-                                                <option value="">Konu Seçin</option>
-                                                {topics.map((konu) => (
-                                                    <option key={konu.id} value={konu.id}>
-                                                        {konu.baslik}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div className="mt-6 flex justify-end space-x-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => setIsDeleteModalOpen(false)}
-                                                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
-                                            >
-                                                İptal
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={handleBulkDelete}
-                                                disabled={isDeletingAll || !selectedKonuForDelete}
-                                                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-                                            >
-                                                {isDeletingAll ? "Siliniyor..." : "Tümünü Sil"}
-                                            </button>
-                                        </div>
-                                    </div>
+                    {/* Toplu Doğrulama Modalı */}
+                    {isBulkVerificationOpen && selectedKonu && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                            <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-11/12 max-w-5xl max-h-[calc(100vh-40px)] overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col">
+                                <div className="p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+                                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center">
+                                        Toplu Kart Doğrulama
+                                    </h2>
+                                </div>
+                                
+                                <div className="p-8 overflow-y-auto flex-1">
+                                    <BulkMindCardVerification 
+                                        ref={bulkVerificationRef}
+                                        cards={cards.filter(card => card.konuId === selectedKonu)}
+                                        onCardUpdate={handleCardUpdate}
+                                        onUpdateSuccess={() => {
+                                            setIsBulkVerificationOpen(false);
+                                            // Modal kapandığında kartları yenile
+                                            refreshCards();
+                                        }}
+                                        onUpdateClick={handleUpdateFromBulkVerification}
+                                        onDeleteClick={handleDelete}
+                                        konuId={selectedKonu}
+                                    />
+                                </div>
+                                
+                                <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex justify-end">
+                                    <button
+                                        onClick={() => {
+                                            setIsBulkVerificationOpen(false);
+                                            // Modal kapandığında kartları yenile
+                                            refreshCards();
+                                        }}
+                                        className="px-6 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                                    >
+                                        Kapat
+                                    </button>
                                 </div>
                             </div>
                         </div>
