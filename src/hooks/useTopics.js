@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, doc, setDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 
 // Sabit konular listesi
@@ -26,29 +26,31 @@ export const useTopics = () => {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        const initializeTopics = async () => {
-            try {
-                // Her konu için Firestore'da bir döküman oluştur (eğer yoksa)
-                const konularRef = collection(db, 'miniCards-konular');
-                
-                for (const topic of staticTopics) {
-                    const topicRef = doc(konularRef, topic.id);
-                    await setDoc(topicRef, {
-                        baslik: topic.baslik,
-                        id: topic.id
-                    }, { merge: true }); // merge: true sayesinde varsa güncellenmez
-                }
+        // Konuları gerçek zamanlı dinle
+        const konularRef = collection(db, 'miniCards-konular');
+        const q = query(konularRef, orderBy('baslik', 'asc'));
 
-                setTopics(staticTopics);
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            try {
+                const topicsList = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setTopics(topicsList);
+                setLoading(false);
             } catch (err) {
-                console.error('Error initializing topics:', err);
+                console.error('Error fetching topics:', err);
                 setError(err);
-            } finally {
                 setLoading(false);
             }
-        };
+        }, (err) => {
+            console.error('Error in topics snapshot:', err);
+            setError(err);
+            setLoading(false);
+        });
 
-        initializeTopics();
+        // Cleanup function
+        return () => unsubscribe();
     }, []);
 
     return { topics, loading, error };
