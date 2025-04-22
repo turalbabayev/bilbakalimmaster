@@ -484,7 +484,10 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                                         <div className="text-gray-600 dark:text-gray-400">
                                             <span className="font-semibold">Alt Konu:</span> {sonuc.kart.altKonu}
                                         </div>
-                                        <div className="text-gray-700 dark:text-gray-300" dangerouslySetInnerHTML={{ __html: sonuc.kart.content }} />
+                                        <div>
+                                            <span className="font-semibold text-gray-600 dark:text-gray-400">İçerik:</span>
+                                            <div className="text-gray-700 dark:text-gray-300 mt-1" dangerouslySetInnerHTML={{ __html: sonuc.kart.content }} />
+                                        </div>
                                     </div>
                                 </div>
                                 

@@ -21,11 +21,9 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
     useEffect(() => {
         if (card) {
             setFormData({
-                ...formData,
-                content: card.content,
-                altKonu: card.altKonu,
-                konuId: card.konuId,
                 selectedKonu: card.konuId || '',
+                altKonu: card.altKonu || '',
+                content: card.content || '',
                 resim: null,
                 resimTuru: card.resimTuru || '',
                 resimPreview: card.resim || null
