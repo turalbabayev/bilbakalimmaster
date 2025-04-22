@@ -18,6 +18,9 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
         
         if (!geminiKey) {
             console.error('Gemini API anahtarı bulunamadı. Lütfen .env dosyasını kontrol edin.');
+            toast.error('Gemini API anahtarı bulunamadı. Lütfen sistem yöneticisi ile iletişime geçin.');
+        } else {
+            console.log('Gemini API anahtarı yüklendi');
         }
         
         setGeminiApiKey(geminiKey);
@@ -135,10 +138,15 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                 3. Bu formatın dışına ASLA çıkma ve başka bir şey ekleme.
                 `;
 
-                const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + geminiApiKey, {
+                console.log('API isteği gönderiliyor...', {
+                    url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
+                    apiKey: geminiApiKey ? 'Mevcut' : 'Yok'
+                });
+
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         contents: [{
@@ -149,7 +157,13 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                     })
                 });
 
+                if (!response.ok) {
+                    throw new Error(`API yanıt hatası: ${response.status} ${response.statusText}`);
+                }
+
                 const data = await response.json();
+                console.log('API yanıtı:', data);
+
                 if (data.candidates && data.candidates[0] && data.candidates[0].content) {
                     const analiz = data.candidates[0].content.parts[0].text;
                     
@@ -168,14 +182,18 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                             model: 'gemini'
                         });
                     }
+
+                    // Her başarılı analiz sonrası state'i güncelle
+                    setSonuclar([...yeniSonuclar]);
+                } else {
+                    throw new Error('API yanıtında beklenen veri bulunamadı');
                 }
             } catch (error) {
                 console.error('Kart doğrulanırken hata:', error);
-                toast.error(`${kart.kartNo || 'Bilinmeyen'} numaralı kart doğrulanırken hata oluştu!`);
+                toast.error(`${kart.kartNo || 'Bilinmeyen'} numaralı kart doğrulanırken hata oluştu: ${error.message}`);
             }
         }
 
-        setSonuclar(yeniSonuclar);
         setYukleniyor(false);
         toast.success('Seçili kartlar başarıyla doğrulandı!');
     };
