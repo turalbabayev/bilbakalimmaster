@@ -8,6 +8,7 @@ import EditMindCardModal from "../../components/EditMindCardModal";
 import AddCurrentInfo from "../../components/AddCurrentInfo";
 import CurrentInfoList from "../../components/CurrentInfoList";
 import { useTopics } from "../../hooks/useTopics";
+import AddTopicModal from "../../components/AddTopicModal";
 
 function NotesPage() {
     const [cards, setCards] = useState([]);
@@ -23,6 +24,7 @@ function NotesPage() {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [selectedKonuForDelete, setSelectedKonuForDelete] = useState("");
     const [isDeletingAll, setIsDeletingAll] = useState(false);
+    const [isAddTopicModalOpen, setIsAddTopicModalOpen] = useState(false);
 
     useEffect(() => {
         const unsubscribers = [];
@@ -169,31 +171,44 @@ function NotesPage() {
                             </button>
                         </div>
                         <div className="flex space-x-4">
-                            {activeTab === 'mindCards' && (
+                            {activeTab === 'mindCards' ? (
                                 <>
+                                    <button
+                                        onClick={() => setIsAddTopicModalOpen(true)}
+                                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center"
+                                    >
+                                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                        </svg>
+                                        Yeni Konu
+                                    </button>
+                                    <button
+                                        onClick={() => setIsAddModalOpen(true)}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                                    >
+                                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                        </svg>
+                                        Yeni Kart
+                                    </button>
                                     <button
                                         onClick={() => setIsDeleteModalOpen(true)}
                                         className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                                     >
                                         Toplu Sil
                                     </button>
-                                    <button
-                                        onClick={() => setIsAddModalOpen(true)}
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                                    >
-                                        Yeni Ekle
-                                    </button>
                                 </>
+                            ) : (
+                                <button
+                                    onClick={() => setIsAddModalOpen(true)}
+                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center"
+                                >
+                                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Yeni Güncel Bilgi Ekle
+                                </button>
                             )}
-                            <button
-                                onClick={() => setIsAddModalOpen(true)}
-                                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center"
-                            >
-                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                                </svg>
-                                {activeTab === 'mindCards' ? 'Yeni Kart Ekle' : 'Yeni Güncel Bilgi Ekle'}
-                            </button>
                         </div>
                     </div>
 
@@ -313,31 +328,31 @@ function NotesPage() {
                     )}
 
                     {/* Modallar */}
-                    {activeTab === 'mindCards' ? (
-                        <>
-                            <AddMindCardModal
-                                isOpen={isAddModalOpen}
-                                onClose={() => setIsAddModalOpen(false)}
-                                onSuccess={() => {
-                                    // Refresh cards after adding a new one
-                                    setSelectedKonu(null);
-                                }}
-                            />
-                            <EditMindCardModal
-                                isOpen={isEditModalOpen}
-                                onClose={() => setIsEditModalOpen(false)}
-                                card={selectedCard}
-                                konuId={selectedCard?.konuId}
-                                onSuccess={handleEditSuccess}
-                            />
-                        </>
-                    ) : (
-                        <AddCurrentInfo
-                            isOpen={isAddModalOpen}
-                            onClose={() => setIsAddModalOpen(false)}
-                            onSuccess={() => currentInfoListRef.current?.fetchGuncelBilgiler()}
-                        />
-                    )}
+                    <AddMindCardModal
+                        isOpen={isAddModalOpen && activeTab === 'mindCards'}
+                        onClose={() => setIsAddModalOpen(false)}
+                        topics={topics}
+                        selectedKonu={selectedKonu}
+                    />
+                    <EditMindCardModal
+                        isOpen={isEditModalOpen}
+                        onClose={() => setIsEditModalOpen(false)}
+                        card={selectedCard}
+                        onSuccess={handleEditSuccess}
+                    />
+                    <AddCurrentInfo
+                        isOpen={isAddModalOpen && activeTab === 'currentInfo'}
+                        onClose={() => setIsAddModalOpen(false)}
+                        onSuccess={() => {
+                            if (currentInfoListRef.current) {
+                                currentInfoListRef.current.refreshList();
+                            }
+                        }}
+                    />
+                    <AddTopicModal
+                        isOpen={isAddTopicModalOpen}
+                        onClose={() => setIsAddTopicModalOpen(false)}
+                    />
 
                     {/* Toplu Silme Modalı */}
                     {isDeleteModalOpen && (
