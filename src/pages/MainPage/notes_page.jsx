@@ -399,12 +399,16 @@ function NotesPage() {
                         topics={topics}
                         selectedKonu={selectedKonu}
                     />
-                    <EditMindCardModal
-                        isOpen={isEditModalOpen}
-                        onClose={() => setIsEditModalOpen(false)}
-                        card={selectedCard}
-                        onSuccess={handleEditSuccess}
-                    />
+                    {isEditModalOpen && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[60]">
+                            <EditMindCardModal
+                                isOpen={isEditModalOpen}
+                                onClose={() => setIsEditModalOpen(false)}
+                                card={selectedCard}
+                                onSuccess={handleEditSuccess}
+                            />
+                        </div>
+                    )}
                     <AddCurrentInfo
                         isOpen={isAddModalOpen && activeTab === 'currentInfo'}
                         onClose={() => setIsAddModalOpen(false)}
@@ -485,6 +489,7 @@ function NotesPage() {
                                         onUpdateClick={handleUpdateFromBulkVerification}
                                         onDeleteClick={handleDelete}
                                         konuId={selectedKonu}
+                                        onClose={() => setIsBulkVerificationOpen(false)}
                                     />
                                 </div>
                                 

@@ -5,7 +5,7 @@ import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import { toast } from 'react-hot-toast';
 
-const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSuccess, onUpdateClick, onDeleteClick, konuId }, ref) => {
+const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSuccess, onUpdateClick, onDeleteClick, konuId, onClose }, ref) => {
     const [sonuclar, setSonuclar] = useState([]);
     const [yukleniyor, setYukleniyor] = useState(false);
     const [geminiApiKey, setGeminiApiKey] = useState(null);
@@ -83,22 +83,30 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
             return 0;
         });
         
+        let secilenKartlar = [];
         if (secenek === 'ilk10') {
             // İlk 10 kartı seç
-            const ilk10 = siraliKartlar.slice(0, 10).map(kart => kart.id);
-            setSeciliKartlar(ilk10);
+            secilenKartlar = siraliKartlar.slice(0, 10).map(kart => kart.id);
         } else if (secenek === 'ilk20') {
             // İlk 20 kartı seç
-            const ilk20 = siraliKartlar.slice(0, 20).map(kart => kart.id);
-            setSeciliKartlar(ilk20);
+            secilenKartlar = siraliKartlar.slice(0, 20).map(kart => kart.id);
         } else if (secenek === 'hepsi') {
             // Tüm kartları seç
-            const tumKartlar = siraliKartlar.map(kart => kart.id);
-            setSeciliKartlar(tumKartlar);
-        } else if (secenek === 'secili') {
-            // Seçili kartları temizle
-            setSeciliKartlar([]);
+            secilenKartlar = siraliKartlar.map(kart => kart.id);
         }
+        
+        setSeciliKartlar(secilenKartlar);
+        
+        // Sonuçları sıfırla ve sadece seçili kartlar için boş sonuç oluştur
+        setSonuclar(siraliKartlar
+            .filter(kart => secilenKartlar.includes(kart.id))
+            .map(kart => ({
+                kart,
+                analiz: '',
+                genelDegerlendirme: null,
+                model: null
+            }))
+        );
     };
 
     const kartlariDogrula = async () => {
@@ -458,7 +466,9 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                         </button>
                     </div>
                     <div className="space-y-8">
-                        {sonuclar.map((sonuc, index) => (
+                        {sonuclar
+                            .filter(sonuc => seciliKartlar.includes(sonuc.kart.id))
+                            .map((sonuc, index) => (
                             <div key={index} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
                                 <div className="flex items-center justify-between mb-4">
                                     <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm font-medium">
@@ -470,8 +480,8 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                                 </div>
                                 
                                 <div className="mb-4 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                                    <p className="font-semibold text-gray-900 dark:text-gray-100">İçerik:</p>
-                                    <div className="text-gray-700 dark:text-gray-300 mt-1" dangerouslySetInnerHTML={{ __html: sonuc.kart.content }} />
+                                    <p className="font-semibold text-gray-900 dark:text-gray-100">Alt Konu ve İçerik:</p>
+                                    <div className="text-gray-700 dark:text-gray-300 mt-1" dangerouslySetInnerHTML={{ __html: sonuc.kart.content, altKonu: sonuc.kart.altKonu }} />
                                 </div>
                                 
                                 <div className="mt-6">
