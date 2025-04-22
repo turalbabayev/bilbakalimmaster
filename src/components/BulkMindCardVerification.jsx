@@ -138,15 +138,11 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                 3. Bu formatın dışına ASLA çıkma ve başka bir şey ekleme.
                 `;
 
-                console.log('API isteği gönderiliyor...', {
-                    url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
-                    apiKey: geminiApiKey ? 'Mevcut' : 'Yok'
-                });
-
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`, {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'x-goog-api-key': geminiApiKey
                     },
                     body: JSON.stringify({
                         contents: [{
@@ -162,32 +158,40 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                 }
 
                 const data = await response.json();
-                console.log('API yanıtı:', data);
-
-                if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-                    const analiz = data.candidates[0].content.parts[0].text;
-                    
-                    // Sonuçları güncelle
-                    const kartIndex = yeniSonuclar.findIndex(s => s.kart.id === kart.id);
-                    if (kartIndex !== -1) {
-                        yeniSonuclar[kartIndex] = {
-                            ...yeniSonuclar[kartIndex],
-                            analiz,
-                            model: 'gemini'
-                        };
-                    } else {
-                        yeniSonuclar.push({
-                            kart,
-                            analiz,
-                            model: 'gemini'
-                        });
-                    }
-
-                    // Her başarılı analiz sonrası state'i güncelle
-                    setSonuclar([...yeniSonuclar]);
-                } else {
+                
+                if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
                     throw new Error('API yanıtında beklenen veri bulunamadı');
                 }
+
+                const analiz = data.candidates[0].content.parts[0].text;
+                
+                // Genel değerlendirmeyi çıkar
+                const genelDegerlendirmeMatch = analiz.match(/Genel Değerlendirme: (Çok İyi|İyi|Orta|Geliştirilmeli)/i);
+                const genelDegerlendirme = genelDegerlendirmeMatch ? genelDegerlendirmeMatch[1] : null;
+
+                // Sonuçları güncelle
+                const kartIndex = yeniSonuclar.findIndex(s => s.kart.id === kart.id);
+                if (kartIndex !== -1) {
+                    yeniSonuclar[kartIndex] = {
+                        ...yeniSonuclar[kartIndex],
+                        analiz,
+                        genelDegerlendirme,
+                        model: 'gemini'
+                    };
+                } else {
+                    yeniSonuclar.push({
+                        kart,
+                        analiz,
+                        genelDegerlendirme,
+                        model: 'gemini'
+                    });
+                }
+
+                // Her başarılı analiz sonrası state'i güncelle
+                setSonuclar([...yeniSonuclar]);
+                
+                // Kısa bir bekleme ekle
+                await new Promise(resolve => setTimeout(resolve, 500));
             } catch (error) {
                 console.error('Kart doğrulanırken hata:', error);
                 toast.error(`${kart.kartNo || 'Bilinmeyen'} numaralı kart doğrulanırken hata oluştu: ${error.message}`);
@@ -490,6 +494,36 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                                                         </p>
                                                     );
                                                 }
+                                                
+                                                if (line.toLowerCase().includes('içerik analizi:')) {
+                                                    return (
+                                                        <p key={i} className="font-medium text-blue-600 dark:text-blue-400 mt-3">
+                                                            {line}
+                                                        </p>
+                                                    );
+                                                }
+                                                
+                                                if (line.toLowerCase().includes('iyileştirme önerileri:')) {
+                                                    return (
+                                                        <p key={i} className="font-medium text-purple-600 dark:text-purple-400 mt-3">
+                                                            {line}
+                                                        </p>
+                                                    );
+                                                }
+                                                
+                                                if (line.toLowerCase().includes('tekrarlanan bilgi:')) {
+                                                    const tekrarDurumu = line.split(':')[1].trim().toLowerCase();
+                                                    const textColor = tekrarDurumu.includes('var') 
+                                                        ? 'text-red-600 dark:text-red-400'
+                                                        : 'text-green-600 dark:text-green-400';
+                                                    
+                                                    return (
+                                                        <p key={i} className={`font-medium ${textColor} mt-3`}>
+                                                            {line}
+                                                        </p>
+                                                    );
+                                                }
+                                                
                                                 return <p key={i} className="mt-2">{line}</p>;
                                             })}
                                         </div>
