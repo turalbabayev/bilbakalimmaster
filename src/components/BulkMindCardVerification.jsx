@@ -128,7 +128,7 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
         for (const kart of dogrulanacakKartlar) {
             try {
                 const prompt = `
-                Sen bir eğitim uzmanısın. Sana vereceğim akıl kartını analiz etmeni ve daha iyi bir içerik önerisi sunmanı istiyorum.
+                Sen bir eğitim uzmanısın. Sana vereceğim akıl kartını analiz et ve gerekiyorsa daha iyi bir içerik öner.
 
                 Kart Bilgileri:
                 Alt Konu: ${kart.altKonu}
@@ -136,21 +136,21 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                 
                 Lütfen cevabını TAM OLARAK aşağıdaki formatta ver. Format dışına ASLA çıkma:
 
-                İçerik Analizi: [Mevcut içeriğin kalitesi ve anlaşılırlığı hakkında kısa analiz]
+                İçerik Analizi: [Mevcut içeriğin kalitesi ve anlaşılırlığı hakkında 1-2 cümle]
 
-                Önerilen İçerik:
-                [Mevcut içerikle aynı uzunlukta, emojiler ve vurgularla zenginleştirilmiş, öğrenci seviyesine uygun alternatif içerik yaz. Kesinlikle daha uzun OLMAMALI.]
+                💡 Önerilen İçerik:
+                [Mevcut içerikle AYNI uzunlukta veya daha kısa, öğrenci seviyesine uygun içerik. İçerik doğruysa aynen kopyala. Değilse emojilerle zenginleştir.]
 
-                İyileştirme Nedeni: [Neden bu değişiklikleri önerdiğinin kısa açıklaması]
+                İyileştirme Nedeni: [1 cümle ile neden bu değişikliği önerdiğini açıkla]
                 
                 Tekrarlanan Bilgi: [Var/Yok]
                 Genel Değerlendirme: [Çok İyi/İyi/Orta/Geliştirilmeli]
 
                 ÖNEMLİ NOTLAR:
-                1. Önerilen içerik mevcut içerikle nerdeyse aynı uzunlukta olmalı. Doğruysa bizim içeriğin aynısını yazabilirsin.
-                2. Öğrenci seviyesine uygun, kısa ve öz olmalı.
-                3. Emojiler ve vurgular kullanılmalı.
-                4. Bu formatın dışına ASLA çıkma.
+                1. Önerilen içerik mevcut içerikle aynı uzunlukta veya daha kısa olmalı.
+                2. İçerik doğruysa aynen kopyala, değişiklik önerme.
+                3. Değişiklik önerirken emojiler kullan.
+                4. Uzun açıklamalar yapma, kısa ve öz ol.
                 `;
 
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`, {
@@ -530,13 +530,16 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                                                 if (line.toLowerCase().includes('önerilen içerik:')) {
                                                     return (
                                                         <>
-                                                            <p key={i} className="font-medium text-emerald-600 dark:text-emerald-400 mt-6 mb-2">
-                                                                {line}
+                                                            <p key={i} className="font-medium text-emerald-600 dark:text-emerald-400 mt-6 mb-2 text-lg flex items-center">
+                                                                <span className="mr-2">💡</span>
+                                                                Önerilen İçerik:
                                                             </p>
-                                                            <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-lg border-l-4 border-emerald-500">
-                                                                {sonuc.analiz.split('\n')
-                                                                    .slice(sonuc.analiz.split('\n').findIndex(l => l.toLowerCase().includes('önerilen içerik:')) + 1)
-                                                                    .find(l => l.trim() !== '' && !l.toLowerCase().includes('iyileştirme nedeni:'))}
+                                                            <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-lg border-2 border-emerald-500 shadow-lg">
+                                                                <div className="text-lg font-medium text-gray-800 dark:text-gray-200">
+                                                                    {sonuc.analiz.split('\n')
+                                                                        .slice(sonuc.analiz.split('\n').findIndex(l => l.toLowerCase().includes('önerilen içerik:')) + 1)
+                                                                        .find(l => l.trim() !== '' && !l.toLowerCase().includes('iyileştirme nedeni:'))}
+                                                                </div>
                                                             </div>
                                                         </>
                                                     );
