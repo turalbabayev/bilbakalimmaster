@@ -575,22 +575,21 @@ const BulkMindCardVerification = forwardRef(({ cards, onCardUpdate, onUpdateSucc
                                                         .slice(sonuc.analiz.split('\n').findIndex(l => l.toLowerCase().includes('alternatif bilgi:')) + 1)
                                                         .find(l => l.trim() !== '' && !l.toLowerCase().includes('iyileştirme nedeni:'));
 
-                                                    if (alternatifBilgi && !alternatifBilgi.toLowerCase().includes('yok')) {
-                                                        return (
-                                                            <>
-                                                                <p key={i} className="font-medium text-orange-600 dark:text-orange-400 mt-6 mb-2 text-lg flex items-center">
-                                                                    <span className="mr-2">❗</span>
-                                                                    Alternatif Bilgi:
-                                                                </p>
-                                                                <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg border-2 border-orange-500 shadow-lg">
-                                                                    <div className="text-lg font-medium text-gray-800 dark:text-gray-200">
-                                                                        {alternatifBilgi}
-                                                                    </div>
+                                                    const isYok = alternatifBilgi?.toLowerCase().includes('yok');
+                                                    
+                                                    return (
+                                                        <>
+                                                            <p key={i} className="font-medium text-orange-600 dark:text-orange-400 mt-6 mb-2 text-lg flex items-center">
+                                                                <span className="mr-2">❗</span>
+                                                                Alternatif Bilgi:
+                                                            </p>
+                                                            <div className={`${isYok ? 'bg-gray-50 dark:bg-gray-900/20 border-gray-300' : 'bg-orange-50 dark:bg-orange-900/20 border-orange-500'} p-4 rounded-lg border-2 shadow-lg`}>
+                                                                <div className={`text-lg font-medium ${isYok ? 'text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-200'}`}>
+                                                                    {alternatifBilgi || 'Yok'}
                                                                 </div>
-                                                            </>
-                                                        );
-                                                    }
-                                                    return null;
+                                                            </div>
+                                                        </>
+                                                    );
                                                 }
                                                 
                                                 return <p key={i} className="mt-2">{line}</p>;
