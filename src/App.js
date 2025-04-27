@@ -10,6 +10,7 @@ import AnnouncementPage from './pages/MainPage/announcement_page';
 import GamesPage from './pages/MainPage/games_page';
 import NotesPage from './pages/MainPage/notes_page';
 import NotificationsPage from './pages/MainPage/notifications_page';
+import DeleteAccountPage from './pages/DeleteAccount';
 import ProtectedRouter from './routes/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 
@@ -28,6 +29,7 @@ function App() {
                     <Route path='/games' element={<ProtectedRouter><GamesPage /></ProtectedRouter>} />
                     <Route path='/notes' element={<ProtectedRouter><NotesPage /></ProtectedRouter>} />
                     <Route path='/notifications' element={<ProtectedRouter><NotificationsPage /></ProtectedRouter>} />
+                    <Route path='/delete-account' element={<DeleteAccountPage />} />
                 </Routes>
             </Router>
         </AuthProvider>

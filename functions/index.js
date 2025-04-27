@@ -70,4 +70,31 @@ exports.sendNotification = functions.https.onRequest(async (req, res) => {
         console.error('Error sending notification:', error);
         res.status(500).send({ error: 'Failed to send notification' });
     }
+});
+
+exports.deleteAccount = functions.https.onCall(async (data, context) => {
+    try {
+        // Token'ı doğrula
+        const decodedToken = await admin.auth().verifyIdToken(data.idToken);
+        const uid = decodedToken.uid;
+
+        // Firestore batch işlemi başlat
+        const batch = admin.firestore().batch();
+        const db = admin.firestore();
+
+        // Kullanıcı profilini sil
+        const userDoc = db.collection('users').doc(uid);
+        batch.delete(userDoc);
+
+        // Batch işlemini uygula
+        await batch.commit();
+
+        // Firebase Authentication'dan kullanıcıyı sil
+        await admin.auth().deleteUser(uid);
+
+        return { success: true, message: 'Hesap başarıyla silindi.' };
+    } catch (error) {
+        console.error('Hesap silme hatası:', error);
+        throw new functions.https.HttpsError('internal', 'Hesap silinirken bir hata oluştu: ' + error.message);
+    }
 }); 
