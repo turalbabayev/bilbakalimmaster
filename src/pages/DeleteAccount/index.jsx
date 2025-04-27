@@ -1,18 +1,15 @@
 import React, { useState } from 'react';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
 const DeleteAccountPage = () => {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
   const navigate = useNavigate();
-  const auth = getAuth();
-  const functions = getFunctions();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,22 +17,32 @@ const DeleteAccountPage = () => {
     setError('');
 
     try {
-      // Önce kullanıcıyı giriş yaptır
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      // Users koleksiyonundaki tüm dokümanları al
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      let userToDelete = null;
 
-      // ID token al
-      const idToken = await user.getIdToken();
+      // Her bir kullanıcı dokümanını kontrol et
+      for (const userDoc of usersSnapshot.docs) {
+        const userData = userDoc.data();
+        if (userData.email === email) {
+          userToDelete = userDoc;
+          break;
+        }
+      }
 
-      // Cloud Function'ı çağır
-      const deleteAccount = httpsCallable(functions, 'deleteAccount');
-      await deleteAccount({ idToken });
+      if (!userToDelete) {
+        setError('Bu email adresine sahip kullanıcı bulunamadı.');
+        return;
+      }
 
-      toast.success('Hesabınız başarıyla silindi.');
+      // Kullanıcıyı sil
+      await deleteDoc(doc(db, 'users', userToDelete.id));
+      
+      toast.success('Kullanıcı başarıyla silindi.');
       navigate('/');
     } catch (error) {
-      console.error('Hesap silme hatası:', error);
-      setError('Hesap silinirken bir hata oluştu: ' + error.message);
+      console.error('Kullanıcı silme hatası:', error);
+      setError('Kullanıcı silinirken bir hata oluştu: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -45,7 +52,7 @@ const DeleteAccountPage = () => {
     <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="bg-red-600 px-6 py-4">
-          <h2 className="text-xl font-bold text-white">Hesap Silme</h2>
+          <h2 className="text-xl font-bold text-white">Kullanıcı Silme</h2>
         </div>
         
         <div className="p-6">
@@ -59,7 +66,7 @@ const DeleteAccountPage = () => {
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-yellow-800">Önemli Uyarı!</h3>
                 <p className="text-sm text-yellow-700 mt-1">
-                  Bu işlem geri alınamaz. Hesabınız ve tüm verileriniz kalıcı olarak silinecektir.
+                  Bu işlem geri alınamaz. Kullanıcı ve tüm verileri kalıcı olarak silinecektir.
                   Devam etmeden önce lütfen bu kararınızdan emin olun.
                 </p>
               </div>
@@ -93,36 +100,21 @@ const DeleteAccountPage = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
-                placeholder="E-posta adresinizi girin"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Şifre
-              </label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
-                placeholder="Şifrenizi girin"
+                placeholder="Silinecek kullanıcının e-posta adresini girin"
               />
             </div>
 
             <div className="flex flex-col space-y-3">
               <button
                 type="submit"
-                disabled={loading || !email || !password}
+                disabled={loading || !email}
                 className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
-                  loading || !email || !password
+                  loading || !email
                     ? 'bg-red-300 cursor-not-allowed'
                     : 'bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500'
                 }`}
               >
-                {loading ? 'İşlem Yapılıyor...' : 'Hesabımı Kalıcı Olarak Sil'}
+                {loading ? 'İşlem Yapılıyor...' : 'Kullanıcıyı Sil'}
               </button>
               
               <button
