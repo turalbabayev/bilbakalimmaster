@@ -74,27 +74,40 @@ exports.sendNotification = functions.https.onRequest(async (req, res) => {
 
 exports.deleteAccount = functions.https.onCall(async (data, context) => {
     try {
-        // Token'ı doğrula
-        const decodedToken = await admin.auth().verifyIdToken(data.idToken);
-        const uid = decodedToken.uid;
+        const { email } = data;
+        
+        if (!email) {
+            throw new functions.https.HttpsError('invalid-argument', 'Email adresi gerekli.');
+        }
 
-        // Firestore batch işlemi başlat
-        const batch = admin.firestore().batch();
         const db = admin.firestore();
+        
+        // Users koleksiyonundaki tüm dokümanları al
+        const usersSnapshot = await db.collection('users').get();
+        let userToDelete = null;
 
-        // Kullanıcı profilini sil
-        const userDoc = db.collection('users').doc(uid);
-        batch.delete(userDoc);
+        // Her bir kullanıcı dokümanını kontrol et
+        for (const doc of usersSnapshot.docs) {
+            const userData = doc.data();
+            if (userData.email === email) {
+                userToDelete = doc;
+                break;
+            }
+        }
 
-        // Batch işlemini uygula
-        await batch.commit();
+        if (!userToDelete) {
+            throw new functions.https.HttpsError('not-found', 'Bu email adresine sahip kullanıcı bulunamadı.');
+        }
 
-        // Firebase Authentication'dan kullanıcıyı sil
-        await admin.auth().deleteUser(uid);
+        // Kullanıcı dokümanını sil
+        await userToDelete.ref.delete();
 
-        return { success: true, message: 'Hesap başarıyla silindi.' };
+        return { success: true, message: 'Kullanıcı başarıyla silindi.' };
     } catch (error) {
-        console.error('Hesap silme hatası:', error);
-        throw new functions.https.HttpsError('internal', 'Hesap silinirken bir hata oluştu: ' + error.message);
+        console.error('Kullanıcı silme hatası:', error);
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
+        throw new functions.https.HttpsError('internal', 'Kullanıcı silinirken bir hata oluştu: ' + error.message);
     }
 }); 
