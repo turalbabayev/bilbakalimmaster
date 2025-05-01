@@ -1,70 +1,222 @@
-# Getting Started with Create React App
+# Teknik Tasarım Dokümanı
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+**Başlık:** JSON'dan XML'e Dönüştürme Web Uygulaması  
+**Hazırlayan:** Tural BABAYEV / ABCVYZ  
+**Doküman Versiyonu:** 1.0  
+**Tarih:** 02.05.2025  
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## 1. Mimari Tasarım
 
-### `npm start`
+### 1.1 Genel Mimari
+Uygulama, aşağıdaki ana bileşenlerden oluşacaktır:
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- **Frontend Katmanı:** Single Page Application (SPA)
+- **Servis Katmanı:** JSON işleme, XML dönüşümü ve API entegrasyonları
+- **Veri Katmanı:** NoSQL veritabanı entegrasyonu
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### 1.2 Teknoloji Yığını
 
-### `npm test`
+| Katman | Teknoloji | Açıklama |
+|--------|-----------|-----------|
+| Frontend | HTML5, CSS3, JavaScript | Temel web teknolojileri |
+| UI Framework | Bootstrap (CDN) | Responsive tasarım için |
+| JSON İşleme | Native JavaScript | JSON parsing ve validasyon |
+| XML Dönüşüm | Native JavaScript | XML string oluşturma |
+| HTTP İstekleri | Axios (CDN) | API çağrıları için |
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+---
 
-### `npm run build`
+## 2. Arayüz Tasarımı
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 2.1 Ana Sayfa Bileşenleri
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```ascii
++------------------------------------------+
+|                 Header                    |
+|  "JSON to XML Converter"                 |
++------------------------------------------+
+|                                          |
+|   +------------------------------------+ |
+|   |           JSON Input               | |
+|   |   [        TextArea         ]      | |
+|   |                                    | |
+|   +------------------------------------+ |
+|                                          |
+|   +------------------------------------+ |
+|   |         Validation Status          | |
+|   +------------------------------------+ |
+|                                          |
+|   [Convert and Submit]                   |
+|                                          |
+|   +------------------------------------+ |
+|   |         Response Status            | |
+|   +------------------------------------+ |
+|                                          |
++------------------------------------------+
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### 2.2 Kullanıcı Etkileşimi Akışı
 
-### `npm run eject`
+1. Kullanıcı JSON verisini textarea'ya girer
+2. Sistem gerçek zamanlı JSON formatı kontrolü yapar
+3. Kullanıcı "Convert and Submit" butonuna tıklar
+4. Sistem validasyon yapar ve sonucu gösterir
+5. Başarılı validasyon sonrası XML dönüşümü yapılır
+6. XML verisi API'ye gönderilir
+7. İşlem sonucu kullanıcıya gösterilir
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+---
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## 3. Veri Yapıları
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### 3.1 Giriş JSON Şeması
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+```json
+{
+  "type": "object",
+  "required": ["from_msisdn", "to_msisdn", "message", "encoding"],
+  "properties": {
+    "from_msisdn": {
+      "type": "string",
+      "pattern": "^[0-9]{14}$"
+    },
+    "to_msisdn": {
+      "type": "string",
+      "pattern": "^[0-9]{14}$"
+    },
+    "message": {
+      "type": "string"
+    },
+    "encoding": {
+      "type": "string"
+    },
+    "field-map": {
+      "type": "object",
+      "patternProperties": {
+        "^.*$": {
+          "enum": ["integer", "string", "boolean", "float"]
+        }
+      }
+    }
+  }
+}
+```
 
-## Learn More
+### 3.2 Çıkış XML Yapısı
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```xml
+<envelope>
+  <from_msisdn>12345678901234</from_msisdn>
+  <to_msisdn>12345678901234</to_msisdn>
+  <message>Test message</message>
+  <encoding>UTF-8</encoding>
+  <custom_field type="integer">123</custom_field>
+</envelope>
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### 3.3 Audit Log Yapısı
 
-### Code Splitting
+```json
+{
+  "timestamp": "2025-05-02T10:00:00Z",
+  "action": "CONVERT_AND_SUBMIT",
+  "status": "SUCCESS|ERROR",
+  "input_json": "{...}",
+  "output_xml": "<...>",
+  "error_message": "Optional error details"
+}
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+---
 
-### Analyzing the Bundle Size
+## 4. API Entegrasyonları
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+### 4.1 XML Gönderim API'si
 
-### Making a Progressive Web App
+- **Endpoint:** `http:/transter.to/api/xml`
+- **Method:** POST
+- **Headers:**
+  - Content-Type: application/xml
+- **Response Codes:**
+  - 200: Başarılı
+  - 400: Geçersiz XML
+  - 500: Sunucu Hatası
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+### 4.2 Audit Log API'si
 
-### Advanced Configuration
+- **Endpoint:** `http://db.com/query`
+- **Method:** POST
+- **Headers:**
+  - Content-Type: application/json
+- **Response Codes:**
+  - 200: Başarılı
+  - 400: Geçersiz İstek
+  - 500: Sunucu Hatası
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+---
 
-### Deployment
+## 5. Hata Yönetimi
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+### 5.1 Hata Kategorileri
 
-### `npm run build` fails to minify
+1. **Kullanıcı Giriş Hataları**
+   - Geçersiz JSON formatı
+   - Eksik zorunlu alanlar
+   - Geçersiz MSISDN formatı
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+2. **Sistem Hataları**
+   - XML dönüşüm hataları
+   - API bağlantı hataları
+   - Audit log kayıt hataları
+
+### 5.2 Hata Mesajları
+
+| Kod | Mesaj | Eylem |
+|-----|-------|-------|
+| E001 | "Geçersiz JSON formatı" | Kullanıcıya format düzeltme talimatı |
+| E002 | "Zorunlu alan eksik" | Eksik alanların listesi |
+| E003 | "Geçersiz MSISDN formatı" | Format açıklaması |
+| E004 | "API bağlantı hatası" | Tekrar deneme önerisi |
+
+---
+
+## 6. Güvenlik Önlemleri
+
+1. **Giriş Doğrulama**
+   - JSON boyut limiti (max 1MB)
+   - XSS önleme
+   - SQL injection önleme
+
+2. **API Güvenliği**
+   - CORS politikası
+   - Rate limiting
+   - Request timeout (30 sn)
+
+---
+
+## 7. Test Stratejisi
+
+### 7.1 Birim Testleri
+- JSON validasyon
+- XML dönüşüm
+- Hata yakalama
+
+### 7.2 Entegrasyon Testleri
+- API bağlantıları
+- Audit log kaydı
+
+### 7.3 UI Testleri
+- Form gönderimi
+- Hata mesajları
+- Yükleme durumları
+
+---
+
+## Footer
+
+**Hazırlayan:** Tural BABAYEV / ABCVYZ  
+**Tarih:** 02.05.2025  
+**Onaylayan:**   
+**Onay Tarihi:**
