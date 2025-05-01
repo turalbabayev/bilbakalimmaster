@@ -29,12 +29,16 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
     const processText = (text) => {
         if (!text) return '';
         console.log('İşlenmeden önce:', text);
-        // JSON.parse edilmiş metinde \n zaten gerçek new line olarak gelir
-        const processed = text
-            .split('\\n').join('\n')  // Eğer hala string olarak \n varsa
+        
+        // Önce string içindeki literal \n karakterlerini gerçek new line'a çevir
+        let processed = text.replace(/\\n/g, '\n');
+        
+        // Sonra diğer temizlemeleri yap
+        processed = processed
             .replace(/\r\n/g, '\n')   // Windows tarzı line ending'leri düzelt
             .replace(/\r/g, '\n')     // Sadece \r olan line ending'leri düzelt
             .trim();                  // Baştaki ve sondaki boşlukları temizle
+        
         console.log('İşlendikten sonra:', processed);
         return processed;
     };
