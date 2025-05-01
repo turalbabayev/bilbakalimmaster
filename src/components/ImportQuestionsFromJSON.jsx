@@ -25,6 +25,15 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
         setJsonFile(file);
     };
 
+    // Metindeki \n karakterlerini gerçek yeni satırlara dönüştüren yardımcı fonksiyon
+    const processText = (text) => {
+        if (!text) return '';
+        return text
+            .replace(/\\n/g, '\n')  // JSON string içindeki \n'leri gerçek yeni satıra dönüştür
+            .replace(/\\/g, '')     // Kalan gereksiz escape karakterlerini temizle
+            .trim();                // Baştaki ve sondaki boşlukları temizle
+    };
+
     const importQuestions = async () => {
         if (!selectedAltKonu) {
             toast.warning("Lütfen soruların ekleneceği alt konuyu seçin.");
@@ -105,16 +114,16 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
                                     // Obje ise (A: "Metin", B: "Metin") formatında
                                     if (typeof q.options === 'object' && !Array.isArray(q.options)) {
                                         options = [
-                                            q.options.A || q.options.a || "",
-                                            q.options.B || q.options.b || "",
-                                            q.options.C || q.options.c || "",
-                                            q.options.D || q.options.d || "",
-                                            q.options.E || q.options.e || ""
+                                            processText(q.options.A || q.options.a || ""),
+                                            processText(q.options.B || q.options.b || ""),
+                                            processText(q.options.C || q.options.c || ""),
+                                            processText(q.options.D || q.options.d || ""),
+                                            processText(q.options.E || q.options.e || "")
                                         ];
                                     }
                                     // Dizi ise direkt al
                                     else if (Array.isArray(q.options)) {
-                                        options = q.options.slice(0, 5);
+                                        options = q.options.map(opt => processText(opt)).slice(0, 5);
                                         // Dizi 5'ten az eleman içeriyorsa boş stringlerle tamamla
                                         while (options.length < 5) options.push("");
                                     }
@@ -122,24 +131,24 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
                                     // Bazı JSON formatlarında 'choices' olarak geçebilir
                                     if (typeof q.choices === 'object' && !Array.isArray(q.choices)) {
                                         options = [
-                                            q.choices.A || q.choices.a || "",
-                                            q.choices.B || q.choices.b || "",
-                                            q.choices.C || q.choices.c || "",
-                                            q.choices.D || q.choices.d || "",
-                                            q.choices.E || q.choices.e || ""
+                                            processText(q.choices.A || q.choices.a || ""),
+                                            processText(q.choices.B || q.choices.b || ""),
+                                            processText(q.choices.C || q.choices.c || ""),
+                                            processText(q.choices.D || q.choices.d || ""),
+                                            processText(q.choices.E || q.choices.e || "")
                                         ];
                                     } else if (Array.isArray(q.choices)) {
-                                        options = q.choices.slice(0, 5);
+                                        options = q.choices.map(opt => processText(opt)).slice(0, 5);
                                         while (options.length < 5) options.push("");
                                     }
                                 } else {
                                     // A, B, C, D, E olarak ayrı alanlar olabilir
                                     options = [
-                                        q.A || q.a || q.option_a || q.optionA || "",
-                                        q.B || q.b || q.option_b || q.optionB || "",
-                                        q.C || q.c || q.option_c || q.optionC || "",
-                                        q.D || q.d || q.option_d || q.optionD || "",
-                                        q.E || q.e || q.option_e || q.optionE || ""
+                                        processText(q.A || q.a || q.option_a || q.optionA || ""),
+                                        processText(q.B || q.b || q.option_b || q.optionB || ""),
+                                        processText(q.C || q.c || q.option_c || q.optionC || ""),
+                                        processText(q.D || q.d || q.option_d || q.optionD || ""),
+                                        processText(q.E || q.e || q.option_e || q.optionE || "")
                                     ];
                                 }
                                 
@@ -155,11 +164,11 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
                                 correctAnswer = correctAnswer.toUpperCase();
                                 
                                 // Açıklamayı al
-                                const explanation = q.explanation || q.correct_explanation || q.correctExplanation || "";
+                                const explanation = processText(q.explanation || q.correct_explanation || q.correctExplanation || "");
                                 
                                 // Soruyu hazırla
                                 validQuestions.push({
-                                    soruMetni: q.question,
+                                    soruMetni: processText(q.question),
                                     cevaplar: options,
                                     dogruCevap: correctAnswer,
                                     aciklama: explanation
