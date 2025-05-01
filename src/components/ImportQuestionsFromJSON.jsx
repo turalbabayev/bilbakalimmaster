@@ -25,13 +25,18 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
         setJsonFile(file);
     };
 
-    // Metindeki \n karakterlerini gerçek yeni satırlara dönüştüren yardımcı fonksiyon
+    // Metindeki new line karakterlerini düzgün işleyen yardımcı fonksiyon
     const processText = (text) => {
         if (!text) return '';
-        return text
-            .replace(/\\n/g, '\n')  // JSON string içindeki \n'leri gerçek yeni satıra dönüştür
-            .replace(/\\/g, '')     // Kalan gereksiz escape karakterlerini temizle
-            .trim();                // Baştaki ve sondaki boşlukları temizle
+        console.log('İşlenmeden önce:', text);
+        // JSON.parse edilmiş metinde \n zaten gerçek new line olarak gelir
+        const processed = text
+            .split('\\n').join('\n')  // Eğer hala string olarak \n varsa
+            .replace(/\r\n/g, '\n')   // Windows tarzı line ending'leri düzelt
+            .replace(/\r/g, '\n')     // Sadece \r olan line ending'leri düzelt
+            .trim();                  // Baştaki ve sondaki boşlukları temizle
+        console.log('İşlendikten sonra:', processed);
+        return processed;
     };
 
     const importQuestions = async () => {
