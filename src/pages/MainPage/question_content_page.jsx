@@ -573,7 +573,7 @@ function QuestionContent() {
                                                                                                 />
                                                                                             </div>
                                                                                         )}
-                                                                                        <div dangerouslySetInnerHTML={{ __html: soru.soruMetni }} />
+                                                                                        <div dangerouslySetInnerHTML={{ __html: soru.soruMetni }} style={{ whiteSpace: 'pre-wrap' }} />
                                                                                         <div className="ml-4 space-y-1">
                                                                                             {soru.cevaplar &&
                                                                                                 soru.cevaplar.map((cevap, cevapIndex) => {
