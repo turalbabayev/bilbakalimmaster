@@ -20,7 +20,25 @@ const BulkDownloadMindCards = ({ isOpen, onClose, konuId }) => {
                     id: doc.id,
                     ...doc.data()
                 }));
-                setKartlar(kartlarData);
+
+                // Kartları sırala: Önce kartNo'su olanlar, sonra olmayanlar
+                const siraliKartlar = kartlarData.sort((a, b) => {
+                    // Eğer her ikisinin de kartNo'su varsa
+                    if (a.kartNo && b.kartNo) {
+                        return a.kartNo - b.kartNo;
+                    }
+                    // Eğer sadece a'nın kartNo'su varsa
+                    if (a.kartNo) return -1;
+                    // Eğer sadece b'nin kartNo'su varsa
+                    if (b.kartNo) return 1;
+                    // Her ikisinin de kartNo'su yoksa createdAt'e göre sırala
+                    if (a.createdAt && b.createdAt) {
+                        return a.createdAt.seconds - b.createdAt.seconds;
+                    }
+                    return 0;
+                });
+
+                setKartlar(siraliKartlar);
             } catch (error) {
                 console.error("Kartlar getirilirken hata:", error);
                 toast.error("Kartlar yüklenirken bir hata oluştu!");
@@ -44,14 +62,6 @@ const BulkDownloadMindCards = ({ isOpen, onClose, konuId }) => {
         try {
             setIndiriliyor(true);
 
-            // Kartları kart numarasına göre sırala
-            const siraliKartlar = [...kartlar].sort((a, b) => {
-                if (a.kartNo && b.kartNo) {
-                    return a.kartNo - b.kartNo;
-                }
-                return 0;
-            });
-
             const doc = new Document({
                 sections: [{
                     properties: {},
@@ -63,9 +73,9 @@ const BulkDownloadMindCards = ({ isOpen, onClose, konuId }) => {
                                 after: 200,
                             },
                         }),
-                        ...siraliKartlar.flatMap((kart) => [
+                        ...kartlar.flatMap((kart, index) => [
                             new Paragraph({
-                                text: `Kart ${kart.kartNo || 'No'}`,
+                                text: `Kart ${kart.kartNo || (index + 1)}`,
                                 heading: HeadingLevel.HEADING_2,
                                 spacing: {
                                     before: 200,
