@@ -10,6 +10,7 @@ import CurrentInfoList from "../../components/CurrentInfoList";
 import { useTopics } from "../../hooks/useTopics";
 import AddTopicModal from "../../components/AddTopicModal";
 import BulkMindCardVerification from "../../components/BulkMindCardVerification";
+import BulkDownloadMindCards from "../../components/BulkDownloadMindCards";
 
 function NotesPage() {
     const [cards, setCards] = useState([]);
@@ -28,6 +29,7 @@ function NotesPage() {
     const [selectedKonuForDelete, setSelectedKonuForDelete] = useState("");
     const [isDeletingAll, setIsDeletingAll] = useState(false);
     const [isAddTopicModalOpen, setIsAddTopicModalOpen] = useState(false);
+    const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false);
 
     useEffect(() => {
         const unsubscribers = [];
@@ -292,10 +294,19 @@ function NotesPage() {
                                         onClick={() => setIsBulkVerificationOpen(true)}
                                         className="ml-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center"
                                     >
-                                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                                         </svg>
                                         Toplu Doğrula
+                                    </button>
+                                    <button
+                                        onClick={() => setIsBulkDownloadOpen(true)}
+                                        className="ml-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        </svg>
+                                        Toplu İndir
                                     </button>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -507,6 +518,15 @@ function NotesPage() {
                                 </div>
                             </div>
                         </div>
+                    )}
+
+                    {/* Toplu İndirme Modalı */}
+                    {isBulkDownloadOpen && selectedKonu && (
+                        <BulkDownloadMindCards
+                            isOpen={isBulkDownloadOpen}
+                            onClose={() => setIsBulkDownloadOpen(false)}
+                            konuId={selectedKonu}
+                        />
                     )}
                 </div>
             </div>
