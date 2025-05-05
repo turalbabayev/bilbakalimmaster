@@ -11,6 +11,7 @@ import { useTopics } from "../../hooks/useTopics";
 import AddTopicModal from "../../components/AddTopicModal";
 import BulkMindCardVerification from "../../components/BulkMindCardVerification";
 import BulkDownloadMindCards from "../../components/BulkDownloadMindCards";
+import BulkDeleteMindCards from "../../components/BulkDeleteMindCards";
 
 function NotesPage() {
     const [cards, setCards] = useState([]);
@@ -30,6 +31,7 @@ function NotesPage() {
     const [isDeletingAll, setIsDeletingAll] = useState(false);
     const [isAddTopicModalOpen, setIsAddTopicModalOpen] = useState(false);
     const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false);
+    const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
 
     useEffect(() => {
         const unsubscribers = [];
@@ -308,6 +310,15 @@ function NotesPage() {
                                         </svg>
                                         Toplu İndir
                                     </button>
+                                    <button
+                                        onClick={() => setIsBulkDeleteOpen(true)}
+                                        className="ml-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                        </svg>
+                                        Toplu Sil
+                                    </button>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {cards.filter(card => card.konuId === selectedKonu).map((card) => (
@@ -525,6 +536,19 @@ function NotesPage() {
                         <BulkDownloadMindCards
                             isOpen={isBulkDownloadOpen}
                             onClose={() => setIsBulkDownloadOpen(false)}
+                            konuId={selectedKonu}
+                        />
+                    )}
+
+                    {/* Toplu Silme Modalı */}
+                    {isBulkDeleteOpen && selectedKonu && (
+                        <BulkDeleteMindCards
+                            isOpen={isBulkDeleteOpen}
+                            onClose={() => {
+                                setIsBulkDeleteOpen(false);
+                                // Modal kapandığında kartları yenile
+                                refreshCards();
+                            }}
                             konuId={selectedKonu}
                         />
                     )}
