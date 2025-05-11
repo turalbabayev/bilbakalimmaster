@@ -110,7 +110,8 @@ const EditCurrentInfo = ({ isOpen, onClose, bilgi, onSuccess }) => {
             await updateDoc(docRef, {
                 baslik: formData.baslik,
                 icerik: formData.icerik,
-                resim: imageBase64
+                resim: imageBase64,
+                bilgiNo: bilgi.bilgiNo
             });
 
             toast.success("Güncel bilgi başarıyla güncellendi!");
