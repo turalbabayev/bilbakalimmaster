@@ -591,7 +591,7 @@ function NotesPage() {
                         isOpen={isKartTakasModalOpen}
                         onClose={() => setIsKartTakasModalOpen(false)}
                         kartlar={cards}
-                        onKartTakas={() => fetchCards(selectedKonu)}
+                        onKartTakas={() => fetchCardsForTopic(selectedKonu)}
                     />
                 </div>
             </div>
