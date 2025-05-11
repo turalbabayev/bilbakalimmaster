@@ -255,9 +255,10 @@ const CurrentInfoList = forwardRef((props, ref) => {
                                         </button>
                                     </div>
                                 </div>
-                                <p className="text-gray-600 dark:text-gray-300 mb-4 whitespace-pre-wrap">
-                                    {bilgi.icerik}
-                                </p>
+                                <div 
+                                    className="prose dark:prose-invert max-w-none mb-4"
+                                    dangerouslySetInnerHTML={{ __html: bilgi.icerik }}
+                                />
                                 <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
                                     <div>
                                         {bilgi.tarih ? bilgi.tarih.toLocaleDateString('tr-TR') : 'Tarih belirtilmemiş'}
