@@ -68,14 +68,10 @@ const KartTakasModal = ({ isOpen, onClose, kartlar, onKartTakas }) => {
             // Kartların yeni sıralamasını kaydet
             secilenKartlar.forEach((kart, index) => {
                 const kartRef = doc(db, `miniCards-konular/${kart.konuId}/cards`, kart.id);
-                const originalKart = kartlar[index];
-                
-                if (kart.id !== originalKart.id) {
-                    batch.update(kartRef, {
-                        kartNo: originalKart.kartNo,
-                        updatedAt: serverTimestamp()
-                    });
-                }
+                batch.update(kartRef, {
+                    kartNo: index + 1,
+                    updatedAt: serverTimestamp()
+                });
             });
 
             await batch.commit();
