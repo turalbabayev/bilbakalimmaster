@@ -28,18 +28,34 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
     // Metindeki new line karakterlerini düzgün işleyen yardımcı fonksiyon
     const processText = (text) => {
         if (!text) return '';
-        console.log('İşlenmeden önce:', text);
+        
+        console.log('İşlenmeden önce (raw):', text);
+        console.log('İşlenmeden önce (JSON):', JSON.stringify(text));
         
         // Önce string içindeki literal \n karakterlerini gerçek new line'a çevir
-        let processed = text.replace(/\\n/g, '\n');
+        let processed = text;
         
-        // Sonra diğer temizlemeleri yap
+        // Eğer string içinde literal olarak \n varsa
+        if (text.includes('\\n')) {
+            console.log('Literal \\n bulundu');
+            processed = text.replace(/\\n/g, '\n');
+        }
+        
+        // Eğer string içinde JSON escape edilmiş \n varsa
+        if (text.includes('\n')) {
+            console.log('JSON escaped \\n bulundu');
+            processed = text;
+        }
+        
+        // Windows ve diğer line ending'leri düzelt
         processed = processed
             .replace(/\r\n/g, '\n')   // Windows tarzı line ending'leri düzelt
             .replace(/\r/g, '\n')     // Sadece \r olan line ending'leri düzelt
             .trim();                  // Baştaki ve sondaki boşlukları temizle
         
-        console.log('İşlendikten sonra:', processed);
+        console.log('İşlendikten sonra (raw):', processed);
+        console.log('İşlendikten sonra (JSON):', JSON.stringify(processed));
+        
         return processed;
     };
 

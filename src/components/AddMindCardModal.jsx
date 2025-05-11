@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
-import { collection, addDoc, doc, serverTimestamp, getDocs, query } from "firebase/firestore";
+import { collection, addDoc, doc, serverTimestamp, getDocs, query, orderBy, limit, where, writeBatch } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -18,6 +18,31 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
     const [altKonu, setAltKonu] = useState("");
     const [isJsonMode, setIsJsonMode] = useState(false);
     const [jsonData, setJsonData] = useState("");
+    const [content, setContent] = useState('');
+    const [explanation, setExplanation] = useState('');
+    const [selectedKonuId, setSelectedKonuId] = useState(selectedKonu || '');
+    const [kartNo, setKartNo] = useState(1);
+    const [maxKartNo, setMaxKartNo] = useState(1);
+
+    useEffect(() => {
+        if (selectedKonuId) {
+            // Seçili konudaki en yüksek kart numarasını bul
+            const konuRef = doc(db, "miniCards-konular", selectedKonuId);
+            const cardsRef = collection(konuRef, "cards");
+            const q = query(cardsRef, orderBy("kartNo", "desc"), limit(1));
+            
+            getDocs(q).then((snapshot) => {
+                if (!snapshot.empty) {
+                    const highestKartNo = snapshot.docs[0].data().kartNo;
+                    setMaxKartNo(highestKartNo + 1);
+                    setKartNo(highestKartNo + 1);
+                } else {
+                    setMaxKartNo(1);
+                    setKartNo(1);
+                }
+            });
+        }
+    }, [selectedKonuId]);
 
     const modules = {
         toolbar: [
@@ -90,67 +115,46 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!selectedKonu || !altKonu || !formData.content) {
-            toast.error("Lütfen tüm alanları doldurun!");
+        if (!selectedKonuId || !content.trim() || !explanation.trim()) {
+            toast.error('Lütfen tüm alanları doldurun!');
             return;
         }
 
         setLoading(true);
         try {
-            let imageBase64 = null;
-            let resimTuru = null;
-
-            // Eğer resim seçildiyse
-            if (formData.image) {
-                // Resmi base64'e çevir
-                const reader = new FileReader();
-                imageBase64 = await new Promise((resolve) => {
-                    reader.onloadend = () => {
-                        const fullBase64 = reader.result;
-                        const base64WithoutPrefix = fullBase64.split(',')[1];
-                        resolve(base64WithoutPrefix);
-                    };
-                    reader.readAsDataURL(formData.image);
-                });
-                resimTuru = formData.image.type;
-            }
-
-            const konuRef = doc(db, "miniCards-konular", selectedKonu);
+            const konuRef = doc(db, "miniCards-konular", selectedKonuId);
             const cardsRef = collection(konuRef, "cards");
 
-            // Kart numarasını al
-            const kartNo = await getNextCardNumber(selectedKonu);
-
-            const cardData = {
-                altKonu: altKonu,
-                content: formData.content,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-                kartNo: kartNo
-            };
-
-            // Eğer resim yüklendiyse
-            if (imageBase64) {
-                cardData.resim = imageBase64;
-                cardData.resimTuru = resimTuru;
-            }
-
-            await addDoc(cardsRef, cardData);
-            toast.success("Kart başarıyla eklendi!");
-            onSuccess();
-            onClose();
+            // Seçilen kartNo'dan büyük veya eşit numaralı kartları bir artır
+            const q = query(cardsRef, where("kartNo", ">=", kartNo), orderBy("kartNo", "desc"));
+            const snapshot = await getDocs(q);
             
-            // Formu sıfırla
-            setFormData({
-                content: "",
-                image: null,
-                resimPreview: null
+            const batch = writeBatch(db);
+            
+            // Mevcut kartların numaralarını güncelle
+            snapshot.docs.forEach(doc => {
+                batch.update(doc.ref, {
+                    kartNo: doc.data().kartNo + 1,
+                    updatedAt: serverTimestamp()
+                });
             });
-            setSelectedKonu("");
-            setAltKonu("");
+
+            // Yeni kartı ekle
+            const newCardRef = doc(cardsRef);
+            batch.set(newCardRef, {
+                content,
+                explanation,
+                kartNo,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            });
+
+            await batch.commit();
+            toast.success('Kart başarıyla eklendi!');
+            onClose();
         } catch (error) {
-            console.error("Kart eklenirken hata:", error);
-            toast.error("Kart eklenirken bir hata oluştu!");
+            console.error('Kart eklenirken hata:', error);
+            toast.error('Kart eklenirken bir hata oluştu!');
         } finally {
             setLoading(false);
         }
@@ -392,6 +396,25 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                                             />
                                         </div>
                                     )}
+                                </div>
+                                
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Kart Numarası
+                                    </label>
+                                    <div className="flex items-center space-x-2">
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max={maxKartNo}
+                                            value={kartNo}
+                                            onChange={(e) => setKartNo(parseInt(e.target.value))}
+                                            className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                                            (Maksimum: {maxKartNo})
+                                        </span>
+                                    </div>
                                 </div>
                                 
                                 <div className="flex justify-end space-x-3 mt-6">
