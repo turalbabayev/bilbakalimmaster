@@ -17,8 +17,6 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
         resimPreview: null
     });
     const [loading, setLoading] = useState(false);
-    const [content, setContent] = useState(card?.content || '');
-    const [explanation, setExplanation] = useState(card?.explanation || '');
     const [kartNo, setKartNo] = useState(card?.kartNo || 1);
     const [maxKartNo, setMaxKartNo] = useState(1);
 
@@ -53,8 +51,8 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!content.trim() || !explanation.trim()) {
-            toast.error('Lütfen tüm alanları doldurun!');
+        if (!formData.content.trim() || !formData.selectedKonu || !formData.altKonu) {
+            toast.error('Lütfen gerekli alanları doldurun!');
             return;
         }
 
@@ -100,8 +98,8 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
 
                 // Kartı güncelle
                 batch.update(cardRef, {
-                    content,
-                    explanation,
+                    content: formData.content,
+                    explanation: formData.explanation,
                     kartNo,
                     updatedAt: serverTimestamp()
                 });
@@ -110,8 +108,8 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
             } else {
                 // Sadece içeriği güncelle
                 await updateDoc(cardRef, {
-                    content,
-                    explanation,
+                    content: formData.content,
+                    explanation: formData.explanation,
                     updatedAt: serverTimestamp()
                 });
             }
