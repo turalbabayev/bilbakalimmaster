@@ -12,6 +12,7 @@ import AddTopicModal from "../../components/AddTopicModal";
 import BulkMindCardVerification from "../../components/BulkMindCardVerification";
 import BulkDownloadMindCards from "../../components/BulkDownloadMindCards";
 import BulkDeleteMindCards from "../../components/BulkDeleteMindCards";
+import KartTakasModal from '../../components/KartTakasModal';
 
 function NotesPage() {
     const [cards, setCards] = useState([]);
@@ -32,7 +33,7 @@ function NotesPage() {
     const [isAddTopicModalOpen, setIsAddTopicModalOpen] = useState(false);
     const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false);
     const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
-    const [seciliTakasKart, setSeciliTakasKart] = useState(null);
+    const [isKartTakasModalOpen, setIsKartTakasModalOpen] = useState(false);
 
     useEffect(() => {
         const unsubscribers = [];
@@ -221,46 +222,16 @@ function NotesPage() {
         };
     };
 
-    const handleKartTakasSecim = (kart) => {
-        if (seciliTakasKart === null) {
-            setSeciliTakasKart(kart);
-            toast.success(`${kart.kartNo} numaralı kart takas için seçildi. Şimdi takas edilecek diğer kartı seçin.`);
-        } else {
-            if (seciliTakasKart.id === kart.id) {
-                setSeciliTakasKart(null);
-                toast.error('Takas işlemi iptal edildi.');
-                return;
-            }
-
-            handleKartTakas(seciliTakasKart, kart);
+    const handleKartTakasModalAc = () => {
+        if (!selectedKonu) {
+            toast.error('Lütfen önce bir konu seçin');
+            return;
         }
-    };
-
-    const handleKartTakas = async (kart1, kart2) => {
-        try {
-            const kart1Ref = doc(db, `miniCards-konular/${kart1.konuId}/cards`, kart1.id);
-            const kart2Ref = doc(db, `miniCards-konular/${kart2.konuId}/cards`, kart2.id);
-
-            const batch = writeBatch(db);
-            
-            // Kartların numaralarını takas et
-            batch.update(kart1Ref, { 
-                kartNo: kart2.kartNo,
-                updatedAt: serverTimestamp()
-            });
-            batch.update(kart2Ref, { 
-                kartNo: kart1.kartNo,
-                updatedAt: serverTimestamp()
-            });
-
-            await batch.commit();
-            toast.success(`${kart1.kartNo} ve ${kart2.kartNo} numaralı kartlar takaslandı!`);
-        } catch (error) {
-            console.error('Kart takas işleminde hata:', error);
-            toast.error('Kartlar takaslanırken bir hata oluştu!');
-        } finally {
-            setSeciliTakasKart(null);
+        if (!cards || cards.length < 2) {
+            toast.error('Takas için en az 2 kart olmalıdır');
+            return;
         }
+        setIsKartTakasModalOpen(true);
     };
 
     return (
@@ -409,17 +380,6 @@ function NotesPage() {
                                                         </h3>
                                                     </div>
                                                     <div className="flex space-x-2">
-                                                        <button
-                                                            onClick={() => handleKartTakasSecim(card)}
-                                                            className={`text-yellow-600 hover:text-yellow-800 dark:text-yellow-400 dark:hover:text-yellow-300 ${
-                                                                seciliTakasKart?.id === card.id ? 'ring-2 ring-yellow-500 rounded-full' : ''
-                                                            }`}
-                                                            title="Kart sırasını değiştir"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                                                            </svg>
-                                                        </button>
                                                         <button
                                                             onClick={() => handleEdit(card, selectedKonu)}
                                                             className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
@@ -626,6 +586,13 @@ function NotesPage() {
                             konuId={selectedKonu}
                         />
                     )}
+
+                    <KartTakasModal
+                        isOpen={isKartTakasModalOpen}
+                        onClose={() => setIsKartTakasModalOpen(false)}
+                        kartlar={cards}
+                        onKartTakas={() => fetchCards(selectedKonu)}
+                    />
                 </div>
             </div>
         </Layout>
