@@ -134,7 +134,7 @@ function NotesPage() {
 
     const handleBulkDelete = async () => {
         if (!selectedKonuForDelete) {
-            toast.error("Lütfen bir konu seçin!");
+            toast.error("Lütfen bir konu seçin!!!");
             return;
         }
 
