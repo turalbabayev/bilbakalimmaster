@@ -99,7 +99,6 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                 // Kartı güncelle
                 batch.update(cardRef, {
                     content: formData.content,
-                    explanation: formData.explanation,
                     kartNo,
                     updatedAt: serverTimestamp()
                 });
@@ -109,7 +108,6 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                 // Sadece içeriği güncelle
                 await updateDoc(cardRef, {
                     content: formData.content,
-                    explanation: formData.explanation,
                     updatedAt: serverTimestamp()
                 });
             }
