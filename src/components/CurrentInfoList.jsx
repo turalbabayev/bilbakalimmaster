@@ -1,6 +1,6 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { db } from "../firebase";
-import { collection, query, orderBy, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { collection, query, orderBy, getDocs, deleteDoc, doc, writeBatch, serverTimestamp, getDoc, where } from "firebase/firestore";
 import { toast } from 'react-hot-toast';
 import EditCurrentInfo from "./EditCurrentInfo";
 
@@ -10,10 +10,11 @@ const CurrentInfoList = forwardRef((props, ref) => {
     const [isDeleting, setIsDeleting] = useState(false);
     const [selectedBilgi, setSelectedBilgi] = useState(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [seciliTakasBilgi, setSeciliTakasBilgi] = useState(null);
 
     const fetchGuncelBilgiler = async () => {
         try {
-            const q = query(collection(db, "guncelBilgiler"), orderBy("tarih", "desc"));
+            const q = query(collection(db, "guncelBilgiler"), orderBy("bilgiNo", "asc"));
             const querySnapshot = await getDocs(q);
             
             const bilgiler = querySnapshot.docs.map(doc => ({
@@ -42,7 +43,30 @@ const CurrentInfoList = forwardRef((props, ref) => {
 
         setIsDeleting(true);
         try {
-            await deleteDoc(doc(db, "guncelBilgiler", id));
+            const bilgiRef = doc(db, "guncelBilgiler", id);
+            const bilgiDoc = await getDoc(bilgiRef);
+            const silinenBilgiNo = bilgiDoc.data().bilgiNo;
+
+            // Bilgiyi sil
+            await deleteDoc(bilgiRef);
+
+            // Diğer bilgilerin numaralarını güncelle
+            const guncelBilgilerRef = collection(db, "guncelBilgiler");
+            const q = query(guncelBilgilerRef, 
+                where("bilgiNo", ">", silinenBilgiNo),
+                orderBy("bilgiNo")
+            );
+            const snapshot = await getDocs(q);
+
+            const batch = writeBatch(db);
+            snapshot.docs.forEach(doc => {
+                batch.update(doc.ref, {
+                    bilgiNo: doc.data().bilgiNo - 1,
+                    updatedAt: serverTimestamp()
+                });
+            });
+            await batch.commit();
+
             toast.success("Güncel bilgi başarıyla silindi!");
             fetchGuncelBilgiler();
         } catch (error) {
@@ -56,6 +80,49 @@ const CurrentInfoList = forwardRef((props, ref) => {
     const handleEdit = (bilgi) => {
         setSelectedBilgi(bilgi);
         setIsEditModalOpen(true);
+    };
+
+    const handleBilgiTakasSecim = (bilgi) => {
+        if (seciliTakasBilgi === null) {
+            setSeciliTakasBilgi(bilgi);
+            toast.success(`${bilgi.bilgiNo} numaralı bilgi takas için seçildi. Şimdi takas edilecek diğer bilgiyi seçin.`);
+        } else {
+            if (seciliTakasBilgi.id === bilgi.id) {
+                setSeciliTakasBilgi(null);
+                toast.error('Takas işlemi iptal edildi.');
+                return;
+            }
+
+            handleBilgiTakas(seciliTakasBilgi, bilgi);
+        }
+    };
+
+    const handleBilgiTakas = async (bilgi1, bilgi2) => {
+        try {
+            const bilgi1Ref = doc(db, "guncelBilgiler", bilgi1.id);
+            const bilgi2Ref = doc(db, "guncelBilgiler", bilgi2.id);
+
+            const batch = writeBatch(db);
+            
+            // Bilgilerin numaralarını takas et
+            batch.update(bilgi1Ref, { 
+                bilgiNo: bilgi2.bilgiNo,
+                updatedAt: serverTimestamp()
+            });
+            batch.update(bilgi2Ref, { 
+                bilgiNo: bilgi1.bilgiNo,
+                updatedAt: serverTimestamp()
+            });
+
+            await batch.commit();
+            toast.success(`${bilgi1.bilgiNo} ve ${bilgi2.bilgiNo} numaralı bilgiler takaslandı!`);
+            fetchGuncelBilgiler();
+        } catch (error) {
+            console.error('Bilgi takas işleminde hata:', error);
+            toast.error('Bilgiler takaslanırken bir hata oluştu!');
+        } finally {
+            setSeciliTakasBilgi(null);
+        }
     };
 
     useEffect(() => {
@@ -94,13 +161,29 @@ const CurrentInfoList = forwardRef((props, ref) => {
                             )}
                             <div className="p-6">
                                 <div className="flex justify-between items-start gap-4">
-                                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                                        {bilgi.baslik}
-                                    </h3>
+                                    <div>
+                                        <span className="text-sm text-gray-500 dark:text-gray-400 mb-2 block">
+                                            Bilgi No: {bilgi.bilgiNo}
+                                        </span>
+                                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                                            {bilgi.baslik}
+                                        </h3>
+                                    </div>
                                     <div className="flex space-x-2">
                                         <button
+                                            onClick={() => handleBilgiTakasSecim(bilgi)}
+                                            className={`text-yellow-600 hover:text-yellow-800 dark:text-yellow-400 dark:hover:text-yellow-300 ${
+                                                seciliTakasBilgi?.id === bilgi.id ? 'ring-2 ring-yellow-500 rounded-full' : ''
+                                            }`}
+                                            title="Bilgi sırasını değiştir"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                                            </svg>
+                                        </button>
+                                        <button
                                             onClick={() => handleEdit(bilgi)}
-                                            className="p-2 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
+                                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -109,7 +192,7 @@ const CurrentInfoList = forwardRef((props, ref) => {
                                         <button
                                             onClick={() => handleDelete(bilgi.id)}
                                             disabled={isDeleting}
-                                            className={`p-2 ${
+                                            className={`${
                                                 isDeleting === bilgi.id
                                                     ? 'text-gray-400'
                                                     : 'text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300'
