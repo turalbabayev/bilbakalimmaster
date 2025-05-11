@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit, where, writeBatch, getDocs } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -17,6 +17,10 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
         resimPreview: null
     });
     const [loading, setLoading] = useState(false);
+    const [content, setContent] = useState(card?.content || '');
+    const [explanation, setExplanation] = useState(card?.explanation || '');
+    const [kartNo, setKartNo] = useState(card?.kartNo || 1);
+    const [maxKartNo, setMaxKartNo] = useState(1);
 
     useEffect(() => {
         if (card) {
@@ -31,51 +35,93 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
         }
     }, [card]);
 
+    useEffect(() => {
+        if (card?.konuId) {
+            // Seçili konudaki en yüksek kart numarasını bul
+            const konuRef = doc(db, "miniCards-konular", card.konuId);
+            const cardsRef = collection(konuRef, "cards");
+            const q = query(cardsRef, orderBy("kartNo", "desc"), limit(1));
+            
+            getDocs(q).then((snapshot) => {
+                if (!snapshot.empty) {
+                    const highestKartNo = snapshot.docs[0].data().kartNo;
+                    setMaxKartNo(highestKartNo);
+                }
+            });
+        }
+    }, [card?.konuId]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!content.trim() || !explanation.trim()) {
+            toast.error('Lütfen tüm alanları doldurun!');
+            return;
+        }
+
         setLoading(true);
-
         try {
-            let imageBase64 = formData.resimPreview;
-            let resimTuru = formData.resimTuru;
+            const konuRef = doc(db, "miniCards-konular", card.konuId);
+            const cardsRef = collection(konuRef, "cards");
+            const cardRef = doc(cardsRef, card.id);
 
-            // Eğer yeni bir resim seçildiyse
-            if (formData.resim instanceof File) {
-                // Resmi base64'e çevir
-                const reader = new FileReader();
-                imageBase64 = await new Promise((resolve) => {
-                    reader.onloadend = () => {
-                        // data:image/png;base64, gibi önek kısmını kaldır
-                        const fullBase64 = reader.result;
-                        const base64WithoutPrefix = fullBase64.split(',')[1];
-                        resolve(base64WithoutPrefix);
-                    };
-                    reader.readAsDataURL(formData.resim);
+            // Eğer kart numarası değiştiyse, diğer kartları güncelle
+            if (kartNo !== card.kartNo) {
+                const batch = writeBatch(db);
+                
+                if (kartNo > card.kartNo) {
+                    // Yukarı taşınıyorsa, aradaki kartları bir aşağı kaydır
+                    const q = query(cardsRef, 
+                        where("kartNo", ">", card.kartNo),
+                        where("kartNo", "<=", kartNo),
+                        orderBy("kartNo")
+                    );
+                    const snapshot = await getDocs(q);
+                    snapshot.docs.forEach(doc => {
+                        batch.update(doc.ref, {
+                            kartNo: doc.data().kartNo - 1,
+                            updatedAt: serverTimestamp()
+                        });
+                    });
+                } else {
+                    // Aşağı taşınıyorsa, aradaki kartları bir yukarı kaydır
+                    const q = query(cardsRef,
+                        where("kartNo", ">=", kartNo),
+                        where("kartNo", "<", card.kartNo),
+                        orderBy("kartNo")
+                    );
+                    const snapshot = await getDocs(q);
+                    snapshot.docs.forEach(doc => {
+                        batch.update(doc.ref, {
+                            kartNo: doc.data().kartNo + 1,
+                            updatedAt: serverTimestamp()
+                        });
+                    });
+                }
+
+                // Kartı güncelle
+                batch.update(cardRef, {
+                    content,
+                    explanation,
+                    kartNo,
+                    updatedAt: serverTimestamp()
                 });
-                resimTuru = formData.resim.type;
+
+                await batch.commit();
+            } else {
+                // Sadece içeriği güncelle
+                await updateDoc(cardRef, {
+                    content,
+                    explanation,
+                    updatedAt: serverTimestamp()
+                });
             }
 
-            const cardRef = doc(db, 'miniCards-konular', formData.selectedKonu, 'cards', card.id);
-            const updatedData = {
-                konuId: formData.selectedKonu,
-                altKonu: formData.altKonu,
-                content: formData.content,
-                updatedAt: serverTimestamp(),
-            };
-
-            // Eğer resim varsa veya yeni resim yüklendiyse
-            if (imageBase64) {
-                updatedData.resim = imageBase64;
-                updatedData.resimTuru = resimTuru;
-            }
-
-            await updateDoc(cardRef, updatedData);
-            toast.success('Akıl kartı başarıyla güncellendi!');
+            toast.success('Kart başarıyla güncellendi!');
             onSuccess();
             onClose();
         } catch (error) {
-            console.error('Error updating mind card:', error);
-            toast.error('Akıl kartı güncellenirken bir hata oluştu.');
+            console.error('Kart güncellenirken hata:', error);
+            toast.error('Kart güncellenirken bir hata oluştu!');
         } finally {
             setLoading(false);
         }
@@ -184,13 +230,19 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                                         Kart No
                                     </label>
-                                    <input
-                                        type="text"
-                                        name="kartNo"
-                                        value={formData.kartNo || ''}
-                                        disabled
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                    />
+                                    <div className="flex items-center space-x-2">
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max={maxKartNo}
+                                            value={kartNo}
+                                            onChange={(e) => setKartNo(parseInt(e.target.value))}
+                                            className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                                            (Maksimum: {maxKartNo})
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                             
