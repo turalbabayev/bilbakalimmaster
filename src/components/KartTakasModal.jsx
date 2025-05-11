@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { doc, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase/firebase.config';
+import { db } from '../firebase';
 import { toast } from 'react-hot-toast';
 
 const KartItem = ({ kart, index, moveKart }) => {
