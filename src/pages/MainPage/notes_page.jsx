@@ -632,14 +632,18 @@ function NotesPage() {
                         onClose={() => setIsAddModalOpen(false)}
                         topics={topics}
                         selectedKonu={selectedKonu}
+                        onSuccess={refreshCards}
                     />
                     {isEditModalOpen && (
                         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[60]">
                             <EditMindCardModal
                                 isOpen={isEditModalOpen}
-                                onClose={() => setIsEditModalOpen(false)}
+                                onClose={() => {
+                                    setIsEditModalOpen(false);
+                                    setSelectedCard(null);
+                                }}
                                 card={selectedCard}
-                                onSuccess={handleEditSuccess}
+                                onSuccess={refreshCards}
                             />
                         </div>
                     )}
@@ -647,9 +651,7 @@ function NotesPage() {
                         isOpen={isAddModalOpen && activeTab === 'currentInfo'}
                         onClose={() => setIsAddModalOpen(false)}
                         onSuccess={() => {
-                            if (currentInfoListRef.current) {
-                                currentInfoListRef.current.refreshList();
-                            }
+                            currentInfoListRef.current?.fetchGuncelBilgiler();
                         }}
                     />
                     <AddTopicModal
@@ -762,6 +764,11 @@ function NotesPage() {
                                 refreshCards();
                             }}
                             konuId={selectedKonu}
+                            selectedKonuForDelete={selectedKonuForDelete}
+                            setSelectedKonuForDelete={setSelectedKonuForDelete}
+                            topics={topics}
+                            isDeletingAll={isDeletingAll}
+                            handleBulkDelete={handleBulkDelete}
                         />
                     )}
                 </div>
