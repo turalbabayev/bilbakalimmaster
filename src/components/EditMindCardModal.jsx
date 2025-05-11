@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { db } from "../firebase";
 import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit, where, writeBatch, getDocs } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -22,19 +22,14 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
     const [maxKartNo, setMaxKartNo] = useState(1);
 
     const quillModules = {
-        toolbar: {
-            container: [
-                [{ 'header': [1, 2, 3, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ 'color': [] }, { 'background': [] }],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                ['link', 'image'],
-                ['clean']
-            ],
-            handlers: {
-                image: imageHandler
-            }
-        }
+        toolbar: [
+            [{ 'header': [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'color': [] }, { 'background': [] }],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            ['link', 'image'],
+            ['clean']
+        ]
     };
 
     const quillFormats = [
@@ -44,42 +39,6 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
         'list', 'bullet',
         'link', 'image'
     ];
-
-    async function imageHandler() {
-        const input = document.createElement('input');
-        input.setAttribute('type', 'file');
-        input.setAttribute('accept', 'image/*');
-        input.click();
-
-        input.onchange = async () => {
-            const file = input.files[0];
-            if (file) {
-                try {
-                    const storage = getStorage();
-                    const timestamp = Date.now();
-                    const storageRef = ref(storage, `quill-images/${card.konuId}/${timestamp}-${file.name}`);
-                    
-                    // Resmi yükle
-                    await uploadBytes(storageRef, file);
-                    
-                    // Resmin URL'ini al
-                    const url = await getDownloadURL(storageRef);
-                    
-                    // Editöre resmi ekle
-                    const quill = document.querySelector('.ql-editor');
-                    const range = document.getSelection().getRangeAt(0);
-                    const img = document.createElement('img');
-                    img.src = url;
-                    range.insertNode(img);
-                    
-                    toast.success('Resim başarıyla yüklendi!');
-                } catch (error) {
-                    console.error('Resim yüklenirken hata:', error);
-                    toast.error('Resim yüklenirken bir hata oluştu!');
-                }
-            }
-        };
-    }
 
     useEffect(() => {
         if (card) {
