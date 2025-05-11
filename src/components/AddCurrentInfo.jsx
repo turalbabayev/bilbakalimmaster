@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { db } from "../firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs } from "firebase/firestore";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { toast } from 'react-hot-toast';
@@ -94,12 +94,19 @@ const AddCurrentInfo = ({ isOpen, onClose, onSuccess }) => {
                 });
             }
 
+            // En yüksek bilgiNo'yu bul
+            const guncelBilgilerRef = collection(db, "guncelBilgiler");
+            const q = query(guncelBilgilerRef, orderBy("bilgiNo", "desc"), limit(1));
+            const snapshot = await getDocs(q);
+            const yeniBilgiNo = snapshot.empty ? 1 : snapshot.docs[0].data().bilgiNo + 1;
+
             // Firestore'a ekle
-            const docRef = await addDoc(collection(db, "guncelBilgiler"), {
+            await addDoc(collection(db, "guncelBilgiler"), {
                 baslik: formData.baslik,
                 icerik: formData.icerik,
                 resim: imageBase64,
                 tarih: serverTimestamp(),
+                bilgiNo: yeniBilgiNo,
                 liked: 0,
                 unliked: 0,
                 report: 0

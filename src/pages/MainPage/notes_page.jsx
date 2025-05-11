@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Layout from "../../components/layout";
 import { db } from "../../firebase";
-import { collection, getDocs, query, orderBy, deleteDoc, doc, onSnapshot, writeBatch, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, deleteDoc, doc, onSnapshot, writeBatch, updateDoc, serverTimestamp, getDoc, where } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import AddMindCardModal from "../../components/AddMindCardModal";
 import EditMindCardModal from "../../components/EditMindCardModal";
@@ -33,6 +33,7 @@ function NotesPage() {
     const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false);
     const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
     const [seciliTakasKart, setSeciliTakasKart] = useState(null);
+    const [guncelBilgiler, setGuncelBilgiler] = useState([]);
 
     useEffect(() => {
         const unsubscribers = [];
@@ -260,6 +261,143 @@ function NotesPage() {
             toast.error('Kartlar takaslanırken bir hata oluştu!');
         } finally {
             setSeciliTakasKart(null);
+        }
+    };
+
+    const guncelBilgileriTasi = async () => {
+        try {
+            // Eski koleksiyondan tüm güncel bilgileri al
+            const guncelBilgilerRef = collection(db, "guncelBilgiler");
+            const q = query(guncelBilgilerRef, orderBy("tarih", "desc"));
+            const snapshot = await getDocs(q);
+            
+            // Batch işlemi başlat
+            const batch = writeBatch(db);
+            let bilgiNo = 1;
+            
+            snapshot.docs.forEach((doc) => {
+                const data = doc.data();
+                batch.update(doc.ref, {
+                    ...data,
+                    bilgiNo,
+                    updatedAt: serverTimestamp()
+                });
+                bilgiNo++;
+            });
+            
+            await batch.commit();
+            toast.success("Güncel bilgiler başarıyla numaralandırıldı!");
+        } catch (error) {
+            console.error("Güncel bilgiler numaralandırılırken hata:", error);
+            toast.error("Güncel bilgiler numaralandırılırken bir hata oluştu!");
+        }
+    };
+
+    const guncelBilgiSil = async (bilgiId) => {
+        try {
+            const bilgiRef = doc(db, "guncelBilgiler", bilgiId);
+            
+            // Silinecek bilginin numarasını al
+            const bilgiDoc = await getDoc(bilgiRef);
+            const silinenBilgiNo = bilgiDoc.data().bilgiNo;
+
+            // Bilgiyi sil
+            await deleteDoc(bilgiRef);
+
+            // Diğer bilgilerin numaralarını güncelle
+            const guncelBilgilerRef = collection(db, "guncelBilgiler");
+            const q = query(guncelBilgilerRef, 
+                where("bilgiNo", ">", silinenBilgiNo),
+                orderBy("bilgiNo")
+            );
+            const snapshot = await getDocs(q);
+
+            const batch = writeBatch(db);
+            snapshot.docs.forEach(doc => {
+                batch.update(doc.ref, {
+                    bilgiNo: doc.data().bilgiNo - 1,
+                    updatedAt: serverTimestamp()
+                });
+            });
+            await batch.commit();
+
+            toast.success('Güncel bilgi başarıyla silindi!');
+            refreshGuncelBilgiler();
+        } catch (error) {
+            console.error('Güncel bilgi silinirken hata:', error);
+            toast.error('Güncel bilgi silinirken bir hata oluştu!');
+        }
+    };
+
+    const guncelBilgiTasi = async (bilgiId, yeniBilgiNo) => {
+        try {
+            const bilgiRef = doc(db, "guncelBilgiler", bilgiId);
+            
+            // Taşınacak bilginin mevcut numarasını al
+            const bilgiDoc = await getDoc(bilgiRef);
+            const eskiBilgiNo = bilgiDoc.data().bilgiNo;
+
+            const batch = writeBatch(db);
+            const guncelBilgilerRef = collection(db, "guncelBilgiler");
+
+            if (yeniBilgiNo > eskiBilgiNo) {
+                // Yukarı taşınıyorsa, aradaki bilgileri bir aşağı kaydır
+                const q = query(guncelBilgilerRef,
+                    where("bilgiNo", ">", eskiBilgiNo),
+                    where("bilgiNo", "<=", yeniBilgiNo),
+                    orderBy("bilgiNo")
+                );
+                const snapshot = await getDocs(q);
+                snapshot.docs.forEach(doc => {
+                    batch.update(doc.ref, {
+                        bilgiNo: doc.data().bilgiNo - 1,
+                        updatedAt: serverTimestamp()
+                    });
+                });
+            } else {
+                // Aşağı taşınıyorsa, aradaki bilgileri bir yukarı kaydır
+                const q = query(guncelBilgilerRef,
+                    where("bilgiNo", ">=", yeniBilgiNo),
+                    where("bilgiNo", "<", eskiBilgiNo),
+                    orderBy("bilgiNo")
+                );
+                const snapshot = await getDocs(q);
+                snapshot.docs.forEach(doc => {
+                    batch.update(doc.ref, {
+                        bilgiNo: doc.data().bilgiNo + 1,
+                        updatedAt: serverTimestamp()
+                    });
+                });
+            }
+
+            // Bilgiyi güncelle
+            batch.update(bilgiRef, {
+                bilgiNo: yeniBilgiNo,
+                updatedAt: serverTimestamp()
+            });
+
+            await batch.commit();
+            toast.success('Güncel bilgi başarıyla taşındı!');
+            refreshGuncelBilgiler();
+        } catch (error) {
+            console.error('Güncel bilgi taşınırken hata:', error);
+            toast.error('Güncel bilgi taşınırken bir hata oluştu!');
+        }
+    };
+
+    const refreshGuncelBilgiler = async () => {
+        try {
+            const guncelBilgilerRef = collection(db, "guncelBilgiler");
+            const q = query(guncelBilgilerRef, orderBy("bilgiNo", "asc"));
+            const snapshot = await getDocs(q);
+            const bilgiler = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setGuncelBilgiler(bilgiler);
+        } catch (error) {
+            console.error('Güncel bilgiler alınırken hata:', error);
+            toast.error('Güncel bilgiler alınırken bir hata oluştu!');
         }
     };
 
