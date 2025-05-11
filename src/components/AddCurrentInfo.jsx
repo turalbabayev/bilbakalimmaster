@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { db } from "../firebase";
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs } from "firebase/firestore";
 import ReactQuill from 'react-quill';
@@ -13,18 +13,25 @@ const AddCurrentInfo = ({ isOpen, onClose, onSuccess }) => {
         resimPreview: null
     });
     const [isSaving, setIsSaving] = useState(false);
+    const quillRef = useRef();
 
     // Quill editör modülleri
     const modules = {
-        toolbar: [
-            [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-            [{ 'font': [] }],
-            ['bold', 'italic', 'underline', 'strike'],
-            [{ 'color': [] }, { 'background': [] }],
-            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-            [{ 'align': [] }],
-            ['clean']
-        ]
+        toolbar: {
+            container: [
+                [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                [{ 'font': [] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'color': [] }, { 'background': [] }],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                [{ 'align': [] }],
+                ['link', 'image'],
+                ['clean']
+            ],
+            handlers: {
+                image: imageHandler
+            }
+        }
     };
 
     const formats = [
@@ -33,8 +40,33 @@ const AddCurrentInfo = ({ isOpen, onClose, onSuccess }) => {
         'bold', 'italic', 'underline', 'strike',
         'color', 'background',
         'list', 'bullet',
-        'align'
+        'align',
+        'link', 'image'
     ];
+
+    function imageHandler() {
+        const input = document.createElement('input');
+        input.setAttribute('type', 'file');
+        input.setAttribute('accept', 'image/*');
+        input.click();
+
+        input.onchange = async () => {
+            const file = input.files[0];
+            if (file) {
+                try {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const range = quillRef.current.getEditor().getSelection();
+                        quillRef.current.getEditor().insertEmbed(range.index, 'image', e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                } catch (error) {
+                    console.error('Resim yüklenirken hata:', error);
+                    toast.error('Resim yüklenirken bir hata oluştu!');
+                }
+            }
+        };
+    }
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
@@ -144,72 +176,71 @@ const AddCurrentInfo = ({ isOpen, onClose, onSuccess }) => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-                    <div className="p-8 overflow-y-auto flex-1">
-                        <div className="space-y-8">
-                            <div>
-                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
-                                    Başlık
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.baslik}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, baslik: e.target.value }))}
-                                    placeholder="Başlık girin"
-                                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    <div className="p-8 overflow-y-auto flex-1 space-y-6">
+                        <div>
+                            <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                Başlık
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.baslik}
+                                onChange={(e) => setFormData(prev => ({ ...prev, baslik: e.target.value }))}
+                                placeholder="Başlık girin"
+                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                İçerik
+                            </label>
+                            <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
+                                <ReactQuill
+                                    ref={quillRef}
+                                    theme="snow"
+                                    value={formData.icerik}
+                                    onChange={(value) => setFormData(prev => ({ ...prev, icerik: value }))}
+                                    modules={modules}
+                                    formats={formats}
+                                    className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                    style={{ height: '200px' }}
                                 />
                             </div>
+                        </div>
 
-                            <div>
-                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
-                                    İçerik
-                                </label>
-                                <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                    <ReactQuill
-                                        theme="snow"
-                                        value={formData.icerik}
-                                        onChange={(value) => setFormData(prev => ({ ...prev, icerik: value }))}
-                                        modules={modules}
-                                        formats={formats}
-                                        className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                                        style={{ height: '200px' }}
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
-                                    Resim (Opsiyonel)
-                                </label>
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className="relative flex-1">
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={handleImageChange}
-                                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40"
-                                            />
-                                        </div>
-                                        {formData.resimPreview && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setFormData(prev => ({ ...prev, image: null, resimPreview: null }))}
-                                                className="px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all duration-200 font-medium"
-                                            >
-                                                Resmi Sil
-                                            </button>
-                                        )}
+                        <div>
+                            <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                Resim (Opsiyonel)
+                            </label>
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="relative flex-1">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleImageChange}
+                                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40"
+                                        />
                                     </div>
                                     {formData.resimPreview && (
-                                        <div className="mt-4 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                            <img
-                                                src={formData.resimPreview}
-                                                alt="Önizleme"
-                                                className="w-full h-auto"
-                                            />
-                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({ ...prev, image: null, resimPreview: null }))}
+                                            className="px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all duration-200 font-medium"
+                                        >
+                                            Resmi Sil
+                                        </button>
                                     )}
                                 </div>
+                                {formData.resimPreview && (
+                                    <div className="mt-4 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
+                                        <img
+                                            src={formData.resimPreview}
+                                            alt="Önizleme"
+                                            className="w-full h-auto"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

@@ -398,25 +398,6 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                                     )}
                                 </div>
                                 
-                                <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Kart Numarası
-                                    </label>
-                                    <div className="flex items-center space-x-2">
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max={maxKartNo}
-                                            value={kartNo}
-                                            onChange={(e) => setKartNo(parseInt(e.target.value))}
-                                            className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                        />
-                                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                                            (Maksimum: {maxKartNo})
-                                        </span>
-                                    </div>
-                                </div>
-                                
                                 <div className="flex justify-end space-x-3 mt-6">
                                     <button
                                         type="button"

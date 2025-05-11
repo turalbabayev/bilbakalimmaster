@@ -11,7 +11,6 @@ const CurrentInfoList = forwardRef((props, ref) => {
     const [selectedBilgi, setSelectedBilgi] = useState(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [seciliTakasBilgi, setSeciliTakasBilgi] = useState(null);
-    const [hedefBilgiNo, setHedefBilgiNo] = useState(null);
 
     const fetchGuncelBilgiler = async () => {
         try {
@@ -44,6 +43,31 @@ const CurrentInfoList = forwardRef((props, ref) => {
         fetchGuncelBilgiler
     }));
 
+    const yenidenNumaralandir = async () => {
+        try {
+            const guncelBilgilerRef = collection(db, "guncelBilgiler");
+            const q = query(guncelBilgilerRef, orderBy("bilgiNo", "asc"));
+            const snapshot = await getDocs(q);
+
+            const batch = writeBatch(db);
+            let yeniBilgiNo = 1;
+
+            snapshot.docs.forEach(doc => {
+                batch.update(doc.ref, {
+                    bilgiNo: yeniBilgiNo,
+                    updatedAt: serverTimestamp()
+                });
+                yeniBilgiNo++;
+            });
+
+            await batch.commit();
+            await fetchGuncelBilgiler();
+        } catch (error) {
+            console.error("Bilgiler yeniden numaralandırılırken hata:", error);
+            toast.error("Bilgiler yeniden numaralandırılırken bir hata oluştu!");
+        }
+    };
+
     const handleDelete = async (id) => {
         if (!window.confirm("Bu güncel bilgiyi silmek istediğinize emin misiniz?")) {
             return;
@@ -52,31 +76,9 @@ const CurrentInfoList = forwardRef((props, ref) => {
         setIsDeleting(true);
         try {
             const bilgiRef = doc(db, "guncelBilgiler", id);
-            const bilgiDoc = await getDoc(bilgiRef);
-            const silinenBilgiNo = bilgiDoc.data().bilgiNo;
-
-            // Bilgiyi sil
             await deleteDoc(bilgiRef);
-
-            // Diğer bilgilerin numaralarını güncelle
-            const guncelBilgilerRef = collection(db, "guncelBilgiler");
-            const q = query(guncelBilgilerRef, 
-                where("bilgiNo", ">", silinenBilgiNo),
-                orderBy("bilgiNo")
-            );
-            const snapshot = await getDocs(q);
-
-            const batch = writeBatch(db);
-            snapshot.docs.forEach(doc => {
-                batch.update(doc.ref, {
-                    bilgiNo: doc.data().bilgiNo - 1,
-                    updatedAt: serverTimestamp()
-                });
-            });
-            await batch.commit();
-
+            await yenidenNumaralandir();
             toast.success("Güncel bilgi başarıyla silindi!");
-            fetchGuncelBilgiler();
         } catch (error) {
             console.error("Güncel bilgi silinirken hata:", error);
             toast.error("Güncel bilgi silinirken bir hata oluştu!");
@@ -85,9 +87,24 @@ const CurrentInfoList = forwardRef((props, ref) => {
         }
     };
 
-    const handleEdit = (bilgi) => {
-        setSelectedBilgi(bilgi);
-        setIsEditModalOpen(true);
+    const handleEdit = async (bilgi) => {
+        try {
+            const bilgiRef = doc(db, "guncelBilgiler", bilgi.id);
+            const bilgiDoc = await getDoc(bilgiRef);
+            
+            if (bilgiDoc.exists()) {
+                const guncelBilgi = {
+                    id: bilgiDoc.id,
+                    ...bilgiDoc.data(),
+                    tarih: bilgiDoc.data().tarih?.toDate()
+                };
+                setSelectedBilgi(guncelBilgi);
+                setIsEditModalOpen(true);
+            }
+        } catch (error) {
+            console.error("Bilgi getirilirken hata:", error);
+            toast.error("Bilgi getirilirken bir hata oluştu!");
+        }
     };
 
     const handleTakasClick = (bilgi) => {
@@ -97,49 +114,6 @@ const CurrentInfoList = forwardRef((props, ref) => {
         } else {
             handleTakas(seciliTakasBilgi, bilgi);
             setSeciliTakasBilgi(null);
-        }
-    };
-
-    const handleArayaSikistir = async (bilgi) => {
-        if (hedefBilgiNo === null) {
-            setHedefBilgiNo(bilgi.bilgiNo);
-            toast.success("Şimdi sıkıştırmak istediğiniz bilgiyi seçin");
-            return;
-        }
-
-        try {
-            const batch = writeBatch(db);
-            const guncelBilgilerRef = collection(db, "guncelBilgiler");
-
-            // Hedef bilgi numarasından büyük olan tüm bilgilerin numaralarını bir artır
-            const q = query(guncelBilgilerRef, 
-                where("bilgiNo", ">=", hedefBilgiNo),
-                orderBy("bilgiNo", "desc")
-            );
-            const snapshot = await getDocs(q);
-
-            snapshot.docs.forEach(doc => {
-                batch.update(doc.ref, {
-                    bilgiNo: doc.data().bilgiNo + 1,
-                    updatedAt: serverTimestamp()
-                });
-            });
-
-            // Seçili bilginin numarasını hedef numaraya güncelle
-            const seciliBilgiRef = doc(db, "guncelBilgiler", bilgi.id);
-            batch.update(seciliBilgiRef, {
-                bilgiNo: hedefBilgiNo,
-                updatedAt: serverTimestamp()
-            });
-
-            await batch.commit();
-            toast.success("Bilgi başarıyla araya sıkıştırıldı!");
-            fetchGuncelBilgiler();
-        } catch (error) {
-            console.error("Bilgi sıkıştırılırken hata:", error);
-            toast.error("Bilgi sıkıştırılırken bir hata oluştu!");
-        } finally {
-            setHedefBilgiNo(null);
         }
     };
 
@@ -161,8 +135,8 @@ const CurrentInfoList = forwardRef((props, ref) => {
             });
             
             await batch.commit();
+            await yenidenNumaralandir();
             toast.success("Bilgiler başarıyla takas edildi!");
-            fetchGuncelBilgiler();
         } catch (error) {
             console.error("Bilgiler takas edilirken hata:", error);
             toast.error("Bilgiler takas edilirken bir hata oluştu!");
@@ -190,7 +164,7 @@ const CurrentInfoList = forwardRef((props, ref) => {
                             key={bilgi.id}
                             className={`bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 ${
                                 seciliTakasBilgi?.id === bilgi.id ? 'ring-2 ring-blue-500' : ''
-                            } ${hedefBilgiNo === bilgi.bilgiNo ? 'ring-2 ring-green-500' : ''}`}
+                            }`}
                         >
                             {bilgi.resim && (
                                 <div className="relative h-48 overflow-hidden">
@@ -240,17 +214,6 @@ const CurrentInfoList = forwardRef((props, ref) => {
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                                 <path fillRule="evenodd" d="M8 7a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zM8 11a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zM8 15a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" />
-                                            </svg>
-                                        </button>
-                                        <button
-                                            onClick={() => handleArayaSikistir(bilgi)}
-                                            className={`text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 ${
-                                                hedefBilgiNo === bilgi.bilgiNo ? 'ring-2 ring-green-500 rounded' : ''
-                                            }`}
-                                            disabled={isDeleting}
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fillRule="evenodd" d="M10 3a1 1 0 00-1 1v5H4a1 1 0 100 2h5v5a1 1 0 102 0v-5h5a1 1 0 100-2h-5V4a1 1 0 00-1-1z" clipRule="evenodd" />
                                             </svg>
                                         </button>
                                     </div>

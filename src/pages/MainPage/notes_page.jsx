@@ -12,6 +12,9 @@ import AddTopicModal from "../../components/AddTopicModal";
 import BulkMindCardVerification from "../../components/BulkMindCardVerification";
 import BulkDownloadMindCards from "../../components/BulkDownloadMindCards";
 import BulkDeleteMindCards from "../../components/BulkDeleteMindCards";
+import BulkColorMindCards from "../../components/BulkColorMindCards";
+import AddMotivationNote from "../../components/AddMotivationNote";
+import MotivationNotesList from "../../components/MotivationNotesList";
 
 function NotesPage() {
     const [cards, setCards] = useState([]);
@@ -34,6 +37,8 @@ function NotesPage() {
     const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
     const [seciliTakasKart, setSeciliTakasKart] = useState(null);
     const [guncelBilgiler, setGuncelBilgiler] = useState([]);
+    const [isBulkColorModalOpen, setIsBulkColorModalOpen] = useState(false);
+    const motivationNotesListRef = useRef(null);
 
     useEffect(() => {
         const unsubscribers = [];
@@ -430,6 +435,16 @@ function NotesPage() {
                             >
                                 Güncel Bilgiler
                             </button>
+                            <button
+                                onClick={() => setActiveTab('motivationNotes')}
+                                className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
+                                    activeTab === 'motivationNotes'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                }`}
+                            >
+                                Motivasyon Notları
+                            </button>
                         </div>
                         <div className="flex space-x-4">
                             {activeTab === 'mindCards' ? (
@@ -459,7 +474,7 @@ function NotesPage() {
                                         Toplu Sil
                                     </button>
                                 </>
-                            ) : (
+                            ) : activeTab === 'currentInfo' ? (
                                 <button
                                     onClick={() => setIsAddModalOpen(true)}
                                     className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center"
@@ -468,6 +483,16 @@ function NotesPage() {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                                     </svg>
                                     Yeni Güncel Bilgi Ekle
+                                </button>
+                            ) : activeTab === 'motivationNotes' && (
+                                <button
+                                    onClick={() => setIsAddModalOpen(true)}
+                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center"
+                                >
+                                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Yeni Motivasyon Notu Ekle
                                 </button>
                             )}
                         </div>
@@ -493,6 +518,15 @@ function NotesPage() {
                                     <h2 className="text-2xl font-semibold text-gray-800 dark:text-white ml-4">
                                         {topics.find(t => t.id === selectedKonu)?.baslik}
                                     </h2>
+                                    <button
+                                        onClick={() => setIsBulkColorModalOpen(true)}
+                                        className="ml-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z" clipRule="evenodd" />
+                                        </svg>
+                                        Toplu Renk
+                                    </button>
                                     <button
                                         onClick={() => setIsBulkVerificationOpen(true)}
                                         className="ml-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center"
@@ -542,9 +576,11 @@ function NotesPage() {
                                                         <span className="text-sm text-gray-500 dark:text-gray-400 mb-2 block">
                                                             Kart No: {card.kartNo}
                                                         </span>
-                                                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                                                            {card.altKonu}
-                                                        </h3>
+                                                        <h3 
+                                                            className="text-xl font-semibold text-gray-900 dark:text-white"
+                                                            style={{ color: card.titleColor || 'inherit' }}
+                                                            dangerouslySetInnerHTML={{ __html: card.altKonu }}
+                                                        />
                                                     </div>
                                                     <div className="flex space-x-2">
                                                         <button
@@ -583,6 +619,7 @@ function NotesPage() {
                                                 </div>
                                                 <div
                                                     className="prose dark:prose-invert max-w-none"
+                                                    style={{ color: card.contentColor || 'inherit' }}
                                                     dangerouslySetInnerHTML={{ __html: card.content }}
                                                 />
                                             </div>
@@ -626,6 +663,13 @@ function NotesPage() {
                         <CurrentInfoList ref={currentInfoListRef} />
                     )}
 
+                    {activeTab === 'motivationNotes' && (
+                        <MotivationNotesList
+                            ref={motivationNotesListRef}
+                            onAddClick={() => setIsAddModalOpen(true)}
+                        />
+                    )}
+
                     {/* Modallar */}
                     <AddMindCardModal
                         isOpen={isAddModalOpen && activeTab === 'mindCards'}
@@ -657,6 +701,13 @@ function NotesPage() {
                     <AddTopicModal
                         isOpen={isAddTopicModalOpen}
                         onClose={() => setIsAddTopicModalOpen(false)}
+                    />
+                    <AddMotivationNote
+                        isOpen={isAddModalOpen && activeTab === 'motivationNotes'}
+                        onClose={() => setIsAddModalOpen(false)}
+                        onSuccess={() => {
+                            motivationNotesListRef.current?.refreshNotes();
+                        }}
                     />
 
                     {/* Toplu Silme Modalı */}
@@ -771,6 +822,14 @@ function NotesPage() {
                             handleBulkDelete={handleBulkDelete}
                         />
                     )}
+
+                    <BulkColorMindCards
+                        isOpen={isBulkColorModalOpen}
+                        onClose={() => setIsBulkColorModalOpen(false)}
+                        cards={cards.filter(card => card.konuId === selectedKonu)}
+                        selectedKonu={selectedKonu}
+                        onSuccess={refreshCards}
+                    />
                 </div>
             </div>
         </Layout>

@@ -15,7 +15,9 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
         content: '',
         resim: null,
         resimTuru: '',
-        resimPreview: null
+        resimPreview: null,
+        titleColor: '',
+        contentColor: ''
     });
     const [loading, setLoading] = useState(false);
     const [kartNo, setKartNo] = useState(card?.kartNo || 1);
@@ -48,7 +50,9 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                 content: card.content || '',
                 resim: null,
                 resimTuru: card.resimTuru || '',
-                resimPreview: card.resim || null
+                resimPreview: card.resim || null,
+                titleColor: card.titleColor || '',
+                contentColor: card.contentColor || ''
             });
         }
     }, [card]);
@@ -71,73 +75,41 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!formData.content.trim() || !formData.selectedKonu || !formData.altKonu) {
-            toast.error('Lütfen gerekli alanları doldurun!');
+        if (!formData.altKonu.trim() || !formData.content.trim()) {
+            toast.error("Lütfen tüm alanları doldurun!");
             return;
         }
 
         setLoading(true);
         try {
-            const konuRef = doc(db, "miniCards-konular", card.konuId);
-            const cardsRef = collection(konuRef, "cards");
-            const cardRef = doc(cardsRef, card.id);
-
-            // Eğer kart numarası değiştiyse, diğer kartları güncelle
-            if (kartNo !== card.kartNo) {
-                const batch = writeBatch(db);
-                
-                if (kartNo > card.kartNo) {
-                    // Yukarı taşınıyorsa, aradaki kartları bir aşağı kaydır
-                    const q = query(cardsRef, 
-                        where("kartNo", ">", card.kartNo),
-                        where("kartNo", "<=", kartNo),
-                        orderBy("kartNo")
-                    );
-                    const snapshot = await getDocs(q);
-                    snapshot.docs.forEach(doc => {
-                        batch.update(doc.ref, {
-                            kartNo: doc.data().kartNo - 1,
-                            updatedAt: serverTimestamp()
-                        });
-                    });
-                } else {
-                    // Aşağı taşınıyorsa, aradaki kartları bir yukarı kaydır
-                    const q = query(cardsRef,
-                        where("kartNo", ">=", kartNo),
-                        where("kartNo", "<", card.kartNo),
-                        orderBy("kartNo")
-                    );
-                    const snapshot = await getDocs(q);
-                    snapshot.docs.forEach(doc => {
-                        batch.update(doc.ref, {
-                            kartNo: doc.data().kartNo + 1,
-                            updatedAt: serverTimestamp()
-                        });
-                    });
-                }
-
-                // Kartı güncelle
-                batch.update(cardRef, {
-                    content: formData.content,
-                    kartNo,
-                    updatedAt: serverTimestamp()
-                });
-
-                await batch.commit();
-            } else {
-                // Sadece içeriği güncelle
-                await updateDoc(cardRef, {
-                    content: formData.content,
-                    updatedAt: serverTimestamp()
+            let imageBase64 = formData.resimPreview;
+            if (formData.resim) {
+                const reader = new FileReader();
+                imageBase64 = await new Promise((resolve) => {
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.readAsDataURL(formData.resim);
                 });
             }
 
-            toast.success('Kart başarıyla güncellendi!');
-            onSuccess();
+            const konuRef = doc(db, "miniCards-konular", card.konuId);
+            const cardRef = doc(konuRef, "cards", card.id);
+
+            await updateDoc(cardRef, {
+                altKonu: formData.altKonu,
+                content: formData.content,
+                resim: imageBase64,
+                resimTuru: formData.resimTuru,
+                updatedAt: serverTimestamp(),
+                titleColor: formData.titleColor,
+                contentColor: formData.contentColor
+            });
+
+            toast.success("Kart başarıyla güncellendi!");
+            onSuccess?.();
             onClose();
         } catch (error) {
-            console.error('Kart güncellenirken hata:', error);
-            toast.error('Kart güncellenirken bir hata oluştu!');
+            console.error("Kart güncellenirken hata:", error);
+            toast.error("Kart güncellenirken bir hata oluştu!");
         } finally {
             setLoading(false);
         }
@@ -203,32 +175,58 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                             </div>
                             
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
                                     Alt Konu
                                 </label>
                                 <input
                                     type="text"
                                     value={formData.altKonu}
                                     onChange={(e) => setFormData(prev => ({ ...prev, altKonu: e.target.value }))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                    placeholder="Alt konu başlığı"
-                                    required
+                                    placeholder="Alt konu girin"
+                                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                    style={{ color: formData.titleColor || 'inherit' }}
                                 />
                             </div>
                             
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                    Başlık Rengi
+                                </label>
+                                <input
+                                    type="color"
+                                    value={formData.titleColor || '#000000'}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, titleColor: e.target.value }))}
+                                    className="w-full h-12 rounded-lg cursor-pointer"
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
                                     İçerik
                                 </label>
-                                <div className="border border-gray-300 rounded-md dark:border-gray-600">
+                                <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
                                     <ReactQuill
+                                        theme="snow"
                                         value={formData.content}
-                                        onChange={(content) => setFormData(prev => ({ ...prev, content }))}
+                                        onChange={(value) => setFormData(prev => ({ ...prev, content: value }))}
                                         modules={quillModules}
                                         formats={quillFormats}
-                                        className="h-64 mb-12 dark:bg-gray-700 dark:text-white"
+                                        className="bg-white dark:bg-gray-800"
+                                        style={{ color: formData.contentColor || 'inherit' }}
                                     />
                                 </div>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                    İçerik Rengi
+                                </label>
+                                <input
+                                    type="color"
+                                    value={formData.contentColor || '#000000'}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, contentColor: e.target.value }))}
+                                    className="w-full h-12 rounded-lg cursor-pointer"
+                                />
                             </div>
                             
                             <div>
