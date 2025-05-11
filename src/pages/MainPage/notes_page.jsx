@@ -75,6 +75,25 @@ function NotesPage() {
         };
     }, [topics]);
 
+    const yenidenNumaralandir = async (konuId) => {
+        try {
+            const konuRef = doc(db, "miniCards-konular", konuId);
+            const cardsRef = collection(konuRef, "cards");
+            const q = query(cardsRef, orderBy("kartNo", "asc"));
+            const snapshot = await getDocs(q);
+            
+            const batch = writeBatch(db);
+            snapshot.docs.forEach((doc, index) => {
+                batch.update(doc.ref, { kartNo: index + 1 });
+            });
+            
+            await batch.commit();
+        } catch (error) {
+            console.error("Kartlar yeniden numaralandırılırken hata:", error);
+            toast.error("Kartlar yeniden numaralandırılırken bir hata oluştu!");
+        }
+    };
+
     const handleDelete = async (konuId, cardId) => {
         if (window.confirm("Bu akıl kartını silmek istediğinizden emin misiniz?")) {
             setDeletingId(cardId);
@@ -82,6 +101,7 @@ function NotesPage() {
                 const konuRef = doc(db, "miniCards-konular", konuId);
                 const cardRef = doc(konuRef, "cards", cardId);
                 await deleteDoc(cardRef);
+                await yenidenNumaralandir(konuId);
                 toast.success("Akıl kartı başarıyla silindi!");
             } catch (error) {
                 console.error("Akıl kartı silinirken hata:", error);

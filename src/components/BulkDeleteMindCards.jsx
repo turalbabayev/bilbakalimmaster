@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
-import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, query, orderBy, writeBatch } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 
 const BulkDeleteMindCards = ({ isOpen, onClose, konuId }) => {
@@ -66,6 +66,24 @@ const BulkDeleteMindCards = ({ isOpen, onClose, konuId }) => {
         }
     };
 
+    const yenidenNumaralandir = async () => {
+        try {
+            const kartlarRef = collection(db, `miniCards-konular/${konuId}/cards`);
+            const q = query(kartlarRef, orderBy("kartNo", "asc"));
+            const snapshot = await getDocs(q);
+            
+            const batch = writeBatch(db);
+            snapshot.docs.forEach((doc, index) => {
+                batch.update(doc.ref, { kartNo: index + 1 });
+            });
+            
+            await batch.commit();
+        } catch (error) {
+            console.error("Kartlar yeniden numaralandırılırken hata:", error);
+            toast.error("Kartlar yeniden numaralandırılırken bir hata oluştu!");
+        }
+    };
+
     const kartlariSil = async () => {
         if (seciliKartlar.length === 0) {
             toast.error("Lütfen silinecek kartları seçin!");
@@ -93,6 +111,8 @@ const BulkDeleteMindCards = ({ isOpen, onClose, konuId }) => {
             }
 
             if (basariliSilinen > 0) {
+                // Kartlar silindikten sonra yeniden numaralandır
+                await yenidenNumaralandir();
                 toast.success(`${basariliSilinen} kart başarıyla silindi!`);
             }
             if (hataliSilinen > 0) {
