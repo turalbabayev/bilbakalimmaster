@@ -34,46 +34,53 @@ function NotesPage() {
     const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false);
     const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
     const [isKartTakasModalOpen, setIsKartTakasModalOpen] = useState(false);
+    const unsubscribersRef = useRef([]);
+
+    const fetchCardsForTopic = (topicId) => {
+        if (!topicId) return;
+
+        const konuRef = doc(db, "miniCards-konular", topicId);
+        const cardsRef = collection(konuRef, "cards");
+        const q = query(cardsRef, orderBy("kartNo", "asc"));
+
+        // Önceki subscription'ı temizle
+        if (unsubscribersRef.current.length > 0) {
+            unsubscribersRef.current.forEach(unsub => unsub());
+            unsubscribersRef.current = [];
+        }
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const topicCards = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                konuId: topicId,
+                konuBaslik: topics.find(t => t.id === topicId)?.baslik
+            }));
+
+            setCards(prevCards => {
+                const otherTopicCards = prevCards.filter(card => card.konuId !== topicId);
+                return [...otherTopicCards, ...topicCards];
+            });
+            setLoading(false);
+        });
+
+        unsubscribersRef.current.push(unsubscribe);
+    };
 
     useEffect(() => {
-        const unsubscribers = [];
-
-        const fetchCardsForTopic = (topicId) => {
-            const konuRef = doc(db, "miniCards-konular", topicId);
-            const cardsRef = collection(konuRef, "cards");
-            const q = query(cardsRef, orderBy("kartNo", "asc"));
-
-            const unsubscribe = onSnapshot(q, (snapshot) => {
-                const topicCards = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data(),
-                    konuId: topicId,
-                    konuBaslik: topics.find(t => t.id === topicId)?.baslik
-                }));
-
-                setCards(prevCards => {
-                    const otherTopicCards = prevCards.filter(card => card.konuId !== topicId);
-                    return [...otherTopicCards, ...topicCards];
-                });
-                setLoading(false);
-            });
-
-            unsubscribers.push(unsubscribe);
-        };
-
         if (topics.length > 0) {
             setLoading(true);
-            // Önce cards'ı temizle
             setCards([]);
-            // Sonra tüm konular için kartları yükle
             topics.forEach(topic => {
                 fetchCardsForTopic(topic.id);
             });
         }
 
-        // Cleanup function
         return () => {
-            unsubscribers.forEach(unsubscribe => unsubscribe());
+            if (unsubscribersRef.current.length > 0) {
+                unsubscribersRef.current.forEach(unsub => unsub());
+                unsubscribersRef.current = [];
+            }
         };
     }, [topics]);
 
