@@ -25,9 +25,9 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
     const [maxKartNo, setMaxKartNo] = useState(1);
 
     useEffect(() => {
-        if (selectedKonuId) {
+        if (selectedKonu) {
             // Seçili konudaki en yüksek kart numarasını bul
-            const konuRef = doc(db, "miniCards-konular", selectedKonuId);
+            const konuRef = doc(db, "miniCards-konular", selectedKonu);
             const cardsRef = collection(konuRef, "cards");
             const q = query(cardsRef, orderBy("kartNo", "desc"), limit(1));
             
@@ -42,7 +42,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                 }
             });
         }
-    }, [selectedKonuId]);
+    }, [selectedKonu]);
 
     const modules = {
         toolbar: [
@@ -135,7 +135,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
 
         setLoading(true);
         try {
-            const konuRef = doc(db, "miniCards-konular", selectedKonuId);
+            const konuRef = doc(db, "miniCards-konular", selectedKonu);
             const cardsRef = collection(konuRef, "cards");
 
             // Seçilen kartNo'dan büyük veya eşit numaralı kartları bir artır
