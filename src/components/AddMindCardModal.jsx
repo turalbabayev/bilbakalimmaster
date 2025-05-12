@@ -115,7 +115,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!selectedKonuId || !content.trim() || !explanation.trim()) {
+        if (!selectedKonuId || !altKonu.trim() || !formData.content.trim()) {
             toast.error('Lütfen tüm alanları doldurun!');
             return;
         }
@@ -142,8 +142,8 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             // Yeni kartı ekle
             const newCardRef = doc(cardsRef);
             batch.set(newCardRef, {
-                content,
-                explanation,
+                altKonu,
+                content: formData.content,
                 kartNo,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
@@ -151,6 +151,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
 
             await batch.commit();
             toast.success('Kart başarıyla eklendi!');
+            onSuccess?.();
             onClose();
         } catch (error) {
             console.error('Kart eklenirken hata:', error);
