@@ -115,7 +115,20 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!selectedKonuId || !altKonu.trim() || !formData.content.trim()) {
+        
+        console.log('Form değerleri:', {
+            selectedKonu,
+            altKonu,
+            content: formData.content,
+            formData
+        });
+
+        if (!selectedKonu || !altKonu.trim() || !formData.content.trim()) {
+            console.log('Validation failed:', {
+                selectedKonu: !selectedKonu,
+                altKonu: !altKonu.trim(),
+                content: !formData.content.trim()
+            });
             toast.error('Lütfen tüm alanları doldurun!');
             return;
         }
