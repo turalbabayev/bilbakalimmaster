@@ -91,12 +91,10 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                     await uploadBytes(imageRef, file);
                     const downloadUrl = await getDownloadURL(imageRef);
 
-                    // Editöre resmi ekle
-                    const editor = document.querySelector('.ql-editor');
-                    const range = document.getSelection().getRangeAt(0);
-                    const img = document.createElement('img');
-                    img.src = downloadUrl;
-                    range.insertNode(img);
+                    // Quill editörüne resmi ekle
+                    const quill = document.querySelector('.ql-editor').parentNode.querySelector('.ql-editor').__quill;
+                    const range = quill.getSelection(true);
+                    quill.insertEmbed(range.index, 'image', downloadUrl);
 
                     toast.success("Resim başarıyla yüklendi!");
                 } catch (error) {
@@ -114,96 +112,6 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             ...prev,
             content: content
         }));
-    };
-
-    const handleContentChange = async (content) => {
-        if (content.includes('data:image')) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = content;
-            const images = tempDiv.getElementsByTagName('img');
-            
-            // Tüm resimleri paralel olarak yükle
-            const uploadPromises = Array.from(images).map(async (img) => {
-                if (img.src.startsWith('data:image')) {
-                    try {
-                        const imageUrl = await uploadBase64Image(img.src);
-                        img.src = imageUrl;
-                        return true;
-                    } catch (error) {
-                        console.error('Resim yüklenirken hata:', error);
-                        return false;
-                    }
-                }
-                return true;
-            });
-
-            // Tüm resim yüklemeleri tamamlanana kadar bekle
-            await Promise.all(uploadPromises);
-            return tempDiv.innerHTML;
-        }
-        return content;
-    };
-
-    const uploadBase64Image = async (base64String) => {
-        try {
-            // Base64'ü Blob'a çevir
-            const response = await fetch(base64String);
-            const blob = await response.blob();
-            
-            // Firebase Storage'a yükle
-            const storage = getStorage();
-            const timestamp = Date.now();
-            const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${blob.size}.${blob.type.split('/')[1]}`);
-            
-            await uploadBytes(imageRef, blob);
-            const downloadUrl = await getDownloadURL(imageRef);
-            
-            return downloadUrl;
-        } catch (error) {
-            console.error('Resim yüklenirken hata:', error);
-            throw error;
-        }
-    };
-
-    const handleImageChange = async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-            if (file.size > MAX_FILE_SIZE) {
-                toast.error("Resim boyutu çok büyük! Maksimum 5MB olmalıdır.");
-                e.target.value = '';
-                setFormData(prev => ({
-                    ...prev,
-                    image: null,
-                    imageUrl: null
-                }));
-                return;
-            }
-
-            try {
-                setLoading(true);
-                // Firebase Storage'a yükle
-                const storage = getStorage();
-                const timestamp = Date.now();
-                const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${file.name}`);
-                
-                await uploadBytes(imageRef, file);
-                const downloadUrl = await getDownloadURL(imageRef);
-
-                setFormData(prev => ({
-                    ...prev,
-                    image: file,
-                    imageUrl: downloadUrl
-                }));
-
-                toast.success("Resim başarıyla yüklendi!");
-            } catch (error) {
-                console.error('Resim yüklenirken hata:', error);
-                toast.error('Resim yüklenirken bir hata oluştu!');
-            } finally {
-                setLoading(false);
-            }
-        }
     };
 
     const getNextCardNumber = async (konuId) => {
