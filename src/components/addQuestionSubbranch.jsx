@@ -1,187 +1,163 @@
-import React, { useState } from "react";
-import { database } from "../firebase";
-import { ref, push, get } from "firebase/database";
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import React, { useState, useRef } from 'react';
+import { db } from '../firebase';
+import JoditEditor from 'jodit-react';
+import { collection, addDoc, getDocs, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { toast } from 'react-hot-toast';
 
-const AddQuestionSubbranch = ({
-    isOpen,
-    onClose,
-    konuId,
-    altKonuId,
-    selectedAltDal,
-}) => {
-    const [soruMetni, setSoruMetni] = useState("");
-    const [cevaplar, setCevaplar] = useState(["", "", "", "", ""]);
-    const [dogruCevap, setDogruCevap] = useState("");
-    const [aciklama, setAciklama] = useState("");
-    const [isSubmitting, setIsSubmitting] = useState(false);
+const AddQuestionSubbranch = ({ isOpen, onClose, onSuccess }) => {
+    const [formData, setFormData] = useState({
+        baslik: '',
+        icerik: ''
+    });
+    const [loading, setLoading] = useState(false);
+    const editorRef = useRef(null);
 
-    // Quill editör modülleri ve formatları
-    const modules = {
-        toolbar: [
-            [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-            [{ 'font': [] }],
-            ['bold', 'italic', 'underline', 'strike'],
-            [{ 'color': [] }, { 'background': [] }],
-            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-            [{ 'align': [] }],
-            ['clean']
+    const config = {
+        readonly: false,
+        height: 400,
+        buttons: [
+            'source',
+            '|',
+            'bold',
+            'italic',
+            'underline',
+            'strikethrough',
+            '|',
+            'font',
+            'fontsize',
+            'brush',
+            'paragraph',
+            '|',
+            'superscript',
+            'subscript',
+            '|',
+            'ul',
+            'ol',
+            '|',
+            'outdent',
+            'indent',
+            '|',
+            'align',
+            'undo',
+            'redo',
+            '\n',
+            'selectall',
+            'cut',
+            'copy',
+            'paste',
+            '|',
+            'hr',
+            'eraser',
+            'copyformat',
+            '|',
+            'symbol',
+            'fullsize',
+            'print',
+            'about',
         ],
     };
 
-    const formats = [
-        'header',
-        'font',
-        'bold', 'italic', 'underline', 'strike',
-        'color', 'background',
-        'list', 'bullet',
-        'align'
-    ];
-
-    const handleAddQuestion = async () => {
-        if (!soruMetni || cevaplar.some((c) => !c) || !dogruCevap) {
-            alert("Tüm alanları doldurmalısınız.");
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        
+        if (!formData.baslik.trim() || !formData.icerik.trim()) {
+            toast.error('Lütfen tüm alanları doldurun!');
             return;
         }
 
-        setIsSubmitting(true);
-
-        // Mevcut soruların sayısını alıp, yeni soru numarasını belirle
-        const soruRef = ref(
-            database,
-            `konular/${konuId}/altkonular/${altKonuId}/altdallar/${selectedAltDal}/sorular`
-        );
-        
+        setLoading(true);
         try {
-            const snapshot = await get(soruRef);
-            const sorular = snapshot.val() || {};
-            const soruSayisi = Object.keys(sorular).length;
-            const soruNumarasi = soruSayisi + 1;
-            
-            const newQuestion = {
-                soruMetni,
-                cevaplar,
-                dogruCevap: cevaplar[dogruCevap.charCodeAt(0) - 65],
-                aciklama,
-                report: 0,
-                liked: 0,
-                unliked: 0,
-                soruNumarasi: soruNumarasi,
-            };
-            
-            push(soruRef, newQuestion)
-                .then(() => {
-                    alert("Soru başarıyla eklendi.");
-                    onClose();
-                    setIsSubmitting(false);
-                })
-                .catch((error) => {
-                    console.error("Soru eklenirken bir hata oluştu: ", error);
-                    alert("Soru eklenirken bir hata oluştu!");
-                    setIsSubmitting(false);
-                });
-        } catch (error) {
-            console.error("Soru sayısı alınırken hata oluştu: ", error);
-            alert("Soru eklenirken bir hata oluştu!");
-            setIsSubmitting(false);
-        }
-    };
+            // Mevcut notları al ve sıra numarasını belirle
+            const subbranchRef = collection(db, 'question-subbranch');
+            const q = query(subbranchRef, orderBy('siraNo', 'desc'));
+            const snapshot = await getDocs(q);
+            const lastSubbranch = snapshot.docs[0];
+            const nextSiraNo = lastSubbranch ? lastSubbranch.data().siraNo + 1 : 1;
 
-    // Cevapları güncellemek için yardımcı fonksiyon
-    const handleCevapChange = (index, value) => {
-        setCevaplar(prevCevaplar => {
-            const newCevaplar = [...prevCevaplar];
-            newCevaplar[index] = value;
-            return newCevaplar;
-        });
+            // Yeni alt dalı ekle
+            await addDoc(subbranchRef, {
+                baslik: formData.baslik,
+                icerik: formData.icerik,
+                siraNo: nextSiraNo,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            });
+
+            toast.success('Alt dal başarıyla eklendi!');
+            onSuccess?.();
+            onClose();
+            setFormData({ baslik: '', icerik: '' });
+        } catch (error) {
+            console.error('Alt dal eklenirken hata:', error);
+            toast.error('Alt dal eklenirken bir hata oluştu!');
+        } finally {
+            setLoading(false);
+        }
     };
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg w-3/4 p-6 max-h-[90vh] overflow-y-auto">
-                <h2 className="text-xl font-bold mb-4">Alt Dal'a Soru Ekle</h2>
-                
-                <div className="mb-4">
-                    <label className="block mb-2">
-                        Soru Metni:
-                        <div className="mt-1">
-                            <ReactQuill 
-                                theme="snow"
-                                value={soruMetni}
-                                onChange={setSoruMetni}
-                                modules={modules}
-                                formats={formats}
-                                className="bg-white"
-                            />
-                        </div>
-                    </label>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-11/12 max-w-4xl max-h-[calc(100vh-40px)] overflow-hidden">
+                <div className="p-8 border-b border-gray-200 dark:border-gray-700">
+                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+                        Yeni Alt Dal
+                    </h2>
                 </div>
-                
-                <div className="mb-4">
-                    <label className="block mb-2">Cevaplar:</label>
-                    {cevaplar.map((cevap, index) => (
-                        <div key={index} className="mb-3">
-                            <label className="block mb-1">{`Cevap ${String.fromCharCode(65 + index)}`}</label>
-                            <textarea
-                                value={cevap}
-                                onChange={(e) => {
-                                    const newCevaplar = [...cevaplar];
-                                    newCevaplar[index] = e.target.value;
-                                    setCevaplar(newCevaplar);
-                                }}
-                                placeholder={`Cevap ${String.fromCharCode(65 + index)}`}
-                                className="w-full border rounded-md p-2 mt-1 mb-1"
-                                rows="2"
-                            />
-                        </div>
-                    ))}
-                </div>
-                
-                <div className="mb-4">
-                    <label className="block mb-2">
-                        Doğru Cevap:
+
+                <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                    <div>
+                        <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                            Başlık
+                        </label>
                         <input
-                            value={dogruCevap}
-                            onChange={(e) => setDogruCevap(e.target.value.toUpperCase())}
-                            placeholder="Doğru cevap (A, B, C, D, E)"
-                            className="w-full border rounded-md p-2 mt-1"
+                            type="text"
+                            value={formData.baslik}
+                            onChange={(e) => setFormData(prev => ({ ...prev, baslik: e.target.value }))}
+                            placeholder="Alt dal başlığı"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                         />
-                    </label>
-                </div>
-                
-                <div className="mb-4">
-                    <label className="block mb-2">
-                        Açıklama:
-                        <div className="mt-1">
-                            <ReactQuill
-                                theme="snow"
-                                value={aciklama}
-                                onChange={setAciklama}
-                                modules={modules}
-                                formats={formats}
-                                className="bg-white h-[200px] mb-12"
+                    </div>
+
+                    <div>
+                        <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                            İçerik
+                        </label>
+                        <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
+                            <JoditEditor
+                                ref={editorRef}
+                                value={formData.icerik}
+                                config={config}
+                                onChange={(newContent) => setFormData(prev => ({ ...prev, icerik: newContent }))}
                             />
                         </div>
-                    </label>
-                </div>
-                
-                <div className="flex justify-end space-x-4 mt-16">
+                    </div>
+                </form>
+
+                <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-end space-x-4">
                     <button
-                        className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 disabled:bg-gray-400"
-                        onClick={handleAddQuestion}
-                        disabled={isSubmitting}
+                        onClick={onClose}
+                        className="px-6 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                     >
-                        {isSubmitting ? "Ekleniyor..." : "Ekle"}
+                        İptal
                     </button>
                     <button
-                        className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
-                        onClick={onClose}
-                        disabled={isSubmitting}
+                        onClick={handleSubmit}
+                        disabled={loading}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                     >
-                        Kapat
+                        {loading ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Ekleniyor...
+                            </>
+                        ) : (
+                            'Ekle'
+                        )}
                     </button>
                 </div>
             </div>

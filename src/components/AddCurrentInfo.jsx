@@ -1,8 +1,7 @@
 import React, { useState, useRef } from "react";
 import { db } from "../firebase";
-import { collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs } from "firebase/firestore";
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import { collection, addDoc, getDocs, query, orderBy, serverTimestamp } from "firebase/firestore";
+import JoditEditor from 'jodit-react';
 import { toast } from 'react-hot-toast';
 
 const AddCurrentInfo = ({ isOpen, onClose, onSuccess }) => {
@@ -13,60 +12,57 @@ const AddCurrentInfo = ({ isOpen, onClose, onSuccess }) => {
         resimPreview: null
     });
     const [isSaving, setIsSaving] = useState(false);
-    const quillRef = useRef();
+    const editorRef = useRef(null);
 
-    // Quill editör modülleri
-    const modules = {
-        toolbar: {
-            container: [
-                [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-                [{ 'font': [] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ 'color': [] }, { 'background': [] }],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                [{ 'align': [] }],
-                ['link', 'image'],
-                ['clean']
-            ],
-            handlers: {
-                image: imageHandler
-            }
-        }
+    const config = {
+        readonly: false,
+        height: 400,
+        uploader: {
+            insertImageAsBase64URI: true,
+        },
+        buttons: [
+            'source',
+            '|',
+            'bold',
+            'italic',
+            'underline',
+            'strikethrough',
+            '|',
+            'font',
+            'fontsize',
+            'brush',
+            'paragraph',
+            '|',
+            'superscript',
+            'subscript',
+            '|',
+            'ul',
+            'ol',
+            '|',
+            'outdent',
+            'indent',
+            '|',
+            'align',
+            'undo',
+            'redo',
+            '\n',
+            'selectall',
+            'cut',
+            'copy',
+            'paste',
+            '|',
+            'hr',
+            'eraser',
+            'copyformat',
+            '|',
+            'symbol',
+            'fullsize',
+            'print',
+            'about',
+            '|',
+            'image',
+        ],
     };
-
-    const formats = [
-        'header',
-        'font',
-        'bold', 'italic', 'underline', 'strike',
-        'color', 'background',
-        'list', 'bullet',
-        'align',
-        'link', 'image'
-    ];
-
-    function imageHandler() {
-        const input = document.createElement('input');
-        input.setAttribute('type', 'file');
-        input.setAttribute('accept', 'image/*');
-        input.click();
-
-        input.onchange = async () => {
-            const file = input.files[0];
-            if (file) {
-                try {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const range = quillRef.current.getEditor().getSelection();
-                        quillRef.current.getEditor().insertEmbed(range.index, 'image', e.target.result);
-                    };
-                    reader.readAsDataURL(file);
-                } catch (error) {
-                    console.error('Resim yüklenirken hata:', error);
-                    toast.error('Resim yüklenirken bir hata oluştu!');
-                }
-            }
-        };
-    }
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
@@ -126,36 +122,32 @@ const AddCurrentInfo = ({ isOpen, onClose, onSuccess }) => {
                 });
             }
 
-            // En yüksek bilgiNo'yu bul
-            const guncelBilgilerRef = collection(db, "guncelBilgiler");
-            const q = query(guncelBilgilerRef, orderBy("bilgiNo", "desc"), limit(1));
+            // Mevcut bilgileri al ve sıra numarasını belirle
+            const bilgilerRef = collection(db, "guncelBilgiler");
+            const q = query(bilgilerRef, orderBy("bilgiNo", "desc"));
             const snapshot = await getDocs(q);
-            const yeniBilgiNo = snapshot.empty ? 1 : snapshot.docs[0].data().bilgiNo + 1;
+            const lastBilgi = snapshot.docs[0];
+            const nextBilgiNo = lastBilgi ? lastBilgi.data().bilgiNo + 1 : 1;
 
-            // Firestore'a ekle
-            await addDoc(collection(db, "guncelBilgiler"), {
+            // Yeni bilgiyi ekle
+            await addDoc(bilgilerRef, {
                 baslik: formData.baslik,
                 icerik: formData.icerik,
                 resim: imageBase64,
-                tarih: serverTimestamp(),
-                bilgiNo: yeniBilgiNo,
-                liked: 0,
-                unliked: 0,
-                report: 0
+                bilgiNo: nextBilgiNo,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
             });
 
             toast.success("Güncel bilgi başarıyla eklendi!");
-            
-            // Formu temizle
+            onSuccess?.();
+            onClose();
             setFormData({
                 baslik: "",
                 icerik: "",
                 image: null,
                 resimPreview: null
             });
-
-            onSuccess?.();
-            onClose();
         } catch (error) {
             console.error("Güncel bilgi eklenirken hata:", error);
             toast.error("Güncel bilgi eklenirken bir hata oluştu!");
@@ -171,7 +163,7 @@ const AddCurrentInfo = ({ isOpen, onClose, onSuccess }) => {
             <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-11/12 max-w-5xl max-h-[calc(100vh-40px)] overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col">
                 <div className="p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
                     <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center">
-                        Yeni Güncel Bilgi Ekle
+                        Yeni Güncel Bilgi
                     </h2>
                 </div>
 
@@ -195,15 +187,11 @@ const AddCurrentInfo = ({ isOpen, onClose, onSuccess }) => {
                                 İçerik
                             </label>
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                <ReactQuill
-                                    ref={quillRef}
-                                    theme="snow"
+                                <JoditEditor
+                                    ref={editorRef}
                                     value={formData.icerik}
-                                    onChange={(value) => setFormData(prev => ({ ...prev, icerik: value }))}
-                                    modules={modules}
-                                    formats={formats}
-                                    className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                                    style={{ height: '200px' }}
+                                    config={config}
+                                    onChange={(newContent) => setFormData(prev => ({ ...prev, icerik: newContent }))}
                                 />
                             </div>
                         </div>
