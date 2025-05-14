@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { db } from "../firebase";
+import React, { useState, useEffect, useRef } from "react";
+import { db, storage } from "../firebase";
 import { collection, addDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { Editor } from '@tinymce/tinymce-react';
+import { toast } from 'react-hot-toast';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { toast } from 'react-hot-toast';
 
 const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [selectedAltKonu, setSelectedAltKonu] = useState("");
@@ -79,6 +81,19 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
 
     const handleResimSil = () => {
         setSoruResmi(null);
+    };
+
+    const handleImageUpload = async (blobInfo) => {
+        try {
+            const file = new File([blobInfo.blob()], blobInfo.filename(), { type: blobInfo.blob().type });
+            const storageRef = ref(storage, `soru_resimleri/${Date.now()}_${file.name}`);
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+            return downloadURL;
+        } catch (error) {
+            console.error("Resim yükleme hatası:", error);
+            throw error;
+        }
     };
 
     const handleAddQuestion = async () => {
@@ -171,14 +186,25 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                 Soru Metni
                             </label>
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                <ReactQuill 
-                                    theme="snow"
+                                <Editor
+                                    apiKey="bbelkz83knafk8x2iv6h5i7d64o6k5os6ms07wt010605yby"
                                     value={soruMetni}
-                                    onChange={setSoruMetni}
-                                    modules={modules}
-                                    formats={formats}
-                                    className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                                    style={{ height: '200px' }}
+                                    onEditorChange={(content) => setSoruMetni(content)}
+                                    init={{
+                                        height: 300,
+                                        menubar: false,
+                                        plugins: [
+                                            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                                            'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                                            'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount'
+                                        ],
+                                        toolbar: 'undo redo | blocks | ' +
+                                            'bold italic forecolor | alignleft aligncenter ' +
+                                            'alignright alignjustify | bullist numlist outdent indent | ' +
+                                            'removeformat | image | help',
+                                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                                        images_upload_handler: handleImageUpload
+                                    }}
                                 />
                             </div>
                         </div>
@@ -269,14 +295,25 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                 Açıklama
                             </label>
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                <ReactQuill
-                                    theme="snow"
+                                <Editor
+                                    apiKey="your-tinymce-api-key"
                                     value={aciklama}
-                                    onChange={setAciklama}
-                                    modules={modules}
-                                    formats={formats}
-                                    className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                                    style={{ height: '200px' }}
+                                    onEditorChange={(content) => setAciklama(content)}
+                                    init={{
+                                        height: 300,
+                                        menubar: false,
+                                        plugins: [
+                                            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                                            'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                                            'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount'
+                                        ],
+                                        toolbar: 'undo redo | blocks | ' +
+                                            'bold italic forecolor | alignleft aligncenter ' +
+                                            'alignright alignjustify | bullist numlist outdent indent | ' +
+                                            'removeformat | image | help',
+                                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                                        images_upload_handler: handleImageUpload
+                                    }}
                                 />
                             </div>
                         </div>
