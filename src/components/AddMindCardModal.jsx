@@ -47,14 +47,22 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
 
     const handleImageUpload = async (targetElement, files) => {
         try {
+            if (!files || !files.length) {
+                console.error('Dosya bulunamadı');
+                return false;
+            }
+
             const file = files[0];
-            const storage = getStorage();
             const timestamp = Date.now();
             const fileExtension = file.name.split('.').pop();
             const fileName = `${timestamp}.${fileExtension}`;
-            const imageRef = storageRef(storage, `mind-cards-images/${fileName}`);
+            const imageRef = storageRef(getStorage(), `mind-cards-images/${fileName}`);
+
+            // Base64'ü Blob'a çevir
+            const response = await fetch(file.data);
+            const blob = await response.blob();
             
-            await uploadBytes(imageRef, file);
+            await uploadBytes(imageRef, blob);
             const downloadUrl = await getDownloadURL(imageRef);
             
             targetElement.insertImage(downloadUrl);

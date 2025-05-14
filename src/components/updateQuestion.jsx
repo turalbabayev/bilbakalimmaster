@@ -160,13 +160,22 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
 
     const handleImageUpload = async (targetElement, files) => {
         try {
+            if (!files || !files.length) {
+                console.error('Dosya bulunamadı');
+                return false;
+            }
+
             const file = files[0];
             const timestamp = Date.now();
             const fileExtension = file.name.split('.').pop();
             const fileName = `${timestamp}.${fileExtension}`;
             const imageRef = ref(storage, `soru_resimleri/${fileName}`);
+
+            // Base64'ü Blob'a çevir
+            const response = await fetch(file.data);
+            const blob = await response.blob();
             
-            await uploadBytes(imageRef, file);
+            await uploadBytes(imageRef, blob);
             const downloadUrl = await getDownloadURL(imageRef);
             
             targetElement.insertImage(downloadUrl);
