@@ -49,9 +49,22 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             setLoading(true);
             const storage = getStorage();
             const timestamp = Date.now();
-            const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${blobInfo.filename()}`);
+            const fileExtension = blobInfo.filename().split('.').pop();
+            const fileName = `${timestamp}.${fileExtension}`;
+            const imageRef = storageRef(storage, `mind-cards-images/${fileName}`);
             
-            await uploadBytes(imageRef, blobInfo.blob());
+            // Blob'u File'a çeviriyoruz
+            const file = new File([blobInfo.blob()], fileName, { type: blobInfo.blob().type });
+            
+            // Metadata ekliyoruz
+            const metadata = {
+                contentType: file.type,
+                customMetadata: {
+                    originalName: blobInfo.filename()
+                }
+            };
+            
+            await uploadBytes(imageRef, file, metadata);
             const downloadUrl = await getDownloadURL(imageRef);
             
             return downloadUrl;
