@@ -90,16 +90,48 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
         setLoading(true);
         try {
             const konuRef = doc(db, "miniCards-konular", card.konuId);
-            const cardRef = doc(konuRef, "cards", card.id);
+            const cardsRef = collection(konuRef, "cards");
+            const batch = writeBatch(db);
 
-            await updateDoc(cardRef, {
+            // Eğer kart numarası değiştiyse, diğer kartların numaralarını güncelle
+            if (kartNo !== card.kartNo) {
+                const q = query(cardsRef);
+                const snapshot = await getDocs(q);
+                
+                snapshot.docs.forEach(doc => {
+                    const cardData = doc.data();
+                    if (kartNo > card.kartNo) {
+                        // Yeni pozisyon daha büyükse
+                        if (cardData.kartNo > card.kartNo && cardData.kartNo <= kartNo) {
+                            batch.update(doc.ref, {
+                                kartNo: cardData.kartNo - 1,
+                                updatedAt: serverTimestamp()
+                            });
+                        }
+                    } else {
+                        // Yeni pozisyon daha küçükse
+                        if (cardData.kartNo >= kartNo && cardData.kartNo < card.kartNo) {
+                            batch.update(doc.ref, {
+                                kartNo: cardData.kartNo + 1,
+                                updatedAt: serverTimestamp()
+                            });
+                        }
+                    }
+                });
+            }
+
+            // Güncel kartı güncelle
+            const cardRef = doc(konuRef, "cards", card.id);
+            batch.update(cardRef, {
                 altKonu: formData.altKonu,
                 content: formData.content,
+                kartNo: kartNo,
                 updatedAt: serverTimestamp(),
                 titleColor: formData.titleColor,
                 contentColor: formData.contentColor
             });
 
+            await batch.commit();
             toast.success("Kart başarıyla güncellendi!");
             onSuccess?.();
             onClose();
@@ -222,6 +254,27 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                     onChange={(e) => setFormData(prev => ({ ...prev, contentColor: e.target.value }))}
                                     className="w-full h-12 rounded-lg cursor-pointer"
                                 />
+                            </div>
+                            
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                                        Kart No
+                                    </label>
+                                    <div className="flex items-center space-x-2">
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max={maxKartNo}
+                                            value={kartNo}
+                                            onChange={(e) => setKartNo(parseInt(e.target.value))}
+                                            className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                                            (Maksimum: {maxKartNo})
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                             
                             <div className="flex justify-end space-x-3 mt-6">
