@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db, storage } from "../firebase";
-import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit, where, writeBatch, getDocs } from "firebase/firestore";
+import { doc, getDoc, updateDoc, serverTimestamp, collection, query, orderBy, limit, where, writeBatch, getDocs } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { CKEditor } from '@ckeditor/ckeditor5-react';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
@@ -17,7 +17,7 @@ const EditMindCardModal = ({ isOpen, onClose, cardId, konuId }) => {
                 try {
                     const konuRef = doc(db, "miniCards-konular", konuId);
                     const cardRef = doc(collection(konuRef, "cards"), cardId);
-                    const cardDoc = await getDocs(cardRef);
+                    const cardDoc = await getDoc(cardRef);
                     
                     if (cardDoc.exists()) {
                         setCard(cardDoc.data());
@@ -41,13 +41,18 @@ const EditMindCardModal = ({ isOpen, onClose, cardId, konuId }) => {
 
     const handleImageUpload = async (file) => {
         try {
-            const storageRef = ref(storage, `kart_resimleri/${Date.now()}_${file.name}`);
+            setLoading(true);
+            const timestamp = Date.now();
+            const storageRef = ref(storage, `kart_resimleri/${timestamp}_${file.name}`);
             await uploadBytes(storageRef, file);
             const downloadURL = await getDownloadURL(storageRef);
             return downloadURL;
         } catch (error) {
             console.error("Resim yükleme hatası:", error);
+            toast.error("Resim yüklenirken bir hata oluştu!");
             throw error;
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -127,10 +132,7 @@ const EditMindCardModal = ({ isOpen, onClose, cardId, konuId }) => {
         <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
                 <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-                    <div 
-                        className="absolute inset-0 bg-gray-500 opacity-75"
-                        onClick={onClose}
-                    ></div>
+                    <div className="absolute inset-0 bg-gray-500 opacity-75" onClick={onClose}></div>
                 </div>
 
                 <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
@@ -185,10 +187,39 @@ const EditMindCardModal = ({ isOpen, onClose, cardId, konuId }) => {
                                             setCard({...card, content: data});
                                         }}
                                         config={{
-                                            toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'outdent', 'indent', '|', 'imageUpload', 'blockQuote', 'insertTable', 'undo', 'redo'],
+                                            toolbar: {
+                                                items: [
+                                                    'heading',
+                                                    '|',
+                                                    'bold',
+                                                    'italic',
+                                                    'link',
+                                                    'bulletedList',
+                                                    'numberedList',
+                                                    '|',
+                                                    'outdent',
+                                                    'indent',
+                                                    '|',
+                                                    'imageUpload',
+                                                    'blockQuote',
+                                                    'insertTable',
+                                                    'undo',
+                                                    'redo'
+                                                ]
+                                            },
                                             image: {
                                                 upload: {
                                                     types: ['jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff']
+                                                }
+                                            },
+                                            simpleUpload: {
+                                                uploadUrl: async (file) => {
+                                                    try {
+                                                        return await handleImageUpload(file);
+                                                    } catch (error) {
+                                                        console.error('Resim yükleme hatası:', error);
+                                                        throw error;
+                                                    }
                                                 }
                                             }
                                         }}

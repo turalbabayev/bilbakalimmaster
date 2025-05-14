@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { db, storage } from "../firebase";
-import { collection, addDoc, doc, serverTimestamp, getDocs, query, orderBy, limit, where, writeBatch, updateDoc } from "firebase/firestore";
+import { collection, addDoc, doc, serverTimestamp, getDocs, query, orderBy, limit, where, writeBatch } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "react-hot-toast";
 import { CKEditor } from '@ckeditor/ckeditor5-react';
@@ -47,13 +47,18 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
 
     const handleImageUpload = async (file) => {
         try {
-            const storageRef = ref(storage, `kart_resimleri/${Date.now()}_${file.name}`);
+            setLoading(true);
+            const timestamp = Date.now();
+            const storageRef = ref(storage, `kart_resimleri/${timestamp}_${file.name}`);
             await uploadBytes(storageRef, file);
             const downloadURL = await getDownloadURL(storageRef);
             return downloadURL;
         } catch (error) {
             console.error("Resim yükleme hatası:", error);
+            toast.error("Resim yüklenirken bir hata oluştu!");
             throw error;
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -164,16 +169,42 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                                         data={formData.content}
                                         onChange={(event, editor) => {
                                             const data = editor.getData();
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                content: data
-                                            }));
+                                            handleEditorChange(data);
                                         }}
                                         config={{
-                                            toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'outdent', 'indent', '|', 'imageUpload', 'blockQuote', 'insertTable', 'undo', 'redo'],
+                                            toolbar: {
+                                                items: [
+                                                    'heading',
+                                                    '|',
+                                                    'bold',
+                                                    'italic',
+                                                    'link',
+                                                    'bulletedList',
+                                                    'numberedList',
+                                                    '|',
+                                                    'outdent',
+                                                    'indent',
+                                                    '|',
+                                                    'imageUpload',
+                                                    'blockQuote',
+                                                    'insertTable',
+                                                    'undo',
+                                                    'redo'
+                                                ]
+                                            },
                                             image: {
                                                 upload: {
                                                     types: ['jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff']
+                                                }
+                                            },
+                                            simpleUpload: {
+                                                uploadUrl: async (file) => {
+                                                    try {
+                                                        return await handleImageUpload(file);
+                                                    } catch (error) {
+                                                        console.error('Resim yükleme hatası:', error);
+                                                        throw error;
+                                                    }
                                                 }
                                             }
                                         }}
