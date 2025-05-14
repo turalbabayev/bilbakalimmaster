@@ -66,7 +66,15 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         'link'
     ];
 
-    const handleEditorChange = async (content) => {
+    const handleEditorChange = (content) => {
+        // İçeriği geçici olarak sakla
+        setFormData(prev => ({
+            ...prev,
+            content: content
+        }));
+    };
+
+    const handleContentChange = async (content) => {
         if (content.includes('data:image')) {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = content;
@@ -89,13 +97,9 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
 
             // Tüm resim yüklemeleri tamamlanana kadar bekle
             await Promise.all(uploadPromises);
-            content = tempDiv.innerHTML;
+            return tempDiv.innerHTML;
         }
-
-        setFormData(prev => ({
-            ...prev,
-            content: content
-        }));
+        return content;
     };
 
     const uploadBase64Image = async (base64String) => {
@@ -184,31 +188,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         setLoading(true);
         try {
             // İçerikteki base64 resimleri kontrol et ve yükle
-            let finalContent = formData.content;
-            if (finalContent.includes('data:image')) {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = finalContent;
-                const images = tempDiv.getElementsByTagName('img');
-                
-                // Tüm resimleri paralel olarak yükle
-                const uploadPromises = Array.from(images).map(async (img) => {
-                    if (img.src.startsWith('data:image')) {
-                        try {
-                            const imageUrl = await uploadBase64Image(img.src);
-                            img.src = imageUrl;
-                            return true;
-                        } catch (error) {
-                            console.error('Resim yüklenirken hata:', error);
-                            return false;
-                        }
-                    }
-                    return true;
-                });
-
-                // Tüm resim yüklemeleri tamamlanana kadar bekle
-                await Promise.all(uploadPromises);
-                finalContent = tempDiv.innerHTML;
-            }
+            const finalContent = await handleContentChange(formData.content);
 
             const konuRef = doc(db, "miniCards-konular", selectedKonu);
             const cardsRef = collection(konuRef, "cards");
@@ -231,7 +211,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             const newCardRef = doc(cardsRef);
             batch.set(newCardRef, {
                 altKonu,
-                content: finalContent, // URL'lere dönüştürülmüş içeriği kullan
+                content: finalContent,
                 imageUrl: formData.imageUrl,
                 kartNo,
                 createdAt: serverTimestamp(),
