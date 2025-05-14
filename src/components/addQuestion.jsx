@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { db, storage } from "../firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { CKEditor } from '@ckeditor/ckeditor5-react';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 import { toast } from 'react-hot-toast';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import JoditEditor from 'jodit-react';
 
 const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [selectedAltKonu, setSelectedAltKonu] = useState("");
@@ -21,6 +22,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [zenginMetinAktif, setZenginMetinAktif] = useState(false);
     const [dogruCevapSecimi, setDogruCevapSecimi] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const editorRef = useRef(null);
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -86,13 +88,16 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
 
     const handleImageUpload = async (file) => {
         try {
-            const storageRef = ref(storage, `soru_resimleri/${Date.now()}_${file.name}`);
+            setIsSaving(true);
+            const storageRef = ref(storage, `question_images/${file.name}`);
             await uploadBytes(storageRef, file);
             const downloadURL = await getDownloadURL(storageRef);
+            setIsSaving(false);
             return downloadURL;
         } catch (error) {
             console.error("Resim yükleme hatası:", error);
-            throw error;
+            setIsSaving(false);
+            return null;
         }
     };
 
@@ -118,7 +123,12 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                 unliked: 0,
                 report: 0,
                 soruNumarasi: Date.now(), // Geçici olarak timestamp kullanıyoruz, daha sonra düzenlenebilir
-                soruResmi: soruResmi || null
+                soruResmi: soruResmi || null,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                konuId: currentKonuId,
+                altKonuId: selectedAltKonu,
+                verified: false,
             };
 
             // Soruyu Firestore'a ekle
@@ -143,6 +153,79 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const config = {
+        readonly: false,
+        height: 400,
+        uploader: {
+            insertImageAsBase64URI: false,
+            url: handleImageUpload,
+            format: 'json',
+            method: 'POST',
+            filesVariableName: 'files',
+            prepareData: function (data) {
+                return data;
+            },
+            isSuccess: function (resp) {
+                return resp;
+            },
+            getMsg: function (resp) {
+                return resp;
+            },
+            process: function (resp) {
+                return resp;
+            },
+            error: function (e) {
+                console.log(e);
+            },
+            defaultHandlerSuccess: function (data, resp) {
+                return data;
+            },
+        },
+        buttons: [
+            'source',
+            '|',
+            'bold',
+            'italic',
+            'underline',
+            'strikethrough',
+            '|',
+            'font',
+            'fontsize',
+            'brush',
+            'paragraph',
+            '|',
+            'superscript',
+            'subscript',
+            '|',
+            'ul',
+            'ol',
+            '|',
+            'outdent',
+            'indent',
+            '|',
+            'align',
+            'undo',
+            'redo',
+            '\n',
+            'selectall',
+            'cut',
+            'copy',
+            'paste',
+            '|',
+            'hr',
+            'eraser',
+            'copyformat',
+            '|',
+            'symbol',
+            'fullsize',
+            'print',
+            'about',
+            '|',
+            'image',
+            'table',
+        ],
     };
 
     if (!isOpen) return null;
@@ -186,21 +269,11 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                 Soru Metni
                             </label>
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                <CKEditor
-                                    editor={ClassicEditor}
-                                    data={soruMetni}
-                                    onChange={(event, editor) => {
-                                        const data = editor.getData();
-                                        setSoruMetni(data);
-                                    }}
-                                    config={{
-                                        toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'outdent', 'indent', '|', 'imageUpload', 'blockQuote', 'insertTable', 'undo', 'redo'],
-                                        image: {
-                                            upload: {
-                                                types: ['jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff']
-                                            }
-                                        }
-                                    }}
+                                <JoditEditor
+                                    ref={editorRef}
+                                    value={soruMetni}
+                                    config={config}
+                                    onChange={(newContent) => setSoruMetni(newContent)}
                                 />
                             </div>
                         </div>
@@ -236,10 +309,10 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                             <button
                                                 onClick={(e) => {
                                                     e.preventDefault();
-                                                    setDogruCevap(String.fromCharCode(65 + index));
+                                                    setDogruCevap(index);
                                                 }}
                                                 className={`w-8 h-8 flex items-center justify-center rounded-lg font-medium transition-all duration-200 ${
-                                                    dogruCevap === String.fromCharCode(65 + index)
+                                                    dogruCevap === index
                                                         ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 ring-2 ring-green-500'
                                                         : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                                                 }`}
@@ -250,17 +323,15 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                         <div className="flex-1">
                                             {zenginMetinAktif ? (
                                                 <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                                    <ReactQuill
-                                                        theme="snow"
+                                                    <JoditEditor
+                                                        ref={editorRef}
                                                         value={cevap}
-                                                        onChange={(value) => {
+                                                        config={config}
+                                                        onChange={(newContent) => {
                                                             const newCevaplar = [...cevaplar];
-                                                            newCevaplar[index] = value;
+                                                            newCevaplar[index] = newContent;
                                                             setCevaplar(newCevaplar);
                                                         }}
-                                                        modules={modules}
-                                                        formats={formats}
-                                                        className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                                                     />
                                                 </div>
                                             ) : (
@@ -274,7 +345,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                                     }}
                                                     placeholder={`${String.fromCharCode(65 + index)} şıkkının cevabını girin`}
                                                     className={`w-full px-4 py-3 rounded-xl border-2 ${
-                                                        dogruCevap === String.fromCharCode(65 + index)
+                                                        dogruCevap === index
                                                             ? 'border-green-200 dark:border-green-800'
                                                             : 'border-gray-200 dark:border-gray-700'
                                                     } bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200`}
@@ -291,21 +362,11 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                 Açıklama
                             </label>
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                <CKEditor
-                                    editor={ClassicEditor}
-                                    data={aciklama}
-                                    onChange={(event, editor) => {
-                                        const data = editor.getData();
-                                        setAciklama(data);
-                                    }}
-                                    config={{
-                                        toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'outdent', 'indent', '|', 'imageUpload', 'blockQuote', 'insertTable', 'undo', 'redo'],
-                                        image: {
-                                            upload: {
-                                                types: ['jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff']
-                                            }
-                                        }
-                                    }}
+                                <JoditEditor
+                                    ref={editorRef}
+                                    value={aciklama}
+                                    config={config}
+                                    onChange={(newContent) => setAciklama(newContent)}
                                 />
                             </div>
                         </div>

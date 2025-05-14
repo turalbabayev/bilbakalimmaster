@@ -1,254 +1,251 @@
-import React, { useState, useEffect } from "react";
-import { db, storage } from "../firebase";
-import { doc, getDoc, updateDoc, serverTimestamp, collection, query, orderBy, limit, where, writeBatch, getDocs } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { CKEditor } from '@ckeditor/ckeditor5-react';
-import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
+import React, { useState, useEffect, useRef } from 'react';
+import { doc, updateDoc, collection, query, where, getDocs, orderBy, writeBatch } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../firebase';
+import JoditEditor from 'jodit-react';
 import { toast } from 'react-hot-toast';
 
-const EditMindCardModal = ({ isOpen, onClose, cardId, konuId }) => {
-    const [loading, setLoading] = useState(false);
-    const [card, setCard] = useState(null);
-    const [maxKartNo, setMaxKartNo] = useState(1);
+const EditMindCardModal = ({ isOpen, onClose, cardRef, initialData }) => {
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    kartNo: '',
+    altKonu: '',
+    icerik: '',
+  });
+  const editorRef = useRef(null);
 
-    useEffect(() => {
-        if (isOpen && cardId && konuId) {
-            const fetchCard = async () => {
-                try {
-                    const konuRef = doc(db, "miniCards-konular", konuId);
-                    const cardRef = doc(collection(konuRef, "cards"), cardId);
-                    const cardDoc = await getDoc(cardRef);
-                    
-                    if (cardDoc.exists()) {
-                        setCard(cardDoc.data());
-                    }
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        kartNo: initialData.kartNo || '',
+        altKonu: initialData.altKonu || '',
+        icerik: initialData.content || '',
+      });
+    }
+  }, [initialData]);
 
-                    const cardsRef = collection(konuRef, "cards");
-                    const q = query(cardsRef, orderBy("kartNo", "desc"), limit(1));
-                    const snapshot = await getDocs(q);
-                    
-                    if (!snapshot.empty) {
-                        setMaxKartNo(snapshot.docs[0].data().kartNo);
-                    }
-                } catch (error) {
-                    console.error("Kart yüklenirken hata:", error);
-                    toast.error("Kart yüklenirken bir hata oluştu!");
-                }
-            };
-            fetchCard();
-        }
-    }, [isOpen, cardId, konuId]);
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
-    const handleImageUpload = async (file) => {
-        try {
-            setLoading(true);
-            const timestamp = Date.now();
-            const storageRef = ref(storage, `kart_resimleri/${timestamp}_${file.name}`);
-            await uploadBytes(storageRef, file);
-            const downloadURL = await getDownloadURL(storageRef);
-            return downloadURL;
-        } catch (error) {
-            console.error("Resim yükleme hatası:", error);
-            toast.error("Resim yüklenirken bir hata oluştu!");
-            throw error;
-        } finally {
-            setLoading(false);
-        }
-    };
+  const handleImageUpload = async (file) => {
+    try {
+      setLoading(true);
+      const storageRef = ref(storage, `mind_card_images/${file.name}`);
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+      setLoading(false);
+      return downloadURL;
+    } catch (error) {
+      console.error('Resim yükleme hatası:', error);
+      setLoading(false);
+      return null;
+    }
+  };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!card.altKonu.trim() || !card.content.trim()) {
-            toast.error('Lütfen tüm alanları doldurun!');
-            return;
-        }
+  const config = {
+    readonly: false,
+    height: 400,
+    uploader: {
+      insertImageAsBase64URI: false,
+      url: handleImageUpload,
+      format: 'json',
+      method: 'POST',
+      filesVariableName: 'files',
+      prepareData: function (data) {
+        return data;
+      },
+      isSuccess: function (resp) {
+        return resp;
+      },
+      getMsg: function (resp) {
+        return resp;
+      },
+      process: function (resp) {
+        return resp;
+      },
+      error: function (e) {
+        console.log(e);
+      },
+      defaultHandlerSuccess: function (data, resp) {
+        return data;
+      },
+    },
+    buttons: [
+      'source',
+      '|',
+      'bold',
+      'italic',
+      'underline',
+      'strikethrough',
+      '|',
+      'font',
+      'fontsize',
+      'brush',
+      'paragraph',
+      '|',
+      'superscript',
+      'subscript',
+      '|',
+      'ul',
+      'ol',
+      '|',
+      'outdent',
+      'indent',
+      '|',
+      'align',
+      'undo',
+      'redo',
+      '\n',
+      'selectall',
+      'cut',
+      'copy',
+      'paste',
+      '|',
+      'hr',
+      'eraser',
+      'copyformat',
+      '|',
+      'symbol',
+      'fullsize',
+      'print',
+      'about',
+      '|',
+      'image',
+      'table',
+    ],
+  };
 
-        setLoading(true);
-        try {
-            const konuRef = doc(db, "miniCards-konular", konuId);
-            const cardRef = doc(collection(konuRef, "cards"), cardId);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.altKonu.trim() || !formData.icerik.trim()) {
+      toast.error('Lütfen tüm alanları doldurun!');
+      return;
+    }
 
-            if (card.kartNo !== card.originalKartNo) {
-                const cardsRef = collection(konuRef, "cards");
-                const batch = writeBatch(db);
+    try {
+      setLoading(true);
 
-                if (card.kartNo > card.originalKartNo) {
-                    const q = query(
-                        cardsRef,
-                        where("kartNo", ">", card.originalKartNo),
-                        where("kartNo", "<=", card.kartNo)
-                    );
-                    const snapshot = await getDocs(q);
-                    snapshot.docs.forEach((doc) => {
-                        batch.update(doc.ref, {
-                            kartNo: doc.data().kartNo - 1,
-                            updatedAt: serverTimestamp()
-                        });
-                    });
-                } else {
-                    const q = query(
-                        cardsRef,
-                        where("kartNo", ">=", card.kartNo),
-                        where("kartNo", "<", card.originalKartNo)
-                    );
-                    const snapshot = await getDocs(q);
-                    snapshot.docs.forEach((doc) => {
-                        batch.update(doc.ref, {
-                            kartNo: doc.data().kartNo + 1,
-                            updatedAt: serverTimestamp()
-                        });
-                    });
-                }
+      const batch = writeBatch(db);
+      const cardsRef = collection(cardRef.parent);
 
-                batch.update(cardRef, {
-                    altKonu: card.altKonu,
-                    content: card.content,
-                    kartNo: card.kartNo,
-                    updatedAt: serverTimestamp()
-                });
+      if (formData.kartNo !== initialData.kartNo) {
+        const q = query(
+          cardsRef,
+          where('kartNo', '>=', Math.min(formData.kartNo, initialData.kartNo)),
+          where('kartNo', '<=', Math.max(formData.kartNo, initialData.kartNo)),
+          orderBy('kartNo')
+        );
 
-                await batch.commit();
+        const snapshot = await getDocs(q);
+        snapshot.docs.forEach((doc) => {
+          const currentKartNo = doc.data().kartNo;
+          if (doc.id !== cardRef.id) {
+            if (formData.kartNo > initialData.kartNo) {
+              if (currentKartNo <= formData.kartNo) {
+                batch.update(doc.ref, { kartNo: currentKartNo - 1 });
+              }
             } else {
-                await updateDoc(cardRef, {
-                    altKonu: card.altKonu,
-                    content: card.content,
-                    updatedAt: serverTimestamp()
-                });
+              if (currentKartNo >= formData.kartNo) {
+                batch.update(doc.ref, { kartNo: currentKartNo + 1 });
+              }
             }
+          }
+        });
+      }
 
-            toast.success('Kart başarıyla güncellendi!');
-            onClose();
-        } catch (error) {
-            console.error('Kart güncellenirken hata:', error);
-            toast.error('Kart güncellenirken bir hata oluştu!');
-        } finally {
-            setLoading(false);
-        }
-    };
+      batch.update(cardRef, {
+        altKonu: formData.altKonu,
+        content: formData.icerik,
+        kartNo: parseInt(formData.kartNo),
+        updatedAt: new Date()
+      });
 
-    if (!isOpen || !card) return null;
+      await batch.commit();
+      toast.success('Kart başarıyla güncellendi!');
+      onClose();
+    } catch (error) {
+      console.error('Güncelleme hatası:', error);
+      toast.error('Kart güncellenirken bir hata oluştu!');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-                <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-                    <div className="absolute inset-0 bg-gray-500 opacity-75" onClick={onClose}></div>
-                </div>
-
-                <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                    <div className="p-6">
-                        <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">
-                            Akıl Kartı Düzenle
-                        </h2>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Kart Numarası
-                                </label>
-                                <div className="flex items-center space-x-2">
-                                    <input
-                                        type="number"
-                                        value={card.kartNo}
-                                        onChange={(e) => setCard({...card, kartNo: parseInt(e.target.value)})}
-                                        min="1"
-                                        max={maxKartNo}
-                                        className="w-24 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                    />
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                                        / {maxKartNo}
-                                    </span>
-                                </div>
-                            </div>
-                            
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Alt Konu
-                                </label>
-                                <input
-                                    type="text"
-                                    value={card.altKonu}
-                                    onChange={(e) => setCard({...card, altKonu: e.target.value})}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                    placeholder="Alt konu başlığı"
-                                    required
-                                />
-                            </div>
-                            
-                            <div>
-                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
-                                    İçerik
-                                </label>
-                                <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                    <CKEditor
-                                        editor={ClassicEditor}
-                                        data={card.content}
-                                        onChange={(event, editor) => {
-                                            const data = editor.getData();
-                                            setCard({...card, content: data});
-                                        }}
-                                        config={{
-                                            toolbar: {
-                                                items: [
-                                                    'heading',
-                                                    '|',
-                                                    'bold',
-                                                    'italic',
-                                                    'link',
-                                                    'bulletedList',
-                                                    'numberedList',
-                                                    '|',
-                                                    'outdent',
-                                                    'indent',
-                                                    '|',
-                                                    'imageUpload',
-                                                    'blockQuote',
-                                                    'insertTable',
-                                                    'undo',
-                                                    'redo'
-                                                ]
-                                            },
-                                            image: {
-                                                upload: {
-                                                    types: ['jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff']
-                                                }
-                                            },
-                                            simpleUpload: {
-                                                uploadUrl: async (file) => {
-                                                    try {
-                                                        return await handleImageUpload(file);
-                                                    } catch (error) {
-                                                        console.error('Resim yükleme hatası:', error);
-                                                        throw error;
-                                                    }
-                                                }
-                                            }
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                            
-                            <div className="flex justify-end space-x-3 mt-6">
-                                <button
-                                    type="button"
-                                    onClick={onClose}
-                                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
-                                >
-                                    İptal
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                                >
-                                    {loading ? "Güncelleniyor..." : "Güncelle"}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
+  return (
+    <div className={`fixed inset-0 z-50 overflow-y-auto ${isOpen ? '' : 'hidden'}`}>
+      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+          <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
         </div>
-    );
+        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div className="sm:flex sm:items-start">
+              <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Akıl Kartı Düzenle</h3>
+                <div className="mt-2 space-y-4">
+                  <div>
+                    <label htmlFor="kartNo" className="block text-sm font-medium text-gray-700">Kart No</label>
+                    <input
+                      type="number"
+                      name="kartNo"
+                      id="kartNo"
+                      value={formData.kartNo}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="altKonu" className="block text-sm font-medium text-gray-700">Alt Konu</label>
+                    <input
+                      type="text"
+                      name="altKonu"
+                      id="altKonu"
+                      value={formData.altKonu}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="icerik" className="block text-sm font-medium text-gray-700">İçerik</label>
+                    <JoditEditor
+                      ref={editorRef}
+                      value={formData.icerik}
+                      config={config}
+                      onChange={(newContent) => setFormData({ ...formData, icerik: newContent })}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={loading}
+              className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm"
+            >
+              {loading ? 'Güncelleniyor...' : 'Güncelle'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+            >
+              İptal
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default EditMindCardModal; 

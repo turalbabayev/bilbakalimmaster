@@ -7,6 +7,7 @@ import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 import { toast } from 'react-hot-toast';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import JoditEditor from 'jodit-react';
 
 const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateComplete }) => {
     const [soru, setSoru] = useState(null);
@@ -21,6 +22,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
     const [zenginMetinAktif, setZenginMetinAktif] = useState(false);
     const [dogruCevapSecimi, setDogruCevapSecimi] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const editorRef = useRef(null);
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -158,13 +160,16 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
 
     const handleImageUpload = async (file) => {
         try {
-            const storageRef = ref(storage, `soru_resimleri/${Date.now()}_${file.name}`);
+            setLoading(true);
+            const storageRef = ref(storage, `question_images/${file.name}`);
             await uploadBytes(storageRef, file);
             const downloadURL = await getDownloadURL(storageRef);
+            setLoading(false);
             return downloadURL;
         } catch (error) {
-            console.error("Resim yükleme hatası:", error);
-            throw error;
+            console.error('Resim yükleme hatası:', error);
+            setLoading(false);
+            return null;
         }
     };
 
@@ -381,20 +386,83 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                                     Soru Metni
                                 </label>
                                 <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                    <CKEditor
-                                        editor={ClassicEditor}
-                                        data={soru.soruMetni}
-                                        onChange={(event, editor) => {
-                                            const data = editor.getData();
-                                            setSoru({ ...soru, soruMetni: data });
-                                        }}
+                                    <JoditEditor
+                                        ref={editorRef}
+                                        value={soru.soruMetni}
                                         config={{
-                                            toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'outdent', 'indent', '|', 'imageUpload', 'blockQuote', 'insertTable', 'undo', 'redo'],
-                                            image: {
-                                                upload: {
-                                                    types: ['jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff']
-                                                }
-                                            }
+                                            readonly: false,
+                                            height: 400,
+                                            uploader: {
+                                                insertImageAsBase64URI: false,
+                                                url: handleImageUpload,
+                                                format: 'json',
+                                                method: 'POST',
+                                                filesVariableName: 'files',
+                                                prepareData: function (data) {
+                                                    return data;
+                                                },
+                                                isSuccess: function (resp) {
+                                                    return resp;
+                                                },
+                                                getMsg: function (resp) {
+                                                    return resp;
+                                                },
+                                                process: function (resp) {
+                                                    return resp;
+                                                },
+                                                error: function (e) {
+                                                    console.log(e);
+                                                },
+                                                defaultHandlerSuccess: function (data, resp) {
+                                                    return data;
+                                                },
+                                            },
+                                            buttons: [
+                                                'source',
+                                                '|',
+                                                'bold',
+                                                'italic',
+                                                'underline',
+                                                'strikethrough',
+                                                '|',
+                                                'font',
+                                                'fontsize',
+                                                'brush',
+                                                'paragraph',
+                                                '|',
+                                                'superscript',
+                                                'subscript',
+                                                '|',
+                                                'ul',
+                                                'ol',
+                                                '|',
+                                                'outdent',
+                                                'indent',
+                                                '|',
+                                                'align',
+                                                'undo',
+                                                'redo',
+                                                '\n',
+                                                'selectall',
+                                                'cut',
+                                                'copy',
+                                                'paste',
+                                                '|',
+                                                'hr',
+                                                'eraser',
+                                                'copyformat',
+                                                '|',
+                                                'symbol',
+                                                'fullsize',
+                                                'print',
+                                                'about',
+                                                '|',
+                                                'image',
+                                                'table',
+                                            ],
+                                        }}
+                                        onChange={(newContent) => {
+                                            setSoru({ ...soru, soruMetni: newContent });
                                         }}
                                     />
                                 </div>
@@ -486,20 +554,83 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                                     Açıklama
                                 </label>
                                 <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                    <CKEditor
-                                        editor={ClassicEditor}
-                                        data={soru.aciklama}
-                                        onChange={(event, editor) => {
-                                            const data = editor.getData();
-                                            setSoru({ ...soru, aciklama: data });
-                                        }}
+                                    <JoditEditor
+                                        ref={editorRef}
+                                        value={soru.aciklama}
                                         config={{
-                                            toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'outdent', 'indent', '|', 'imageUpload', 'blockQuote', 'insertTable', 'undo', 'redo'],
-                                            image: {
-                                                upload: {
-                                                    types: ['jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff']
-                                                }
-                                            }
+                                            readonly: false,
+                                            height: 400,
+                                            uploader: {
+                                                insertImageAsBase64URI: false,
+                                                url: handleImageUpload,
+                                                format: 'json',
+                                                method: 'POST',
+                                                filesVariableName: 'files',
+                                                prepareData: function (data) {
+                                                    return data;
+                                                },
+                                                isSuccess: function (resp) {
+                                                    return resp;
+                                                },
+                                                getMsg: function (resp) {
+                                                    return resp;
+                                                },
+                                                process: function (resp) {
+                                                    return resp;
+                                                },
+                                                error: function (e) {
+                                                    console.log(e);
+                                                },
+                                                defaultHandlerSuccess: function (data, resp) {
+                                                    return data;
+                                                },
+                                            },
+                                            buttons: [
+                                                'source',
+                                                '|',
+                                                'bold',
+                                                'italic',
+                                                'underline',
+                                                'strikethrough',
+                                                '|',
+                                                'font',
+                                                'fontsize',
+                                                'brush',
+                                                'paragraph',
+                                                '|',
+                                                'superscript',
+                                                'subscript',
+                                                '|',
+                                                'ul',
+                                                'ol',
+                                                '|',
+                                                'outdent',
+                                                'indent',
+                                                '|',
+                                                'align',
+                                                'undo',
+                                                'redo',
+                                                '\n',
+                                                'selectall',
+                                                'cut',
+                                                'copy',
+                                                'paste',
+                                                '|',
+                                                'hr',
+                                                'eraser',
+                                                'copyformat',
+                                                '|',
+                                                'symbol',
+                                                'fullsize',
+                                                'print',
+                                                'about',
+                                                '|',
+                                                'image',
+                                                'table',
+                                            ],
+                                        }}
+                                        onChange={(newContent) => {
+                                            setSoru({ ...soru, aciklama: newContent });
                                         }}
                                     />
                                 </div>
