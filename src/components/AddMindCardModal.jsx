@@ -179,15 +179,21 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                                         height: 300,
                                         uploader: {
                                             insertImageAsBase64URI: false,
-                                            url: async (files, _, data, name) => {
+                                            url: async function(data) {
                                                 try {
-                                                    const file = files[0];
+                                                    if (!data['files[]'] || !data['files[]'][0]) {
+                                                        throw new Error('Dosya bulunamadı');
+                                                    }
+
+                                                    const file = data['files[]'][0];
                                                     const url = await handleImageUpload(file);
+
                                                     return {
                                                         success: true,
                                                         data: {
                                                             baseurl: '',
-                                                            files: [url]
+                                                            files: [url],
+                                                            isImages: [true]
                                                         }
                                                     };
                                                 } catch (error) {
