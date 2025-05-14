@@ -88,11 +88,10 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const handleImageUpload = async (targetElement, files) => {
         try {
             const file = files[0];
-            const storage = getStorage();
             const timestamp = Date.now();
             const fileExtension = file.name.split('.').pop();
             const fileName = `${timestamp}.${fileExtension}`;
-            const imageRef = storageRef(storage, `soru_resimleri/${fileName}`);
+            const imageRef = ref(storage, `soru_resimleri/${fileName}`);
             
             await uploadBytes(imageRef, file);
             const downloadUrl = await getDownloadURL(imageRef);
