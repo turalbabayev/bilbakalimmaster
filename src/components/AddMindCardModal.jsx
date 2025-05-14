@@ -50,35 +50,40 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         if (quillRef) {
             const quill = quillRef.getEditor();
             
-            quill.clipboard.addMatcher('IMG', async (node, delta) => {
-                try {
-                    setLoading(true);
-                    const base64String = node.src;
-                    
-                    if (base64String.startsWith('data:image')) {
-                        // Base64'ü Blob'a çevir
-                        const response = await fetch(base64String);
-                        const blob = await response.blob();
+            // Paste olayını dinle
+            quill.root.addEventListener('paste', async (e) => {
+                const clipboardData = e.clipboardData;
+                const items = clipboardData.items;
+
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item.type.indexOf('image') !== -1) {
+                        e.preventDefault();
+                        const blob = item.getAsFile();
                         
-                        // Firebase Storage'a yükle
-                        const storage = getStorage();
-                        const timestamp = Date.now();
-                        const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${blob.size}.${blob.type.split('/')[1]}`);
-                        
-                        await uploadBytes(imageRef, blob);
-                        const downloadUrl = await getDownloadURL(imageRef);
-                        
-                        // URL'yi delta'ya ekle
-                        delta.ops[0].insert.image = downloadUrl;
+                        try {
+                            setLoading(true);
+                            // Firebase Storage'a yükle
+                            const storage = getStorage();
+                            const timestamp = Date.now();
+                            const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${blob.name || 'pasted-image'}.${blob.type.split('/')[1]}`);
+                            
+                            await uploadBytes(imageRef, blob);
+                            const downloadUrl = await getDownloadURL(imageRef);
+
+                            // Resmi editöre ekle
+                            const range = quill.getSelection(true);
+                            quill.insertEmbed(range.index, 'image', downloadUrl);
+                            quill.setSelection(range.index + 1);
+
+                            toast.success("Resim başarıyla yüklendi!");
+                        } catch (error) {
+                            console.error('Resim yüklenirken hata:', error);
+                            toast.error('Resim yüklenirken bir hata oluştu!');
+                        } finally {
+                            setLoading(false);
+                        }
                     }
-                    
-                    return delta;
-                } catch (error) {
-                    console.error('Resim yüklenirken hata:', error);
-                    toast.error('Resim yüklenirken bir hata oluştu!');
-                    return false;
-                } finally {
-                    setLoading(false);
                 }
             });
         }
@@ -134,7 +139,8 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             }
         },
         clipboard: {
-            matchVisual: false
+            matchVisual: false,
+            matchers: []
         }
     };
 
@@ -148,7 +154,51 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         'image'
     ];
 
-    const handleEditorChange = (content) => {
+    const handleEditorChange = async (content) => {
+        // Base64 resim kontrolü
+        if (content.includes('data:image')) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            const images = tempDiv.getElementsByTagName('img');
+            let hasChanges = false;
+
+            for (const img of images) {
+                if (img.src.startsWith('data:image')) {
+                    try {
+                        setLoading(true);
+                        // Base64'ü Blob'a çevir
+                        const response = await fetch(img.src);
+                        const blob = await response.blob();
+                        
+                        // Firebase Storage'a yükle
+                        const storage = getStorage();
+                        const timestamp = Date.now();
+                        const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${blob.size}.${blob.type.split('/')[1]}`);
+                        
+                        await uploadBytes(imageRef, blob);
+                        const downloadUrl = await getDownloadURL(imageRef);
+                        
+                        // Base64'ü URL ile değiştir
+                        img.src = downloadUrl;
+                        hasChanges = true;
+                    } catch (error) {
+                        console.error('Resim yüklenirken hata:', error);
+                        toast.error('Resim yüklenirken bir hata oluştu!');
+                    }
+                }
+            }
+
+            if (hasChanges) {
+                content = tempDiv.innerHTML;
+                // Editörü güncelle
+                if (quillRef) {
+                    const quill = quillRef.getEditor();
+                    quill.clipboard.dangerouslyPasteHTML(content);
+                }
+            }
+            setLoading(false);
+        }
+
         setFormData(prev => ({
             ...prev,
             content: content
