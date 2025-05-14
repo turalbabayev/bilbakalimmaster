@@ -212,23 +212,16 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                         enableDragAndDropFileToEditor: true,
                                         uploader: {
                                             insertImageAsBase64URI: false,
-                                            processFileName: (fileName) => {
-                                                return `${Date.now()}_${fileName}`;
-                                            },
-                                            prepareData: function (formData) {
-                                                return formData;
-                                            },
-                                            defaultHandlerSuccess: function (data) {
-                                                if (data.files && data.files.length) {
-                                                    return data.files[0];
-                                                }
-                                                return '';
-                                            },
-                                            url: async function(formData) {
+                                            url: async function(data, progress) {
                                                 try {
-                                                    const file = formData.getAll('files[0]')[0];
-                                                    if (!file) {
+                                                    const files = data.getAll('files');
+                                                    if (!files || !files.length) {
                                                         throw new Error('Dosya bulunamadı');
+                                                    }
+
+                                                    const file = files[0];
+                                                    if (!(file instanceof Blob)) {
+                                                        throw new Error('Geçersiz dosya formatı');
                                                     }
 
                                                     const url = await handleImageUpload(file);
@@ -251,6 +244,20 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                                         }
                                                     };
                                                 }
+                                            },
+                                            process: function(resp) {
+                                                return {
+                                                    files: resp.data.files,
+                                                    baseurl: resp.data.baseurl,
+                                                    error: resp.success ? 0 : 1,
+                                                    message: resp.data.messages?.[0]
+                                                };
+                                            },
+                                            defaultHandlerSuccess: function(resp) {
+                                                return resp.files?.[0] || '';
+                                            },
+                                            contentType: function() {
+                                                return false;
                                             }
                                         },
                                         buttons: [
