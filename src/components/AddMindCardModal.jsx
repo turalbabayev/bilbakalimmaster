@@ -1,33 +1,25 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { db } from "../firebase";
 import { collection, addDoc, doc, serverTimestamp, getDocs, query, orderBy, limit, where, writeBatch } from "firebase/firestore";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "react-hot-toast";
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import { Editor } from '@tinymce/tinymce-react';
 import { useTopics } from '../hooks/useTopics';
 
 const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         content: "",
-        image: null,
-        imageUrl: null
     });
     const { topics } = useTopics();
     const [selectedKonu, setSelectedKonu] = useState("");
     const [altKonu, setAltKonu] = useState("");
-    const [isJsonMode, setIsJsonMode] = useState(false);
-    const [jsonData, setJsonData] = useState("");
-    const [content, setContent] = useState('');
-    const [explanation, setExplanation] = useState('');
-    const [selectedKonuId, setSelectedKonuId] = useState(selectedKonu || '');
     const [kartNo, setKartNo] = useState(1);
     const [maxKartNo, setMaxKartNo] = useState(1);
+    const editorRef = useRef(null);
 
     useEffect(() => {
         if (selectedKonu) {
-            // Seçili konudaki en yüksek kart numarasını bul
             const konuRef = doc(db, "miniCards-konular", selectedKonu);
             const cardsRef = collection(konuRef, "cards");
             const q = query(cardsRef, orderBy("kartNo", "desc"), limit(1));
@@ -45,133 +37,30 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         }
     }, [selectedKonu]);
 
-    const modules = {
-        toolbar: {
-            container: [
-                [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ 'color': [] }, { 'background': [] }],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                [{ 'align': [] }],
-                ['link', 'image'],
-                ['clean']
-            ],
-            handlers: {
-                image: () => {
-                    const input = document.createElement('input');
-                    input.setAttribute('type', 'file');
-                    input.setAttribute('accept', 'image/*');
-                    input.click();
-
-                    input.onchange = async () => {
-                        const file = input.files[0];
-                        if (file) {
-                            try {
-                                setLoading(true);
-                                // Firebase Storage'a yükle
-                                const storage = getStorage();
-                                const timestamp = Date.now();
-                                const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${file.name}`);
-                                
-                                await uploadBytes(imageRef, file);
-                                const downloadUrl = await getDownloadURL(imageRef);
-
-                                // Quill editörüne resmi ekle
-                                const quill = document.querySelector('.ql-editor').__quill;
-                                const range = quill.getSelection(true);
-                                
-                                // Resmi URL olarak ekle
-                                quill.insertEmbed(range.index, 'image', downloadUrl, 'user');
-                                quill.setSelection(range.index + 1);
-
-                                toast.success("Resim başarıyla yüklendi!");
-                            } catch (error) {
-                                console.error('Resim yüklenirken hata:', error);
-                                toast.error('Resim yüklenirken bir hata oluştu!');
-                            } finally {
-                                setLoading(false);
-                            }
-                        }
-                    };
-                }
-            }
-        }
+    const handleEditorChange = (content) => {
+        setFormData(prev => ({
+            ...prev,
+            content: content
+        }));
     };
 
-    const formats = [
-        'header',
-        'bold', 'italic', 'underline', 'strike',
-        'color', 'background',
-        'list', 'bullet',
-        'align',
-        'link',
-        'image'
-    ];
-
-    const handleEditorChange = async (content) => {
-        if (content.includes('data:image')) {
-            try {
-                setLoading(true);
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = content;
-                const images = tempDiv.getElementsByTagName('img');
-
-                // Tüm base64 resimleri Firebase'e yükle
-                for (const img of images) {
-                    if (img.src.startsWith('data:image')) {
-                        try {
-                            // Base64'ü Blob'a çevir
-                            const response = await fetch(img.src);
-                            const blob = await response.blob();
-                            
-                            // Firebase Storage'a yükle
-                            const storage = getStorage();
-                            const timestamp = Date.now();
-                            const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${blob.size}.${blob.type.split('/')[1]}`);
-                            
-                            await uploadBytes(imageRef, blob);
-                            const downloadUrl = await getDownloadURL(imageRef);
-                            
-                            // Base64'ü URL ile değiştir
-                            img.src = downloadUrl;
-                        } catch (error) {
-                            console.error('Resim yüklenirken hata:', error);
-                            toast.error('Resim yüklenirken bir hata oluştu!');
-                        }
-                    }
-                }
-
-                // URL'lerle güncellenmiş içeriği state'e kaydet
-                setFormData(prev => ({
-                    ...prev,
-                    content: tempDiv.innerHTML
-                }));
-
-                toast.success("Resimler başarıyla yüklendi!");
-            } catch (error) {
-                console.error('Resimler işlenirken hata:', error);
-                toast.error('Resimler işlenirken bir hata oluştu!');
-            } finally {
-                setLoading(false);
-            }
-        } else {
-            setFormData(prev => ({
-                ...prev,
-                content: content
-            }));
-        }
-    };
-
-    const getNextCardNumber = async (konuId) => {
+    const handleImageUpload = async (blobInfo) => {
         try {
-            const konuRef = doc(db, "miniCards-konular", konuId);
-            const cardsRef = collection(konuRef, "cards");
-            const q = query(cardsRef);
-            const snapshot = await getDocs(q);
-            return snapshot.size + 1;
+            setLoading(true);
+            const storage = getStorage();
+            const timestamp = Date.now();
+            const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${blobInfo.filename()}`);
+            
+            await uploadBytes(imageRef, blobInfo.blob());
+            const downloadUrl = await getDownloadURL(imageRef);
+            
+            return downloadUrl;
         } catch (error) {
-            console.error("Kart numarası alınırken hata:", error);
-            return 1;
+            console.error('Resim yüklenirken hata:', error);
+            toast.error('Resim yüklenirken bir hata oluştu!');
+            throw error;
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -188,13 +77,11 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             const konuRef = doc(db, "miniCards-konular", selectedKonu);
             const cardsRef = collection(konuRef, "cards");
 
-            // Seçilen kartNo'dan büyük veya eşit numaralı kartları bir artır
             const q = query(cardsRef, where("kartNo", ">=", kartNo), orderBy("kartNo", "desc"));
             const snapshot = await getDocs(q);
             
             const batch = writeBatch(db);
             
-            // Mevcut kartların numaralarını güncelle
             snapshot.docs.forEach(doc => {
                 batch.update(doc.ref, {
                     kartNo: doc.data().kartNo + 1,
@@ -202,12 +89,10 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                 });
             });
 
-            // Yeni kartı ekle
             const newCardRef = doc(cardsRef);
             batch.set(newCardRef, {
                 altKonu,
                 content: formData.content,
-                imageUrl: formData.imageUrl,
                 kartNo,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
@@ -225,85 +110,6 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         }
     };
 
-    const handleJsonSubmit = async (e) => {
-        e.preventDefault();
-        if (!selectedKonu) {
-            toast.error("Lütfen bir konu seçin!");
-            return;
-        }
-
-        if (!jsonData.trim()) {
-            toast.error("Lütfen JSON verisi girin!");
-            return;
-        }
-
-        try {
-            const parsedData = JSON.parse(jsonData);
-            if (!Array.isArray(parsedData)) {
-                toast.error("JSON verisi bir dizi olmalıdır!");
-                return;
-            }
-
-            setLoading(true);
-            const konuRef = doc(db, "miniCards-konular", selectedKonu);
-            const cardsRef = collection(konuRef, "cards");
-
-            // Mevcut kart sayısını al
-            let nextCardNumber = await getNextCardNumber(selectedKonu);
-            
-            let successCount = 0;
-            let errorCount = 0;
-
-            for (const item of parsedData) {
-                if (!item.altKonu || !item.content) {
-                    errorCount++;
-                    continue;
-                }
-
-                try {
-                    await addDoc(cardsRef, {
-                        altKonu: item.altKonu,
-                        content: item.content,
-                        createdAt: serverTimestamp(),
-                        updatedAt: serverTimestamp(),
-                        kartNo: nextCardNumber++
-                    });
-                    successCount++;
-                } catch (error) {
-                    console.error("Kart eklenirken hata:", error);
-                    errorCount++;
-                }
-            }
-
-            if (successCount > 0) {
-                toast.success(`${successCount} kart başarıyla eklendi!`);
-                if (errorCount > 0) {
-                    toast.error(`${errorCount} kart eklenemedi.`);
-                }
-                onSuccess();
-                onClose();
-            } else {
-                toast.error("Hiçbir kart eklenemedi!");
-            }
-        } catch (error) {
-            console.error("JSON işlenirken hata:", error);
-            toast.error("JSON verisi geçerli değil!");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const jsonExample = `[
-    {
-        "altKonu": "Alt Konu 1",
-        "content": "<p>Kart içeriği 1</p>"
-    },
-    {
-        "altKonu": "Alt Konu 2",
-        "content": "<p>Kart içeriği 2</p>"
-    }
-]`;
-
     if (!isOpen) return null;
 
     return (
@@ -318,148 +124,97 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
 
                 <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
                     <div className="p-6">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                {isJsonMode ? "JSON ile Toplu Yükle" : "Yeni Akıl Kartı Ekle"}
-                            </h2>
-                            <button
-                                type="button"
-                                onClick={() => setIsJsonMode(!isJsonMode)}
-                                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md"
-                            >
-                                {isJsonMode ? "Tekli Ekleme Modu" : "JSON ile Yükle"}
-                            </button>
-                        </div>
-
-                        {isJsonMode ? (
-                            <form onSubmit={handleJsonSubmit} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Konu
-                                    </label>
-                                    <select
-                                        value={selectedKonu}
-                                        onChange={(e) => setSelectedKonu(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                        required
-                                    >
-                                        <option value="">Konu Seçin</option>
-                                        {topics.map((konu) => (
-                                            <option key={konu.id} value={konu.id}>
-                                                {konu.baslik}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        JSON Verisi
-                                    </label>
-                                    <div className="mb-2">
-                                        <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-md mb-2">
-                                            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                JSON Formatı:
-                                            </h3>
-                                            <pre className="text-xs text-gray-600 dark:text-gray-400 overflow-x-auto">
-                                                {jsonExample}
-                                            </pre>
-                                        </div>
-                                    </div>
-                                    <textarea
-                                        value={jsonData}
-                                        onChange={(e) => setJsonData(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white h-64 font-mono"
-                                        placeholder="JSON verisini buraya yapıştırın..."
-                                        required
-                                    />
-                                </div>
-
-                                <div className="flex justify-end space-x-3 mt-6">
-                                    <button
-                                        type="button"
-                                        onClick={onClose}
-                                        className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
-                                    >
-                                        İptal
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                                    >
-                                        {loading ? "Yükleniyor..." : "Toplu Yükle"}
-                                    </button>
-                                </div>
-                            </form>
-                        ) : (
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Konu
-                                    </label>
-                                    <select
-                                        value={selectedKonu}
-                                        onChange={(e) => setSelectedKonu(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                        required
-                                    >
-                                        <option value="">Konu Seçin</option>
-                                        {topics.map((konu) => (
-                                            <option key={konu.id} value={konu.id}>
-                                                {konu.baslik}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Alt Konu
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={altKonu}
-                                        onChange={(e) => setAltKonu(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                        placeholder="Alt konu başlığı"
-                                        required
-                                    />
-                                </div>
-                                
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        İçerik
-                                    </label>
-                                    <div className="border border-gray-300 rounded-md dark:border-gray-600">
-                                        <ReactQuill
-                                            value={formData.content}
-                                            onChange={handleEditorChange}
-                                            modules={modules}
-                                            formats={formats}
-                                            className="h-64 mb-12 dark:bg-gray-700 dark:text-white"
-                                        />
-                                    </div>
-                                </div>
-                                
-                                <div className="flex justify-end space-x-3 mt-6">
-                                    <button
-                                        type="button"
-                                        onClick={onClose}
-                                        className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
-                                    >
-                                        İptal
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                                    >
-                                        {loading ? "Ekleniyor..." : "Ekle"}
-                                    </button>
-                                </div>
-                            </form>
-                        )}
+                        <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">
+                            Yeni Akıl Kartı Ekle
+                        </h2>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Konu
+                                </label>
+                                <select
+                                    value={selectedKonu}
+                                    onChange={(e) => setSelectedKonu(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    required
+                                >
+                                    <option value="">Konu Seçin</option>
+                                    {topics.map((konu) => (
+                                        <option key={konu.id} value={konu.id}>
+                                            {konu.baslik}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Alt Konu
+                                </label>
+                                <input
+                                    type="text"
+                                    value={altKonu}
+                                    onChange={(e) => setAltKonu(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    placeholder="Alt konu başlığı"
+                                    required
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    İçerik
+                                </label>
+                                <Editor
+                                    onInit={(evt, editor) => editorRef.current = editor}
+                                    value={formData.content}
+                                    onEditorChange={handleEditorChange}
+                                    init={{
+                                        height: 300,
+                                        menubar: false,
+                                        plugins: [
+                                            'advlist', 'autolink', 'lists', 'link', 'image', 
+                                            'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 
+                                            'code', 'fullscreen', 'insertdatetime', 'media', 'table', 
+                                            'help', 'wordcount'
+                                        ],
+                                        toolbar: 'undo redo | blocks | ' +
+                                            'bold italic forecolor | alignleft aligncenter ' +
+                                            'alignright alignjustify | bullist numlist outdent indent | ' +
+                                            'removeformat | image',
+                                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                                        images_upload_handler: handleImageUpload,
+                                        automatic_uploads: true,
+                                        images_reuse_filename: true,
+                                        paste_data_images: true,
+                                        paste_as_text: false,
+                                        paste_enable_default_filters: true,
+                                        paste_word_valid_elements: "p,b,strong,i,em,h1,h2,h3,h4,h5,h6",
+                                        paste_retain_style_properties: "color,background-color,font-size",
+                                        convert_urls: false,
+                                        relative_urls: false,
+                                        remove_script_host: false
+                                    }}
+                                />
+                            </div>
+                            
+                            <div className="flex justify-end space-x-3 mt-6">
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
+                                >
+                                    İptal
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                                >
+                                    {loading ? "Ekleniyor..." : "Ekle"}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
