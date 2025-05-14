@@ -46,28 +46,60 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
     }, [selectedKonu]);
 
     const modules = {
-        toolbar: [
-            [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-            ['bold', 'italic', 'underline', 'strike'],
-            [{ 'color': [] }, { 'background': [] }],
-            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-            [{ 'align': [] }],
-            ['link'],
-            ['clean']
-        ],
+        toolbar: {
+            container: [
+                [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'color': [] }, { 'background': [] }],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                [{ 'align': [] }],
+                ['link', 'image'],
+                ['clean']
+            ],
+            handlers: {
+                image: imageHandler
+            }
+        }
     };
 
-    const formats = [
-        'header',
-        'bold', 'italic', 'underline', 'strike',
-        'color', 'background',
-        'list', 'bullet',
-        'align',
-        'link'
-    ];
+    async function imageHandler() {
+        const input = document.createElement('input');
+        input.setAttribute('type', 'file');
+        input.setAttribute('accept', 'image/*');
+        input.click();
+
+        input.onchange = async () => {
+            const file = input.files[0];
+            if (file) {
+                try {
+                    setLoading(true);
+                    // Firebase Storage'a yükle
+                    const storage = getStorage();
+                    const timestamp = Date.now();
+                    const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${file.name}`);
+                    
+                    await uploadBytes(imageRef, file);
+                    const downloadUrl = await getDownloadURL(imageRef);
+
+                    // Editöre resmi ekle
+                    const editor = document.querySelector('.ql-editor');
+                    const range = document.getSelection().getRangeAt(0);
+                    const img = document.createElement('img');
+                    img.src = downloadUrl;
+                    range.insertNode(img);
+
+                    toast.success("Resim başarıyla yüklendi!");
+                } catch (error) {
+                    console.error('Resim yüklenirken hata:', error);
+                    toast.error('Resim yüklenirken bir hata oluştu!');
+                } finally {
+                    setLoading(false);
+                }
+            }
+        };
+    }
 
     const handleEditorChange = (content) => {
-        // İçeriği geçici olarak sakla
         setFormData(prev => ({
             ...prev,
             content: content
@@ -187,9 +219,6 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
 
         setLoading(true);
         try {
-            // İçerikteki base64 resimleri kontrol et ve yükle
-            const finalContent = await handleContentChange(formData.content);
-
             const konuRef = doc(db, "miniCards-konular", selectedKonu);
             const cardsRef = collection(konuRef, "cards");
 
@@ -211,7 +240,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             const newCardRef = doc(cardsRef);
             batch.set(newCardRef, {
                 altKonu,
-                content: finalContent,
+                content: formData.content,
                 imageUrl: formData.imageUrl,
                 kartNo,
                 createdAt: serverTimestamp(),
