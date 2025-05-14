@@ -57,7 +57,43 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                 ['clean']
             ],
             handlers: {
-                image: imageHandler
+                image: () => {
+                    const input = document.createElement('input');
+                    input.setAttribute('type', 'file');
+                    input.setAttribute('accept', 'image/*');
+                    input.click();
+
+                    input.onchange = async () => {
+                        const file = input.files[0];
+                        if (file) {
+                            try {
+                                setLoading(true);
+                                // Firebase Storage'a yükle
+                                const storage = getStorage();
+                                const timestamp = Date.now();
+                                const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${file.name}`);
+                                
+                                await uploadBytes(imageRef, file);
+                                const downloadUrl = await getDownloadURL(imageRef);
+
+                                // Quill editörüne resmi ekle
+                                const quill = document.querySelector('.ql-editor').__quill;
+                                const range = quill.getSelection(true);
+                                
+                                // Resmi URL olarak ekle
+                                quill.insertEmbed(range.index, 'image', downloadUrl, 'user');
+                                quill.setSelection(range.index + 1);
+
+                                toast.success("Resim başarıyla yüklendi!");
+                            } catch (error) {
+                                console.error('Resim yüklenirken hata:', error);
+                                toast.error('Resim yüklenirken bir hata oluştu!');
+                            } finally {
+                                setLoading(false);
+                            }
+                        }
+                    };
+                }
             }
         }
     };
@@ -72,46 +108,58 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         'image'
     ];
 
-    async function imageHandler() {
-        const input = document.createElement('input');
-        input.setAttribute('type', 'file');
-        input.setAttribute('accept', 'image/*');
-        input.click();
+    const handleEditorChange = async (content) => {
+        if (content.includes('data:image')) {
+            try {
+                setLoading(true);
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = content;
+                const images = tempDiv.getElementsByTagName('img');
 
-        input.onchange = async () => {
-            const file = input.files[0];
-            if (file) {
-                try {
-                    setLoading(true);
-                    // Firebase Storage'a yükle
-                    const storage = getStorage();
-                    const timestamp = Date.now();
-                    const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${file.name}`);
-                    
-                    await uploadBytes(imageRef, file);
-                    const downloadUrl = await getDownloadURL(imageRef);
-
-                    // Quill editörüne resmi ekle
-                    const quill = document.querySelector('.ql-editor').parentNode.querySelector('.ql-editor').__quill;
-                    const range = quill.getSelection(true);
-                    quill.insertEmbed(range.index, 'image', downloadUrl);
-
-                    toast.success("Resim başarıyla yüklendi!");
-                } catch (error) {
-                    console.error('Resim yüklenirken hata:', error);
-                    toast.error('Resim yüklenirken bir hata oluştu!');
-                } finally {
-                    setLoading(false);
+                // Tüm base64 resimleri Firebase'e yükle
+                for (const img of images) {
+                    if (img.src.startsWith('data:image')) {
+                        try {
+                            // Base64'ü Blob'a çevir
+                            const response = await fetch(img.src);
+                            const blob = await response.blob();
+                            
+                            // Firebase Storage'a yükle
+                            const storage = getStorage();
+                            const timestamp = Date.now();
+                            const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${blob.size}.${blob.type.split('/')[1]}`);
+                            
+                            await uploadBytes(imageRef, blob);
+                            const downloadUrl = await getDownloadURL(imageRef);
+                            
+                            // Base64'ü URL ile değiştir
+                            img.src = downloadUrl;
+                        } catch (error) {
+                            console.error('Resim yüklenirken hata:', error);
+                            toast.error('Resim yüklenirken bir hata oluştu!');
+                        }
+                    }
                 }
-            }
-        };
-    }
 
-    const handleEditorChange = (content) => {
-        setFormData(prev => ({
-            ...prev,
-            content: content
-        }));
+                // URL'lerle güncellenmiş içeriği state'e kaydet
+                setFormData(prev => ({
+                    ...prev,
+                    content: tempDiv.innerHTML
+                }));
+
+                toast.success("Resimler başarıyla yüklendi!");
+            } catch (error) {
+                console.error('Resimler işlenirken hata:', error);
+                toast.error('Resimler işlenirken bir hata oluştu!');
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                content: content
+            }));
+        }
     };
 
     const getNextCardNumber = async (konuId) => {
