@@ -3,8 +3,7 @@ import { db } from "../firebase";
 import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit, where, writeBatch, getDocs } from "firebase/firestore";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "react-hot-toast";
-import SunEditor from 'suneditor-react';
-import 'suneditor/dist/css/suneditor.min.css';
+import { Editor } from '@tinymce/tinymce-react';
 import { useTopics } from '../hooks/useTopics';
 
 const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
@@ -48,24 +47,36 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
         }
     }, [card?.konuId]);
 
-    const handleImageUpload = async (targetElement, files) => {
+    const handleImageUpload = async (blobInfo) => {
         try {
-            const file = files[0];
+            setLoading(true);
             const storage = getStorage();
             const timestamp = Date.now();
-            const fileExtension = file.name.split('.').pop();
+            const fileExtension = blobInfo.filename().split('.').pop();
             const fileName = `${timestamp}.${fileExtension}`;
             const imageRef = storageRef(storage, `mind-cards-images/${fileName}`);
             
-            await uploadBytes(imageRef, file);
+            // Blob'u File'a çeviriyoruz
+            const file = new File([blobInfo.blob()], fileName, { type: blobInfo.blob().type });
+            
+            // Metadata ekliyoruz
+            const metadata = {
+                contentType: file.type,
+                customMetadata: {
+                    originalName: blobInfo.filename()
+                }
+            };
+            
+            await uploadBytes(imageRef, file, metadata);
             const downloadUrl = await getDownloadURL(imageRef);
             
-            targetElement.insertImage(downloadUrl);
-            return true;
+            return downloadUrl;
         } catch (error) {
-            console.error('Resim yükleme hatası:', error);
+            console.error('Resim yüklenirken hata:', error);
             toast.error('Resim yüklenirken bir hata oluştu!');
-            return false;
+            throw error;
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -199,27 +210,37 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                 <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
                                     İçerik
                                 </label>
-                                <SunEditor
-                                    setContents={formData.content}
-                                    onChange={(content) => setFormData(prev => ({ ...prev, content }))}
-                                    setOptions={{
+                                <Editor
+                                    apiKey="bbelkz83knafk8x2iv6h5i7d64o6k5os6ms07wt010605yby"
+                                    onInit={(evt, editor) => editorRef.current = editor}
+                                    value={formData.content}
+                                    onEditorChange={(content) => setFormData(prev => ({ ...prev, content }))}
+                                    init={{
                                         height: 300,
-                                        buttonList: [
-                                            ['undo', 'redo'],
-                                            ['font', 'fontSize', 'formatBlock'],
-                                            ['bold', 'underline', 'italic', 'strike', 'subscript', 'superscript'],
-                                            ['removeFormat'],
-                                            ['fontColor', 'hiliteColor'],
-                                            ['indent', 'outdent'],
-                                            ['align', 'horizontalRule', 'list', 'table'],
-                                            ['link', 'image'],
-                                            ['fullScreen', 'showBlocks', 'codeView']
+                                        menubar: false,
+                                        plugins: [
+                                            'advlist', 'autolink', 'lists', 'link', 'image', 
+                                            'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 
+                                            'code', 'fullscreen', 'insertdatetime', 'media', 'table', 
+                                            'help', 'wordcount'
                                         ],
-                                        formats: ['p', 'div', 'h1', 'h2', 'h3'],
-                                        font: ['Arial', 'Helvetica', 'sans-serif', 'Verdana'],
+                                        toolbar: 'undo redo | blocks | ' +
+                                            'bold italic forecolor | alignleft aligncenter ' +
+                                            'alignright alignjustify | bullist numlist outdent indent | ' +
+                                            'removeformat | image',
+                                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                                        images_upload_handler: handleImageUpload,
+                                        automatic_uploads: true,
+                                        images_reuse_filename: true,
+                                        paste_data_images: true,
+                                        paste_as_text: true,
+                                        paste_enable_default_filters: true,
+                                        paste_word_valid_elements: "p,b,strong,i,em,h1,h2,h3,h4,h5,h6",
+                                        paste_retain_style_properties: "color,background-color,font-size",
+                                        convert_urls: false,
+                                        relative_urls: false,
+                                        remove_script_host: false
                                     }}
-                                    onImageUpload={handleImageUpload}
-                                    lang="tr"
                                 />
                             </div>
                             
