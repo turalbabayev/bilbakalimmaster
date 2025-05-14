@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { db } from "../firebase";
-import { collection, addDoc, doc, serverTimestamp, getDocs, query, orderBy, limit, where, writeBatch } from "firebase/firestore";
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "../firebase";
+import { collection, addDoc, doc, serverTimestamp, getDocs, query, orderBy, limit, where, writeBatch, updateDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "react-hot-toast";
-import { Editor } from '@tinymce/tinymce-react';
+import { CKEditor } from '@ckeditor/ckeditor5-react';
+import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 import { useTopics } from '../hooks/useTopics';
 
 const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
@@ -44,36 +45,15 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         }));
     };
 
-    const handleImageUpload = async (blobInfo) => {
+    const handleImageUpload = async (file) => {
         try {
-            setLoading(true);
-            const storage = getStorage();
-            const timestamp = Date.now();
-            const fileExtension = blobInfo.filename().split('.').pop();
-            const fileName = `${timestamp}.${fileExtension}`;
-            const imageRef = storageRef(storage, `mind-cards-images/${fileName}`);
-            
-            // Blob'u File'a çeviriyoruz
-            const file = new File([blobInfo.blob()], fileName, { type: blobInfo.blob().type });
-            
-            // Metadata ekliyoruz
-            const metadata = {
-                contentType: file.type,
-                customMetadata: {
-                    originalName: blobInfo.filename()
-                }
-            };
-            
-            await uploadBytes(imageRef, file, metadata);
-            const downloadUrl = await getDownloadURL(imageRef);
-            
-            return downloadUrl;
+            const storageRef = ref(storage, `kart_resimleri/${Date.now()}_${file.name}`);
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+            return downloadURL;
         } catch (error) {
-            console.error('Resim yüklenirken hata:', error);
-            toast.error('Resim yüklenirken bir hata oluştu!');
+            console.error("Resim yükleme hatası:", error);
             throw error;
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -175,41 +155,30 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                             </div>
                             
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
                                     İçerik
                                 </label>
-                                <Editor
-                                    apiKey="bbelkz83knafk8x2iv6h5i7d64o6k5os6ms07wt010605yby"
-                                    onInit={(evt, editor) => editorRef.current = editor}
-                                    value={formData.content}
-                                    onEditorChange={handleEditorChange}
-                                    init={{
-                                        height: 300,
-                                        menubar: false,
-                                        plugins: [
-                                            'advlist', 'autolink', 'lists', 'link', 'image', 
-                                            'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 
-                                            'code', 'fullscreen', 'insertdatetime', 'media', 'table', 
-                                            'help', 'wordcount'
-                                        ],
-                                        toolbar: 'undo redo | blocks | ' +
-                                            'bold italic forecolor | alignleft aligncenter ' +
-                                            'alignright alignjustify | bullist numlist outdent indent | ' +
-                                            'removeformat | image',
-                                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
-                                        images_upload_handler: handleImageUpload,
-                                        automatic_uploads: true,
-                                        images_reuse_filename: true,
-                                        paste_data_images: true,
-                                        paste_as_text: false,
-                                        paste_enable_default_filters: true,
-                                        paste_word_valid_elements: "p,b,strong,i,em,h1,h2,h3,h4,h5,h6",
-                                        paste_retain_style_properties: "color,background-color,font-size",
-                                        convert_urls: false,
-                                        relative_urls: false,
-                                        remove_script_host: false
-                                    }}
-                                />
+                                <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
+                                    <CKEditor
+                                        editor={ClassicEditor}
+                                        data={formData.content}
+                                        onChange={(event, editor) => {
+                                            const data = editor.getData();
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                content: data
+                                            }));
+                                        }}
+                                        config={{
+                                            toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'outdent', 'indent', '|', 'imageUpload', 'blockQuote', 'insertTable', 'undo', 'redo'],
+                                            image: {
+                                                upload: {
+                                                    types: ['jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff']
+                                                }
+                                            }
+                                        }}
+                                    />
+                                </div>
                             </div>
                             
                             <div className="flex justify-end space-x-3 mt-6">
