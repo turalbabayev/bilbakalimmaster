@@ -3,7 +3,8 @@ import { db } from "../firebase";
 import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit, where, writeBatch, getDocs } from "firebase/firestore";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "react-hot-toast";
-import JoditEditor from "jodit-react";
+import SunEditor from 'suneditor-react';
+import 'suneditor/dist/css/suneditor.min.css';
 import { useTopics } from '../hooks/useTopics';
 
 const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
@@ -47,29 +48,24 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
         }
     }, [card?.konuId]);
 
-    const handleImageUpload = async (file) => {
+    const handleImageUpload = async (targetElement, files) => {
         try {
-            setLoading(true);
+            const file = files[0];
             const storage = getStorage();
             const timestamp = Date.now();
-            const fileExtension = file.type.split('/')[1];
+            const fileExtension = file.name.split('.').pop();
             const fileName = `${timestamp}.${fileExtension}`;
             const imageRef = storageRef(storage, `mind-cards-images/${fileName}`);
             
-            const metadata = {
-                contentType: file.type
-            };
-            
-            await uploadBytes(imageRef, file, metadata);
+            await uploadBytes(imageRef, file);
             const downloadUrl = await getDownloadURL(imageRef);
             
-            return downloadUrl;
+            targetElement.insertImage(downloadUrl);
+            return true;
         } catch (error) {
-            console.error('Resim yüklenirken hata:', error);
+            console.error('Resim yükleme hatası:', error);
             toast.error('Resim yüklenirken bir hata oluştu!');
-            throw error;
-        } finally {
-            setLoading(false);
+            return false;
         }
     };
 
@@ -203,75 +199,27 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                 <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
                                     İçerik
                                 </label>
-                                <JoditEditor
-                                    ref={editorRef}
-                                    value={formData.content}
-                                    config={{
-                                        readonly: false,
+                                <SunEditor
+                                    setContents={formData.content}
+                                    onChange={(content) => setFormData(prev => ({ ...prev, content }))}
+                                    setOptions={{
                                         height: 300,
-                                        enableDragAndDropFileToEditor: true,
-                                        uploader: {
-                                            insertImageAsBase64URI: false,
-                                            url: async function(data, progress) {
-                                                try {
-                                                    const files = data.getAll('files');
-                                                    if (!files || !files.length) {
-                                                        throw new Error('Dosya bulunamadı');
-                                                    }
-
-                                                    const file = files[0];
-                                                    if (!(file instanceof Blob)) {
-                                                        throw new Error('Geçersiz dosya formatı');
-                                                    }
-
-                                                    const url = await handleImageUpload(file);
-                                                    
-                                                    return {
-                                                        success: true,
-                                                        data: {
-                                                            baseurl: '',
-                                                            files: [url],
-                                                            messages: ['Resim başarıyla yüklendi'],
-                                                            isImages: [true]
-                                                        }
-                                                    };
-                                                } catch (error) {
-                                                    console.error('Resim yükleme hatası:', error);
-                                                    return {
-                                                        success: false,
-                                                        data: {
-                                                            messages: ['Resim yüklenirken bir hata oluştu']
-                                                        }
-                                                    };
-                                                }
-                                            },
-                                            process: function(resp) {
-                                                return {
-                                                    files: resp.data.files,
-                                                    baseurl: resp.data.baseurl,
-                                                    error: resp.success ? 0 : 1,
-                                                    message: resp.data.messages?.[0]
-                                                };
-                                            },
-                                            defaultHandlerSuccess: function(resp) {
-                                                return resp.files?.[0] || '';
-                                            },
-                                            contentType: function() {
-                                                return false;
-                                            }
-                                        },
-                                        buttons: [
-                                            'source', '|',
-                                            'bold', 'italic', 'underline', '|',
-                                            'ul', 'ol', '|',
-                                            'font', 'fontsize', 'brush', 'paragraph', '|',
-                                            'image', 'table', 'link', '|',
-                                            'left', 'center', 'right', 'justify', '|',
-                                            'undo', 'redo', '|',
-                                            'hr', 'eraser', 'fullsize'
-                                        ]
+                                        buttonList: [
+                                            ['undo', 'redo'],
+                                            ['font', 'fontSize', 'formatBlock'],
+                                            ['bold', 'underline', 'italic', 'strike', 'subscript', 'superscript'],
+                                            ['removeFormat'],
+                                            ['fontColor', 'hiliteColor'],
+                                            ['indent', 'outdent'],
+                                            ['align', 'horizontalRule', 'list', 'table'],
+                                            ['link', 'image'],
+                                            ['fullScreen', 'showBlocks', 'codeView']
+                                        ],
+                                        formats: ['p', 'div', 'h1', 'h2', 'h3'],
+                                        font: ['Arial', 'Helvetica', 'sans-serif', 'Verdana'],
                                     }}
-                                    onBlur={(newContent) => setFormData(prev => ({ ...prev, content: newContent }))}
+                                    onImageUpload={handleImageUpload}
+                                    lang="tr"
                                 />
                             </div>
                             

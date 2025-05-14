@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { db, storage } from "../firebase";
 import { collection, addDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import JoditEditor from "jodit-react";
+import SunEditor from 'suneditor-react';
+import 'suneditor/dist/css/suneditor.min.css';
 import { toast } from 'react-hot-toast';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -84,15 +85,24 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
         setSoruResmi(null);
     };
 
-    const handleImageUpload = async (file) => {
+    const handleImageUpload = async (targetElement, files) => {
         try {
-            const storageRef = ref(storage, `soru_resimleri/${Date.now()}_${file.type.split('/')[1]}`);
-            await uploadBytes(storageRef, file, { contentType: file.type });
-            const downloadURL = await getDownloadURL(storageRef);
-            return downloadURL;
+            const file = files[0];
+            const storage = getStorage();
+            const timestamp = Date.now();
+            const fileExtension = file.name.split('.').pop();
+            const fileName = `${timestamp}.${fileExtension}`;
+            const imageRef = storageRef(storage, `soru_resimleri/${fileName}`);
+            
+            await uploadBytes(imageRef, file);
+            const downloadUrl = await getDownloadURL(imageRef);
+            
+            targetElement.insertImage(downloadUrl);
+            return true;
         } catch (error) {
-            console.error("Resim yükleme hatası:", error);
-            throw error;
+            console.error('Resim yükleme hatası:', error);
+            toast.error('Resim yüklenirken bir hata oluştu!');
+            return false;
         }
     };
 
@@ -186,46 +196,27 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                 Soru Metni
                             </label>
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                <JoditEditor
-                                    ref={editorRef}
-                                    value={soruMetni}
-                                    config={{
-                                        readonly: false,
+                                <SunEditor
+                                    setContents={soruMetni}
+                                    onChange={(content) => setSoruMetni(content)}
+                                    setOptions={{
                                         height: 300,
-                                        uploader: {
-                                            insertImageAsBase64URI: false,
-                                            url: async (files, _, data, name) => {
-                                                try {
-                                                    const file = files[0];
-                                                    const url = await handleImageUpload(file);
-                                                    return {
-                                                        success: true,
-                                                        data: {
-                                                            baseurl: '',
-                                                            files: [url]
-                                                        }
-                                                    };
-                                                } catch (error) {
-                                                    console.error('Resim yükleme hatası:', error);
-                                                    return {
-                                                        success: false,
-                                                        message: 'Resim yüklenirken bir hata oluştu'
-                                                    };
-                                                }
-                                            }
-                                        },
-                                        buttons: [
-                                            'source', '|',
-                                            'bold', 'italic', 'underline', '|',
-                                            'ul', 'ol', '|',
-                                            'font', 'fontsize', 'brush', 'paragraph', '|',
-                                            'image', 'table', 'link', '|',
-                                            'left', 'center', 'right', 'justify', '|',
-                                            'undo', 'redo', '|',
-                                            'hr', 'eraser', 'fullsize'
-                                        ]
+                                        buttonList: [
+                                            ['undo', 'redo'],
+                                            ['font', 'fontSize', 'formatBlock'],
+                                            ['bold', 'underline', 'italic', 'strike', 'subscript', 'superscript'],
+                                            ['removeFormat'],
+                                            ['fontColor', 'hiliteColor'],
+                                            ['indent', 'outdent'],
+                                            ['align', 'horizontalRule', 'list', 'table'],
+                                            ['link', 'image'],
+                                            ['fullScreen', 'showBlocks', 'codeView']
+                                        ],
+                                        formats: ['p', 'div', 'h1', 'h2', 'h3'],
+                                        font: ['Arial', 'Helvetica', 'sans-serif', 'Verdana'],
                                     }}
-                                    onBlur={(newContent) => setSoruMetni(newContent)}
+                                    onImageUpload={handleImageUpload}
+                                    lang="tr"
                                 />
                             </div>
                         </div>
@@ -316,41 +307,27 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                 Açıklama
                             </label>
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                <JoditEditor
-                                    value={aciklama}
-                                    config={{
-                                        readonly: false,
+                                <SunEditor
+                                    setContents={aciklama}
+                                    onChange={(content) => setAciklama(content)}
+                                    setOptions={{
                                         height: 300,
-                                        uploader: {
-                                            insertImageAsBase64URI: false,
-                                            url: async (files) => {
-                                                const urls = [];
-                                                for (let file of files) {
-                                                    try {
-                                                        const url = await handleImageUpload(file);
-                                                        urls.push(url);
-                                                    } catch (error) {
-                                                        console.error('Resim yükleme hatası:', error);
-                                                    }
-                                                }
-                                                return {
-                                                    files: urls,
-                                                    baseurl: ''
-                                                };
-                                            }
-                                        },
-                                        buttons: [
-                                            'source', '|',
-                                            'bold', 'italic', 'underline', '|',
-                                            'ul', 'ol', '|',
-                                            'font', 'fontsize', 'brush', 'paragraph', '|',
-                                            'image', 'table', 'link', '|',
-                                            'left', 'center', 'right', 'justify', '|',
-                                            'undo', 'redo', '|',
-                                            'hr', 'eraser', 'fullsize'
-                                        ]
+                                        buttonList: [
+                                            ['undo', 'redo'],
+                                            ['font', 'fontSize', 'formatBlock'],
+                                            ['bold', 'underline', 'italic', 'strike', 'subscript', 'superscript'],
+                                            ['removeFormat'],
+                                            ['fontColor', 'hiliteColor'],
+                                            ['indent', 'outdent'],
+                                            ['align', 'horizontalRule', 'list', 'table'],
+                                            ['link', 'image'],
+                                            ['fullScreen', 'showBlocks', 'codeView']
+                                        ],
+                                        formats: ['p', 'div', 'h1', 'h2', 'h3'],
+                                        font: ['Arial', 'Helvetica', 'sans-serif', 'Verdana'],
                                     }}
-                                    onBlur={(newContent) => setAciklama(newContent)}
+                                    onImageUpload={handleImageUpload}
+                                    lang="tr"
                                 />
                             </div>
                         </div>
