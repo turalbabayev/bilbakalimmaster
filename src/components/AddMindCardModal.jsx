@@ -62,6 +62,16 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         }
     };
 
+    const formats = [
+        'header',
+        'bold', 'italic', 'underline', 'strike',
+        'color', 'background',
+        'list', 'bullet',
+        'align',
+        'link',
+        'image'
+    ];
+
     async function imageHandler() {
         const input = document.createElement('input');
         input.setAttribute('type', 'file');
