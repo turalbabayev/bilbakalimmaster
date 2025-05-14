@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { db } from "../firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import JoditEditor from 'jodit-react';
 import { toast } from 'react-hot-toast';
 
 const EditCurrentInfo = ({ isOpen, onClose, bilgi, onSuccess }) => {
@@ -13,6 +12,7 @@ const EditCurrentInfo = ({ isOpen, onClose, bilgi, onSuccess }) => {
         resimPreview: null
     });
     const [isSaving, setIsSaving] = useState(false);
+    const editorRef = useRef(null);
 
     useEffect(() => {
         if (bilgi) {
@@ -32,56 +32,55 @@ const EditCurrentInfo = ({ isOpen, onClose, bilgi, onSuccess }) => {
         }
     }, [bilgi]);
 
-    // Quill editör modülleri
-    const modules = {
-        toolbar: [
-            [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-            [{ 'font': [] }],
-            ['bold', 'italic', 'underline', 'strike'],
-            [{ 'color': [] }, { 'background': [] }],
-            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-            [{ 'align': [] }],
-            ['link', 'image'],
-            ['clean']
-        ]
+    const config = {
+        readonly: false,
+        height: 400,
+        uploader: {
+            insertImageAsBase64URI: true,
+        },
+        buttons: [
+            'source',
+            '|',
+            'bold',
+            'italic',
+            'underline',
+            'strikethrough',
+            '|',
+            'font',
+            'fontsize',
+            'brush',
+            'paragraph',
+            '|',
+            'superscript',
+            'subscript',
+            '|',
+            'ul',
+            'ol',
+            '|',
+            'outdent',
+            'indent',
+            '|',
+            'align',
+            'undo',
+            'redo',
+            '\n',
+            'selectall',
+            'cut',
+            'copy',
+            'paste',
+            '|',
+            'hr',
+            'eraser',
+            'copyformat',
+            '|',
+            'symbol',
+            'fullsize',
+            'print',
+            'about',
+            '|',
+            'image',
+        ],
     };
-
-    const formats = [
-        'header',
-        'font',
-        'bold', 'italic', 'underline', 'strike',
-        'color', 'background',
-        'list', 'bullet',
-        'align',
-        'link', 'image'
-    ];
-
-    // ReactQuill referansı
-    const quillRef = useRef();
-
-    function imageHandler() {
-        const input = document.createElement('input');
-        input.setAttribute('type', 'file');
-        input.setAttribute('accept', 'image/*');
-        input.click();
-
-        input.onchange = async () => {
-            const file = input.files[0];
-            if (file) {
-                try {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const range = quillRef.current.getEditor().getSelection();
-                        quillRef.current.getEditor().insertEmbed(range.index, 'image', e.target.result);
-                    };
-                    reader.readAsDataURL(file);
-                } catch (error) {
-                    console.error('Resim yüklenirken hata:', error);
-                    toast.error('Resim yüklenirken bir hata oluştu!');
-                }
-            }
-        };
-    }
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
@@ -192,15 +191,11 @@ const EditCurrentInfo = ({ isOpen, onClose, bilgi, onSuccess }) => {
                                 İçerik
                             </label>
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                <ReactQuill
-                                    ref={quillRef}
-                                    theme="snow"
+                                <JoditEditor
+                                    ref={editorRef}
                                     value={formData.icerik}
-                                    onChange={(value) => setFormData(prev => ({ ...prev, icerik: value }))}
-                                    modules={modules}
-                                    formats={formats}
-                                    className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                                    style={{ minHeight: '300px' }}
+                                    config={config}
+                                    onChange={(newContent) => setFormData(prev => ({ ...prev, icerik: newContent }))}
                                 />
                             </div>
                         </div>

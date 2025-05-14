@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import JoditEditor from 'jodit-react';
 
 const EditMotivationNote = ({ isOpen, onClose, note, onSuccess }) => {
     const [formData, setFormData] = useState({
@@ -11,6 +10,7 @@ const EditMotivationNote = ({ isOpen, onClose, note, onSuccess }) => {
         icerik: ''
     });
     const [loading, setLoading] = useState(false);
+    const editorRef = useRef(null);
 
     useEffect(() => {
         if (note) {
@@ -21,29 +21,50 @@ const EditMotivationNote = ({ isOpen, onClose, note, onSuccess }) => {
         }
     }, [note]);
 
-    const quillModules = {
-        toolbar: [
-            [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-            ['bold', 'italic', 'underline', 'strike'],
-            [{ 'color': [] }, { 'background': [] }],
-            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-            [{ 'align': [] }],
-            ['link', 'image'],
-            ['clean']
+    const config = {
+        readonly: false,
+        height: 400,
+        buttons: [
+            'source',
+            '|',
+            'bold',
+            'italic',
+            'underline',
+            'strikethrough',
+            '|',
+            'font',
+            'fontsize',
+            'brush',
+            'paragraph',
+            '|',
+            'superscript',
+            'subscript',
+            '|',
+            'ul',
+            'ol',
+            '|',
+            'outdent',
+            'indent',
+            '|',
+            'align',
+            'undo',
+            'redo',
+            '\n',
+            'selectall',
+            'cut',
+            'copy',
+            'paste',
+            '|',
+            'hr',
+            'eraser',
+            'copyformat',
+            '|',
+            'symbol',
+            'fullsize',
+            'print',
+            'about',
         ],
-        clipboard: {
-            matchVisual: false
-        }
     };
-
-    const quillFormats = [
-        'header',
-        'bold', 'italic', 'underline', 'strike',
-        'color', 'background',
-        'list', 'bullet',
-        'align',
-        'link', 'image'
-    ];
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -103,13 +124,11 @@ const EditMotivationNote = ({ isOpen, onClose, note, onSuccess }) => {
                             İçerik
                         </label>
                         <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                            <ReactQuill
-                                theme="snow"
+                            <JoditEditor
+                                ref={editorRef}
                                 value={formData.icerik}
-                                onChange={(value) => setFormData(prev => ({ ...prev, icerik: value }))}
-                                modules={quillModules}
-                                formats={quillFormats}
-                                className="bg-white dark:bg-gray-800 h-64"
+                                config={config}
+                                onChange={(newContent) => setFormData(prev => ({ ...prev, icerik: newContent }))}
                             />
                         </div>
                     </div>
