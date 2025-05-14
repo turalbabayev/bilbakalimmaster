@@ -24,7 +24,6 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
     const [selectedKonuId, setSelectedKonuId] = useState(selectedKonu || '');
     const [kartNo, setKartNo] = useState(1);
     const [maxKartNo, setMaxKartNo] = useState(1);
-    const [quillRef, setQuillRef] = useState(null);
 
     useEffect(() => {
         if (selectedKonu) {
@@ -45,49 +44,6 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             });
         }
     }, [selectedKonu]);
-
-    useEffect(() => {
-        if (quillRef) {
-            const quill = quillRef.getEditor();
-            
-            // Paste olayını dinle
-            quill.root.addEventListener('paste', async (e) => {
-                const clipboardData = e.clipboardData;
-                const items = clipboardData.items;
-
-                for (let i = 0; i < items.length; i++) {
-                    const item = items[i];
-                    if (item.type.indexOf('image') !== -1) {
-                        e.preventDefault();
-                        const blob = item.getAsFile();
-                        
-                        try {
-                            setLoading(true);
-                            // Firebase Storage'a yükle
-                            const storage = getStorage();
-                            const timestamp = Date.now();
-                            const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${blob.name || 'pasted-image'}.${blob.type.split('/')[1]}`);
-                            
-                            await uploadBytes(imageRef, blob);
-                            const downloadUrl = await getDownloadURL(imageRef);
-
-                            // Resmi editöre ekle
-                            const range = quill.getSelection(true);
-                            quill.insertEmbed(range.index, 'image', downloadUrl);
-                            quill.setSelection(range.index + 1);
-
-                            toast.success("Resim başarıyla yüklendi!");
-                        } catch (error) {
-                            console.error('Resim yüklenirken hata:', error);
-                            toast.error('Resim yüklenirken bir hata oluştu!');
-                        } finally {
-                            setLoading(false);
-                        }
-                    }
-                }
-            });
-        }
-    }, [quillRef]);
 
     const modules = {
         toolbar: {
@@ -121,9 +77,11 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                                 const downloadUrl = await getDownloadURL(imageRef);
 
                                 // Quill editörüne resmi ekle
-                                const quill = quillRef.getEditor();
+                                const quill = document.querySelector('.ql-editor').__quill;
                                 const range = quill.getSelection(true);
-                                quill.insertEmbed(range.index, 'image', downloadUrl);
+                                
+                                // Resmi URL olarak ekle
+                                quill.insertEmbed(range.index, 'image', downloadUrl, 'user');
                                 quill.setSelection(range.index + 1);
 
                                 toast.success("Resim başarıyla yüklendi!");
@@ -137,10 +95,6 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                     };
                 }
             }
-        },
-        clipboard: {
-            matchVisual: false,
-            matchers: []
         }
     };
 
@@ -155,54 +109,57 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
     ];
 
     const handleEditorChange = async (content) => {
-        // Base64 resim kontrolü
         if (content.includes('data:image')) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = content;
-            const images = tempDiv.getElementsByTagName('img');
-            let hasChanges = false;
+            try {
+                setLoading(true);
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = content;
+                const images = tempDiv.getElementsByTagName('img');
 
-            for (const img of images) {
-                if (img.src.startsWith('data:image')) {
-                    try {
-                        setLoading(true);
-                        // Base64'ü Blob'a çevir
-                        const response = await fetch(img.src);
-                        const blob = await response.blob();
-                        
-                        // Firebase Storage'a yükle
-                        const storage = getStorage();
-                        const timestamp = Date.now();
-                        const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${blob.size}.${blob.type.split('/')[1]}`);
-                        
-                        await uploadBytes(imageRef, blob);
-                        const downloadUrl = await getDownloadURL(imageRef);
-                        
-                        // Base64'ü URL ile değiştir
-                        img.src = downloadUrl;
-                        hasChanges = true;
-                    } catch (error) {
-                        console.error('Resim yüklenirken hata:', error);
-                        toast.error('Resim yüklenirken bir hata oluştu!');
+                // Tüm base64 resimleri Firebase'e yükle
+                for (const img of images) {
+                    if (img.src.startsWith('data:image')) {
+                        try {
+                            // Base64'ü Blob'a çevir
+                            const response = await fetch(img.src);
+                            const blob = await response.blob();
+                            
+                            // Firebase Storage'a yükle
+                            const storage = getStorage();
+                            const timestamp = Date.now();
+                            const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${blob.size}.${blob.type.split('/')[1]}`);
+                            
+                            await uploadBytes(imageRef, blob);
+                            const downloadUrl = await getDownloadURL(imageRef);
+                            
+                            // Base64'ü URL ile değiştir
+                            img.src = downloadUrl;
+                        } catch (error) {
+                            console.error('Resim yüklenirken hata:', error);
+                            toast.error('Resim yüklenirken bir hata oluştu!');
+                        }
                     }
                 }
-            }
 
-            if (hasChanges) {
-                content = tempDiv.innerHTML;
-                // Editörü güncelle
-                if (quillRef) {
-                    const quill = quillRef.getEditor();
-                    quill.clipboard.dangerouslyPasteHTML(content);
-                }
+                // URL'lerle güncellenmiş içeriği state'e kaydet
+                setFormData(prev => ({
+                    ...prev,
+                    content: tempDiv.innerHTML
+                }));
+
+                toast.success("Resimler başarıyla yüklendi!");
+            } catch (error) {
+                console.error('Resimler işlenirken hata:', error);
+                toast.error('Resimler işlenirken bir hata oluştu!');
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                content: content
+            }));
         }
-
-        setFormData(prev => ({
-            ...prev,
-            content: content
-        }));
     };
 
     const getNextCardNumber = async (konuId) => {
@@ -476,7 +433,6 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                                     </label>
                                     <div className="border border-gray-300 rounded-md dark:border-gray-600">
                                         <ReactQuill
-                                            ref={(el) => setQuillRef(el)}
                                             value={formData.content}
                                             onChange={handleEditorChange}
                                             modules={modules}
