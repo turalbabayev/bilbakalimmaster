@@ -158,8 +158,8 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
 
     const handleImageUpload = async (file) => {
         try {
-            const storageRef = ref(storage, `soru_resimleri/${Date.now()}_${file.name}`);
-            await uploadBytes(storageRef, file);
+            const storageRef = ref(storage, `soru_resimleri/${Date.now()}_${file.type.split('/')[1]}`);
+            await uploadBytes(storageRef, file, { contentType: file.type });
             const downloadURL = await getDownloadURL(storageRef);
             return downloadURL;
         } catch (error) {
@@ -389,20 +389,24 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                                             height: 300,
                                             uploader: {
                                                 insertImageAsBase64URI: false,
-                                                url: async (files) => {
-                                                    const urls = [];
-                                                    for (let file of files) {
-                                                        try {
-                                                            const url = await handleImageUpload(file);
-                                                            urls.push(url);
-                                                        } catch (error) {
-                                                            console.error('Resim yükleme hatası:', error);
-                                                        }
+                                                url: async (files, _, data, name) => {
+                                                    try {
+                                                        const file = files[0];
+                                                        const url = await handleImageUpload(file);
+                                                        return {
+                                                            success: true,
+                                                            data: {
+                                                                baseurl: '',
+                                                                files: [url]
+                                                            }
+                                                        };
+                                                    } catch (error) {
+                                                        console.error('Resim yükleme hatası:', error);
+                                                        return {
+                                                            success: false,
+                                                            message: 'Resim yüklenirken bir hata oluştu'
+                                                        };
                                                     }
-                                                    return {
-                                                        files: urls,
-                                                        baseurl: ''
-                                                    };
                                                 }
                                             },
                                             buttons: [

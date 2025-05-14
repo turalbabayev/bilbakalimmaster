@@ -52,15 +52,12 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
             setLoading(true);
             const storage = getStorage();
             const timestamp = Date.now();
-            const fileExtension = file.name.split('.').pop();
+            const fileExtension = file.type.split('/')[1];
             const fileName = `${timestamp}.${fileExtension}`;
             const imageRef = storageRef(storage, `mind-cards-images/${fileName}`);
             
             const metadata = {
-                contentType: file.type,
-                customMetadata: {
-                    originalName: file.name
-                }
+                contentType: file.type
             };
             
             await uploadBytes(imageRef, file, metadata);
@@ -214,20 +211,24 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                         height: 300,
                                         uploader: {
                                             insertImageAsBase64URI: false,
-                                            url: async (files) => {
-                                                const urls = [];
-                                                for (let file of files) {
-                                                    try {
-                                                        const url = await handleImageUpload(file);
-                                                        urls.push(url);
-                                                    } catch (error) {
-                                                        console.error('Resim yükleme hatası:', error);
-                                                    }
+                                            url: async (files, _, data, name) => {
+                                                try {
+                                                    const file = files[0];
+                                                    const url = await handleImageUpload(file);
+                                                    return {
+                                                        success: true,
+                                                        data: {
+                                                            baseurl: '',
+                                                            files: [url]
+                                                        }
+                                                    };
+                                                } catch (error) {
+                                                    console.error('Resim yükleme hatası:', error);
+                                                    return {
+                                                        success: false,
+                                                        message: 'Resim yüklenirken bir hata oluştu'
+                                                    };
                                                 }
-                                                return {
-                                                    files: urls,
-                                                    baseurl: ''
-                                                };
                                             }
                                         },
                                         buttons: [
