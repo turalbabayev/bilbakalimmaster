@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { db } from "../firebase";
 import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit, where, writeBatch, getDocs } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "react-hot-toast";
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import { Editor } from '@tinymce/tinymce-react';
 import { useTopics } from '../hooks/useTopics';
 
 const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
@@ -13,34 +12,13 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
         selectedKonu: '',
         altKonu: '',
         content: '',
-        resim: null,
-        resimTuru: '',
-        resimPreview: null,
         titleColor: '',
         contentColor: ''
     });
     const [loading, setLoading] = useState(false);
     const [kartNo, setKartNo] = useState(card?.kartNo || 1);
     const [maxKartNo, setMaxKartNo] = useState(1);
-
-    const quillModules = {
-        toolbar: [
-            [{ 'header': [1, 2, 3, false] }],
-            ['bold', 'italic', 'underline', 'strike'],
-            [{ 'color': [] }, { 'background': [] }],
-            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-            ['link', 'image'],
-            ['clean']
-        ]
-    };
-
-    const quillFormats = [
-        'header',
-        'bold', 'italic', 'underline', 'strike',
-        'color', 'background',
-        'list', 'bullet',
-        'link', 'image'
-    ];
+    const editorRef = useRef(null);
 
     useEffect(() => {
         if (card) {
@@ -48,9 +26,6 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                 selectedKonu: card.konuId || '',
                 altKonu: card.altKonu || '',
                 content: card.content || '',
-                resim: null,
-                resimTuru: card.resimTuru || '',
-                resimPreview: card.resim || null,
                 titleColor: card.titleColor || '',
                 contentColor: card.contentColor || ''
             });
@@ -59,7 +34,6 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
 
     useEffect(() => {
         if (card?.konuId) {
-            // Seçili konudaki en yüksek kart numarasını bul
             const konuRef = doc(db, "miniCards-konular", card.konuId);
             const cardsRef = collection(konuRef, "cards");
             const q = query(cardsRef, orderBy("kartNo", "desc"), limit(1));
@@ -73,6 +47,39 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
         }
     }, [card?.konuId]);
 
+    const handleImageUpload = async (blobInfo) => {
+        try {
+            setLoading(true);
+            const storage = getStorage();
+            const timestamp = Date.now();
+            const fileExtension = blobInfo.filename().split('.').pop();
+            const fileName = `${timestamp}.${fileExtension}`;
+            const imageRef = storageRef(storage, `mind-cards-images/${fileName}`);
+            
+            // Blob'u File'a çeviriyoruz
+            const file = new File([blobInfo.blob()], fileName, { type: blobInfo.blob().type });
+            
+            // Metadata ekliyoruz
+            const metadata = {
+                contentType: file.type,
+                customMetadata: {
+                    originalName: blobInfo.filename()
+                }
+            };
+            
+            await uploadBytes(imageRef, file, metadata);
+            const downloadUrl = await getDownloadURL(imageRef);
+            
+            return downloadUrl;
+        } catch (error) {
+            console.error('Resim yüklenirken hata:', error);
+            toast.error('Resim yüklenirken bir hata oluştu!');
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formData.altKonu.trim() || !formData.content.trim()) {
@@ -82,23 +89,12 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
 
         setLoading(true);
         try {
-            let imageBase64 = formData.resimPreview;
-            if (formData.resim) {
-                const reader = new FileReader();
-                imageBase64 = await new Promise((resolve) => {
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.readAsDataURL(formData.resim);
-                });
-            }
-
             const konuRef = doc(db, "miniCards-konular", card.konuId);
             const cardRef = doc(konuRef, "cards", card.id);
 
             await updateDoc(cardRef, {
                 altKonu: formData.altKonu,
                 content: formData.content,
-                resim: imageBase64,
-                resimTuru: formData.resimTuru,
                 updatedAt: serverTimestamp(),
                 titleColor: formData.titleColor,
                 contentColor: formData.contentColor
@@ -112,28 +108,6 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
             toast.error("Kart güncellenirken bir hata oluştu!");
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            if (file.size > 5 * 1024 * 1024) {
-                toast.error('Resim boyutu 5MB\'dan küçük olmalıdır.');
-                return;
-            }
-
-            // Resim önizleme için URL oluştur
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setFormData(prev => ({
-                    ...prev,
-                    resim: file,
-                    resimTuru: file.type,
-                    resimPreview: reader.result
-                }));
-            };
-            reader.readAsDataURL(file);
         }
     };
 
@@ -204,17 +178,38 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                 <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
                                     İçerik
                                 </label>
-                                <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                    <ReactQuill
-                                        theme="snow"
-                                        value={formData.content}
-                                        onChange={(value) => setFormData(prev => ({ ...prev, content: value }))}
-                                        modules={quillModules}
-                                        formats={quillFormats}
-                                        className="bg-white dark:bg-gray-800"
-                                        style={{ color: formData.contentColor || 'inherit' }}
-                                    />
-                                </div>
+                                <Editor
+                                    apiKey="bbelkz83knafk8x2iv6h5i7d64o6k5os6ms07wt010605yby"
+                                    onInit={(evt, editor) => editorRef.current = editor}
+                                    value={formData.content}
+                                    onEditorChange={(content) => setFormData(prev => ({ ...prev, content }))}
+                                    init={{
+                                        height: 300,
+                                        menubar: false,
+                                        plugins: [
+                                            'advlist', 'autolink', 'lists', 'link', 'image', 
+                                            'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 
+                                            'code', 'fullscreen', 'insertdatetime', 'media', 'table', 
+                                            'help', 'wordcount'
+                                        ],
+                                        toolbar: 'undo redo | blocks | ' +
+                                            'bold italic forecolor | alignleft aligncenter ' +
+                                            'alignright alignjustify | bullist numlist outdent indent | ' +
+                                            'removeformat | image',
+                                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                                        images_upload_handler: handleImageUpload,
+                                        automatic_uploads: true,
+                                        images_reuse_filename: true,
+                                        paste_data_images: true,
+                                        paste_as_text: false,
+                                        paste_enable_default_filters: true,
+                                        paste_word_valid_elements: "p,b,strong,i,em,h1,h2,h3,h4,h5,h6",
+                                        paste_retain_style_properties: "color,background-color,font-size",
+                                        convert_urls: false,
+                                        relative_urls: false,
+                                        remove_script_host: false
+                                    }}
+                                />
                             </div>
                             
                             <div>
@@ -227,39 +222,6 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                     onChange={(e) => setFormData(prev => ({ ...prev, contentColor: e.target.value }))}
                                     className="w-full h-12 rounded-lg cursor-pointer"
                                 />
-                            </div>
-                            
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Resim (Opsiyonel)
-                                </label>
-                                <input
-                                    type="file"
-                                    onChange={handleImageChange}
-                                    accept="image/*"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                />
-                            </div>
-                            
-                            <div className="space-y-6">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                                        Kart No
-                                    </label>
-                                    <div className="flex items-center space-x-2">
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max={maxKartNo}
-                                            value={kartNo}
-                                            onChange={(e) => setKartNo(parseInt(e.target.value))}
-                                            className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                        />
-                                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                                            (Maksimum: {maxKartNo})
-                                        </span>
-                                    </div>
-                                </div>
                             </div>
                             
                             <div className="flex justify-end space-x-3 mt-6">
