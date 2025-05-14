@@ -179,7 +179,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                                     İçerik
                                 </label>
                                 <Editor
-                                    apiKey="bbelkz83knafk8x2iv6h5i7d64o6k5os6ms07wt010605yby"
+                                    apiKey="83kpgxax9nnx3wf6kruxk3rhefe9xso7fgxkah69lh4eie05"
                                     onInit={(evt, editor) => editorRef.current = editor}
                                     value={formData.content}
                                     onEditorChange={handleEditorChange}

@@ -187,7 +187,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                             </label>
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
                                 <Editor
-                                    apiKey="bbelkz83knafk8x2iv6h5i7d64o6k5os6ms07wt010605yby"
+                                    apiKey="83kpgxax9nnx3wf6kruxk3rhefe9xso7fgxkah69lh4eie05"
                                     value={soruMetni}
                                     onEditorChange={(content) => setSoruMetni(content)}
                                     init={{
