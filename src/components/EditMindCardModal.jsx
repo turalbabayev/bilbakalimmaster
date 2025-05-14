@@ -1,251 +1,304 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { doc, updateDoc, collection, query, where, getDocs, orderBy, writeBatch } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../firebase';
-import JoditEditor from 'jodit-react';
-import { toast } from 'react-hot-toast';
+import React, { useState, useEffect, useRef } from "react";
+import { db } from "../firebase";
+import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit, where, writeBatch, getDocs } from "firebase/firestore";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { toast } from "react-hot-toast";
+import { Editor } from '@tinymce/tinymce-react';
+import { useTopics } from '../hooks/useTopics';
 
-const EditMindCardModal = ({ isOpen, onClose, cardRef, initialData }) => {
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    kartNo: '',
-    altKonu: '',
-    icerik: '',
-  });
-  const editorRef = useRef(null);
+const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
+    const { topics } = useTopics();
+    const [formData, setFormData] = useState({
+        selectedKonu: '',
+        altKonu: '',
+        content: '',
+        titleColor: '',
+        contentColor: ''
+    });
+    const [loading, setLoading] = useState(false);
+    const [kartNo, setKartNo] = useState(card?.kartNo || 1);
+    const [maxKartNo, setMaxKartNo] = useState(1);
+    const editorRef = useRef(null);
 
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        kartNo: initialData.kartNo || '',
-        altKonu: initialData.altKonu || '',
-        icerik: initialData.content || '',
-      });
-    }
-  }, [initialData]);
+    useEffect(() => {
+        if (card) {
+            setFormData({
+                selectedKonu: card.konuId || '',
+                altKonu: card.altKonu || '',
+                content: card.content || '',
+                titleColor: card.titleColor || '',
+                contentColor: card.contentColor || ''
+            });
+        }
+    }, [card]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+    useEffect(() => {
+        if (card?.konuId) {
+            const konuRef = doc(db, "miniCards-konular", card.konuId);
+            const cardsRef = collection(konuRef, "cards");
+            const q = query(cardsRef, orderBy("kartNo", "desc"), limit(1));
+            
+            getDocs(q).then((snapshot) => {
+                if (!snapshot.empty) {
+                    const highestKartNo = snapshot.docs[0].data().kartNo;
+                    setMaxKartNo(highestKartNo);
+                }
+            });
+        }
+    }, [card?.konuId]);
 
-  const handleImageUpload = async (file) => {
-    try {
-      setLoading(true);
-      const storageRef = ref(storage, `mind_card_images/${file.name}`);
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
-      setLoading(false);
-      return downloadURL;
-    } catch (error) {
-      console.error('Resim yükleme hatası:', error);
-      setLoading(false);
-      return null;
-    }
-  };
+    const handleImageUpload = async (blobInfo) => {
+        try {
+            setLoading(true);
+            const storage = getStorage();
+            const timestamp = Date.now();
+            const fileExtension = blobInfo.filename().split('.').pop();
+            const fileName = `${timestamp}.${fileExtension}`;
+            const imageRef = storageRef(storage, `mind-cards-images/${fileName}`);
+            
+            // Blob'u File'a çeviriyoruz
+            const file = new File([blobInfo.blob()], fileName, { type: blobInfo.blob().type });
+            
+            // Metadata ekliyoruz
+            const metadata = {
+                contentType: file.type,
+                customMetadata: {
+                    originalName: blobInfo.filename()
+                }
+            };
+            
+            await uploadBytes(imageRef, file, metadata);
+            const downloadUrl = await getDownloadURL(imageRef);
+            
+            return downloadUrl;
+        } catch (error) {
+            console.error('Resim yüklenirken hata:', error);
+            toast.error('Resim yüklenirken bir hata oluştu!');
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  const config = {
-    readonly: false,
-    height: 400,
-    uploader: {
-      insertImageAsBase64URI: false,
-      url: handleImageUpload,
-      format: 'json',
-      method: 'POST',
-      filesVariableName: 'files',
-      prepareData: function (data) {
-        return data;
-      },
-      isSuccess: function (resp) {
-        return resp;
-      },
-      getMsg: function (resp) {
-        return resp;
-      },
-      process: function (resp) {
-        return resp;
-      },
-      error: function (e) {
-        console.log(e);
-      },
-      defaultHandlerSuccess: function (data, resp) {
-        return data;
-      },
-    },
-    buttons: [
-      'source',
-      '|',
-      'bold',
-      'italic',
-      'underline',
-      'strikethrough',
-      '|',
-      'font',
-      'fontsize',
-      'brush',
-      'paragraph',
-      '|',
-      'superscript',
-      'subscript',
-      '|',
-      'ul',
-      'ol',
-      '|',
-      'outdent',
-      'indent',
-      '|',
-      'align',
-      'undo',
-      'redo',
-      '\n',
-      'selectall',
-      'cut',
-      'copy',
-      'paste',
-      '|',
-      'hr',
-      'eraser',
-      'copyformat',
-      '|',
-      'symbol',
-      'fullsize',
-      'print',
-      'about',
-      '|',
-      'image',
-      'table',
-    ],
-  };
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!formData.altKonu.trim() || !formData.content.trim()) {
+            toast.error("Lütfen tüm alanları doldurun!");
+            return;
+        }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!formData.altKonu.trim() || !formData.icerik.trim()) {
-      toast.error('Lütfen tüm alanları doldurun!');
-      return;
-    }
+        setLoading(true);
+        try {
+            const konuRef = doc(db, "miniCards-konular", card.konuId);
+            const cardsRef = collection(konuRef, "cards");
+            const batch = writeBatch(db);
 
-    try {
-      setLoading(true);
-
-      const batch = writeBatch(db);
-      const cardsRef = collection(cardRef.parent);
-
-      if (formData.kartNo !== initialData.kartNo) {
-        const q = query(
-          cardsRef,
-          where('kartNo', '>=', Math.min(formData.kartNo, initialData.kartNo)),
-          where('kartNo', '<=', Math.max(formData.kartNo, initialData.kartNo)),
-          orderBy('kartNo')
-        );
-
-        const snapshot = await getDocs(q);
-        snapshot.docs.forEach((doc) => {
-          const currentKartNo = doc.data().kartNo;
-          if (doc.id !== cardRef.id) {
-            if (formData.kartNo > initialData.kartNo) {
-              if (currentKartNo <= formData.kartNo) {
-                batch.update(doc.ref, { kartNo: currentKartNo - 1 });
-              }
-            } else {
-              if (currentKartNo >= formData.kartNo) {
-                batch.update(doc.ref, { kartNo: currentKartNo + 1 });
-              }
+            // Eğer kart numarası değiştiyse, diğer kartların numaralarını güncelle
+            if (kartNo !== card.kartNo) {
+                const q = query(cardsRef);
+                const snapshot = await getDocs(q);
+                
+                snapshot.docs.forEach(doc => {
+                    const cardData = doc.data();
+                    if (kartNo > card.kartNo) {
+                        // Yeni pozisyon daha büyükse
+                        if (cardData.kartNo > card.kartNo && cardData.kartNo <= kartNo) {
+                            batch.update(doc.ref, {
+                                kartNo: cardData.kartNo - 1,
+                                updatedAt: serverTimestamp()
+                            });
+                        }
+                    } else {
+                        // Yeni pozisyon daha küçükse
+                        if (cardData.kartNo >= kartNo && cardData.kartNo < card.kartNo) {
+                            batch.update(doc.ref, {
+                                kartNo: cardData.kartNo + 1,
+                                updatedAt: serverTimestamp()
+                            });
+                        }
+                    }
+                });
             }
-          }
-        });
-      }
 
-      batch.update(cardRef, {
-        altKonu: formData.altKonu,
-        content: formData.icerik,
-        kartNo: parseInt(formData.kartNo),
-        updatedAt: new Date()
-      });
+            // Güncel kartı güncelle
+            const cardRef = doc(konuRef, "cards", card.id);
+            batch.update(cardRef, {
+                altKonu: formData.altKonu,
+                content: formData.content,
+                kartNo: kartNo,
+                updatedAt: serverTimestamp(),
+                titleColor: formData.titleColor,
+                contentColor: formData.contentColor
+            });
 
-      await batch.commit();
-      toast.success('Kart başarıyla güncellendi!');
-      onClose();
-    } catch (error) {
-      console.error('Güncelleme hatası:', error);
-      toast.error('Kart güncellenirken bir hata oluştu!');
-    } finally {
-      setLoading(false);
-    }
-  };
+            await batch.commit();
+            toast.success("Kart başarıyla güncellendi!");
+            onSuccess?.();
+            onClose();
+        } catch (error) {
+            console.error("Kart güncellenirken hata:", error);
+            toast.error("Kart güncellenirken bir hata oluştu!");
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  return (
-    <div className={`fixed inset-0 z-50 overflow-y-auto ${isOpen ? '' : 'hidden'}`}>
-      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-          <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-        </div>
-        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <div className="sm:flex sm:items-start">
-              <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Akıl Kartı Düzenle</h3>
-                <div className="mt-2 space-y-4">
-                  <div>
-                    <label htmlFor="kartNo" className="block text-sm font-medium text-gray-700">Kart No</label>
-                    <input
-                      type="number"
-                      name="kartNo"
-                      id="kartNo"
-                      value={formData.kartNo}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="altKonu" className="block text-sm font-medium text-gray-700">Alt Konu</label>
-                    <input
-                      type="text"
-                      name="altKonu"
-                      id="altKonu"
-                      value={formData.altKonu}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="icerik" className="block text-sm font-medium text-gray-700">İçerik</label>
-                    <JoditEditor
-                      ref={editorRef}
-                      value={formData.icerik}
-                      config={config}
-                      onChange={(newContent) => setFormData({ ...formData, icerik: newContent })}
-                    />
-                  </div>
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+                    <div 
+                        className="absolute inset-0 bg-gray-500 opacity-75"
+                        onClick={onClose}
+                    ></div>
                 </div>
-              </div>
+
+                <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                    <div className="p-6">
+                        <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">
+                            Akıl Kartını Düzenle
+                        </h2>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Konu
+                                </label>
+                                <select
+                                    value={formData.selectedKonu}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, selectedKonu: e.target.value }))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    required
+                                >
+                                    <option value="">Konu Seçin</option>
+                                    {topics.map((konu) => (
+                                        <option key={konu.id} value={konu.id}>
+                                            {konu.baslik}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                    Alt Konu
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.altKonu}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, altKonu: e.target.value }))}
+                                    placeholder="Alt konu girin"
+                                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                    style={{ color: formData.titleColor || 'inherit' }}
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                    Başlık Rengi
+                                </label>
+                                <input
+                                    type="color"
+                                    value={formData.titleColor || '#000000'}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, titleColor: e.target.value }))}
+                                    className="w-full h-12 rounded-lg cursor-pointer"
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                    İçerik
+                                </label>
+                                <Editor
+                                    apiKey="bbelkz83knafk8x2iv6h5i7d64o6k5os6ms07wt010605yby"
+                                    onInit={(evt, editor) => editorRef.current = editor}
+                                    value={formData.content}
+                                    onEditorChange={(content) => setFormData(prev => ({ ...prev, content }))}
+                                    init={{
+                                        height: 300,
+                                        menubar: false,
+                                        plugins: [
+                                            'advlist', 'autolink', 'lists', 'link', 'image', 
+                                            'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 
+                                            'code', 'fullscreen', 'insertdatetime', 'media', 'table', 
+                                            'help', 'wordcount'
+                                        ],
+                                        toolbar: 'undo redo | blocks | ' +
+                                            'bold italic forecolor | alignleft aligncenter ' +
+                                            'alignright alignjustify | bullist numlist outdent indent | ' +
+                                            'removeformat | image',
+                                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                                        images_upload_handler: handleImageUpload,
+                                        automatic_uploads: true,
+                                        images_reuse_filename: true,
+                                        paste_data_images: true,
+                                        paste_as_text: true,
+                                        paste_enable_default_filters: true,
+                                        paste_word_valid_elements: "p,b,strong,i,em,h1,h2,h3,h4,h5,h6",
+                                        paste_retain_style_properties: "color,background-color,font-size",
+                                        convert_urls: false,
+                                        relative_urls: false,
+                                        remove_script_host: false
+                                    }}
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                    İçerik Rengi
+                                </label>
+                                <input
+                                    type="color"
+                                    value={formData.contentColor || '#000000'}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, contentColor: e.target.value }))}
+                                    className="w-full h-12 rounded-lg cursor-pointer"
+                                />
+                            </div>
+                            
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                                        Kart No
+                                    </label>
+                                    <div className="flex items-center space-x-2">
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max={maxKartNo}
+                                            value={kartNo}
+                                            onChange={(e) => setKartNo(parseInt(e.target.value))}
+                                            className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                                            (Maksimum: {maxKartNo})
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="flex justify-end space-x-3 mt-6">
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
+                                >
+                                    İptal
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                                >
+                                    {loading ? "Güncelleniyor..." : "Güncelle"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
-          </div>
-          <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={loading}
-              className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm"
-            >
-              {loading ? 'Güncelleniyor...' : 'Güncelle'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-            >
-              İptal
-            </button>
-          </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default EditMindCardModal; 

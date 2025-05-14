@@ -1,9 +1,11 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { db, storage } from "../firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { Editor } from '@tinymce/tinymce-react';
 import { toast } from 'react-hot-toast';
-import JoditEditor from 'jodit-react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [selectedAltKonu, setSelectedAltKonu] = useState("");
@@ -18,7 +20,6 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [zenginMetinAktif, setZenginMetinAktif] = useState(false);
     const [dogruCevapSecimi, setDogruCevapSecimi] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const editorRef = useRef(null);
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -82,18 +83,16 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
         setSoruResmi(null);
     };
 
-    const handleImageUpload = async (file) => {
+    const handleImageUpload = async (blobInfo) => {
         try {
-            setIsSaving(true);
-            const storageRef = ref(storage, `question_images/${file.name}`);
+            const file = new File([blobInfo.blob()], blobInfo.filename(), { type: blobInfo.blob().type });
+            const storageRef = ref(storage, `soru_resimleri/${Date.now()}_${file.name}`);
             await uploadBytes(storageRef, file);
             const downloadURL = await getDownloadURL(storageRef);
-            setIsSaving(false);
             return downloadURL;
         } catch (error) {
             console.error("Resim yükleme hatası:", error);
-            setIsSaving(false);
-            return null;
+            throw error;
         }
     };
 
@@ -119,12 +118,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                 unliked: 0,
                 report: 0,
                 soruNumarasi: Date.now(), // Geçici olarak timestamp kullanıyoruz, daha sonra düzenlenebilir
-                soruResmi: soruResmi || null,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-                konuId: currentKonuId,
-                altKonuId: selectedAltKonu,
-                verified: false,
+                soruResmi: soruResmi || null
             };
 
             // Soruyu Firestore'a ekle
@@ -149,79 +143,6 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
         } finally {
             setIsSaving(false);
         }
-    };
-
-    const config = {
-        readonly: false,
-        height: 400,
-        uploader: {
-            insertImageAsBase64URI: false,
-            url: handleImageUpload,
-            format: 'json',
-            method: 'POST',
-            filesVariableName: 'files',
-            prepareData: function (data) {
-                return data;
-            },
-            isSuccess: function (resp) {
-                return resp;
-            },
-            getMsg: function (resp) {
-                return resp;
-            },
-            process: function (resp) {
-                return resp;
-            },
-            error: function (e) {
-                console.log(e);
-            },
-            defaultHandlerSuccess: function (data, resp) {
-                return data;
-            },
-        },
-        buttons: [
-            'source',
-            '|',
-            'bold',
-            'italic',
-            'underline',
-            'strikethrough',
-            '|',
-            'font',
-            'fontsize',
-            'brush',
-            'paragraph',
-            '|',
-            'superscript',
-            'subscript',
-            '|',
-            'ul',
-            'ol',
-            '|',
-            'outdent',
-            'indent',
-            '|',
-            'align',
-            'undo',
-            'redo',
-            '\n',
-            'selectall',
-            'cut',
-            'copy',
-            'paste',
-            '|',
-            'hr',
-            'eraser',
-            'copyformat',
-            '|',
-            'symbol',
-            'fullsize',
-            'print',
-            'about',
-            '|',
-            'image',
-            'table',
-        ],
     };
 
     if (!isOpen) return null;
@@ -265,11 +186,25 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                 Soru Metni
                             </label>
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                <JoditEditor
-                                    ref={editorRef}
+                                <Editor
+                                    apiKey="bbelkz83knafk8x2iv6h5i7d64o6k5os6ms07wt010605yby"
                                     value={soruMetni}
-                                    config={config}
-                                    onChange={(newContent) => setSoruMetni(newContent)}
+                                    onEditorChange={(content) => setSoruMetni(content)}
+                                    init={{
+                                        height: 300,
+                                        menubar: false,
+                                        plugins: [
+                                            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                                            'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                                            'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount'
+                                        ],
+                                        toolbar: 'undo redo | blocks | ' +
+                                            'bold italic forecolor | alignleft aligncenter ' +
+                                            'alignright alignjustify | bullist numlist outdent indent | ' +
+                                            'removeformat | image | help',
+                                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                                        images_upload_handler: handleImageUpload
+                                    }}
                                 />
                             </div>
                         </div>
@@ -305,10 +240,10 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                             <button
                                                 onClick={(e) => {
                                                     e.preventDefault();
-                                                    setDogruCevap(index);
+                                                    setDogruCevap(String.fromCharCode(65 + index));
                                                 }}
                                                 className={`w-8 h-8 flex items-center justify-center rounded-lg font-medium transition-all duration-200 ${
-                                                    dogruCevap === index
+                                                    dogruCevap === String.fromCharCode(65 + index)
                                                         ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 ring-2 ring-green-500'
                                                         : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                                                 }`}
@@ -319,15 +254,17 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                         <div className="flex-1">
                                             {zenginMetinAktif ? (
                                                 <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                                    <JoditEditor
-                                                        ref={editorRef}
+                                                    <ReactQuill
+                                                        theme="snow"
                                                         value={cevap}
-                                                        config={config}
-                                                        onChange={(newContent) => {
+                                                        onChange={(value) => {
                                                             const newCevaplar = [...cevaplar];
-                                                            newCevaplar[index] = newContent;
+                                                            newCevaplar[index] = value;
                                                             setCevaplar(newCevaplar);
                                                         }}
+                                                        modules={modules}
+                                                        formats={formats}
+                                                        className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                                                     />
                                                 </div>
                                             ) : (
@@ -341,7 +278,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                                     }}
                                                     placeholder={`${String.fromCharCode(65 + index)} şıkkının cevabını girin`}
                                                     className={`w-full px-4 py-3 rounded-xl border-2 ${
-                                                        dogruCevap === index
+                                                        dogruCevap === String.fromCharCode(65 + index)
                                                             ? 'border-green-200 dark:border-green-800'
                                                             : 'border-gray-200 dark:border-gray-700'
                                                     } bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200`}
@@ -358,11 +295,25 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                 Açıklama
                             </label>
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                <JoditEditor
-                                    ref={editorRef}
+                                <Editor
+                                    apiKey="your-tinymce-api-key"
                                     value={aciklama}
-                                    config={config}
-                                    onChange={(newContent) => setAciklama(newContent)}
+                                    onEditorChange={(content) => setAciklama(content)}
+                                    init={{
+                                        height: 300,
+                                        menubar: false,
+                                        plugins: [
+                                            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                                            'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                                            'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount'
+                                        ],
+                                        toolbar: 'undo redo | blocks | ' +
+                                            'bold italic forecolor | alignleft aligncenter ' +
+                                            'alignright alignjustify | bullist numlist outdent indent | ' +
+                                            'removeformat | image | help',
+                                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                                        images_upload_handler: handleImageUpload
+                                    }}
                                 />
                             </div>
                         </div>

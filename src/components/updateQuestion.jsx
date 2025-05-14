@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { db, storage } from "../firebase";
 import { doc, getDoc, updateDoc, collection, getDocs } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { Editor } from '@tinymce/tinymce-react';
 import { toast } from 'react-hot-toast';
-import JoditEditor from 'jodit-react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateComplete }) => {
     const [soru, setSoru] = useState(null);
@@ -18,52 +20,6 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
     const [zenginMetinAktif, setZenginMetinAktif] = useState(false);
     const [dogruCevapSecimi, setDogruCevapSecimi] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const editorRef = useRef(null);
-
-    const config = {
-        readonly: false,
-        height: 400,
-        buttons: [
-            'source',
-            '|',
-            'bold',
-            'italic',
-            'underline',
-            'strikethrough',
-            '|',
-            'font',
-            'fontsize',
-            'brush',
-            'paragraph',
-            '|',
-            'superscript',
-            'subscript',
-            '|',
-            'ul',
-            'ol',
-            '|',
-            'outdent',
-            'indent',
-            '|',
-            'align',
-            'undo',
-            'redo',
-            '\n',
-            'selectall',
-            'cut',
-            'copy',
-            'paste',
-            '|',
-            'hr',
-            'eraser',
-            'copyformat',
-            '|',
-            'symbol',
-            'fullsize',
-            'print',
-            'about',
-        ],
-    };
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -199,18 +155,16 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
         }
     }, [isOpen, konuId, altKonuId, soruId]);
 
-    const handleImageUpload = async (file) => {
+    const handleImageUpload = async (blobInfo) => {
         try {
-            setLoading(true);
-            const storageRef = ref(storage, `question_images/${file.name}`);
+            const file = new File([blobInfo.blob()], blobInfo.filename(), { type: blobInfo.blob().type });
+            const storageRef = ref(storage, `soru_resimleri/${Date.now()}_${file.name}`);
             await uploadBytes(storageRef, file);
             const downloadURL = await getDownloadURL(storageRef);
-            setLoading(false);
             return downloadURL;
         } catch (error) {
-            console.error('Resim yükleme hatası:', error);
-            setLoading(false);
-            return null;
+            console.error("Resim yükleme hatası:", error);
+            throw error;
         }
     };
 
@@ -388,151 +342,250 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
     }
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-11/12 max-w-4xl max-h-[calc(100vh-40px)] overflow-hidden">
-                <div className="p-8 border-b border-gray-200 dark:border-gray-700">
-                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-                        Soruyu Düzenle
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-60 p-4">
+            <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-11/12 max-w-5xl max-h-[calc(100vh-40px)] overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col">
+                <div className="p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center">
+                        Soru Güncelle
                     </h2>
                 </div>
-
-                <form onSubmit={handleUpdate} className="p-8 space-y-6">
-                    <div>
-                        <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
-                            Soru Metni
-                        </label>
-                        <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                            <JoditEditor
-                                ref={editorRef}
-                                value={soru?.soruMetni || ''}
-                                config={config}
-                                onChange={(newContent) => setSoru(prev => ({ ...prev, soruMetni: newContent }))}
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
-                            Açıklama
-                        </label>
-                        <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                            <JoditEditor
-                                ref={editorRef}
-                                value={soru?.aciklama || ''}
-                                config={config}
-                                onChange={(newContent) => setSoru(prev => ({ ...prev, aciklama: newContent }))}
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
-                            Cevaplar
-                        </label>
-                        <div className="space-y-4">
-                            {cevaplar.map((cevap, index) => (
-                                <div key={index} className="flex items-center gap-4">
-                                    <div className="flex-1">
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            {`${String.fromCharCode(65 + index)} Şıkkı`}
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={cevap}
-                                            onChange={(e) => {
-                                                const newCevaplar = [...cevaplar];
-                                                newCevaplar[index] = e.target.value;
-                                                setCevaplar(newCevaplar);
-                                            }}
-                                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                                        />
-                                    </div>
-                                    <div className="flex items-center">
-                                        <input
-                                            type="radio"
-                                            name="dogruCevap"
-                                            value={String.fromCharCode(65 + index)}
-                                            checked={dogruCevap === String.fromCharCode(65 + index)}
-                                            onChange={(e) => setDogruCevap(e.target.value)}
-                                            className="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500"
-                                        />
-                                        <label className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            Doğru Cevap
-                                        </label>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
-                            Soru Resmi (Opsiyonel)
-                        </label>
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-4">
-                                <div className="relative flex-1">
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleResimYukle}
-                                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40"
-                                    />
-                                </div>
-                                {soru?.soruResmi && (
-                                    <button
-                                        type="button"
-                                        onClick={handleResimSil}
-                                        className="px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all duration-200 font-medium"
-                                    >
-                                        Resmi Sil
-                                    </button>
-                                )}
+                
+                <form onSubmit={handleUpdate} className="flex flex-col flex-1 overflow-hidden">
+                    <div className="p-8 overflow-y-auto flex-1">
+                        <div className="space-y-8">
+                            <div>
+                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                    Alt Konu Seçin
+                                </label>
+                            <select
+                                value={selectedAltKonu}
+                                onChange={(e) => setSelectedAltKonu(e.target.value)}
+                                    className={`w-full px-4 py-3 rounded-xl border-2 ${!selectedAltKonu ? 'border-red-400 dark:border-red-600' : 'border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200`}
+                            >
+                                    <option value="">Alt konu seçin</option>
+                                    {Object.entries(altKonular).map(([key, altKonu]) => (
+                                    <option key={key} value={key}>
+                                            {altKonu.baslik}
+                                    </option>
+                                ))}
+                            </select>
+                                {!selectedAltKonu && (
+                                    <p className="mt-2 text-sm text-red-500 dark:text-red-400">
+                                        Lütfen bir alt konu seçin. Bu alanın doldurulması zorunludur.
+                                    </p>
+                        )}
                             </div>
-                            {resimYukleniyor && (
-                                <div className="text-sm text-blue-600 dark:text-blue-400 animate-pulse">
-                                    Resim yükleniyor...
-                                </div>
-                            )}
-                            {soru?.soruResmi && (
-                                <div className="mt-4 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                    <img
-                                        src={soru.soruResmi}
-                                        alt="Soru resmi"
-                                        className="w-full h-auto"
+
+                            <div>
+                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                    Soru Metni
+                                </label>
+                                <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
+                                    <Editor
+                                        apiKey="bbelkz83knafk8x2iv6h5i7d64o6k5os6ms07wt010605yby"
+                                        value={soru.soruMetni}
+                                        onEditorChange={(content) => setSoru({ ...soru, soruMetni: content })}
+                                        init={{
+                                            height: 300,
+                                            menubar: false,
+                                            plugins: [
+                                                'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                                                'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                                                'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount'
+                                            ],
+                                            toolbar: 'undo redo | blocks | ' +
+                                                'bold italic forecolor | alignleft aligncenter ' +
+                                                'alignright alignjustify | bullist numlist outdent indent | ' +
+                                                'removeformat | image | help',
+                                            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                                            images_upload_handler: handleImageUpload
+                                        }}
                                     />
                                 </div>
-                            )}
+                            </div>
+
+                            <div>
+                                <div className="flex justify-between items-center mb-3">
+                                    <label className="block text-base font-semibold text-gray-900 dark:text-white">
+                                        Cevaplar
+                </label>
+                                    <button
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setZenginMetinAktif(!zenginMetinAktif);
+                                            if (zenginMetinAktif) {
+                                                // Basit editöre geçerken HTML etiketlerini temizle
+                                                const temizCevaplar = cevaplar.map(cevap => stripHtml(cevap));
+                                                setCevaplar(temizCevaplar);
+                                            }
+                                        }}
+                                        className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
+                                            zenginMetinAktif 
+                                                ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' 
+                                                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                                        }`}
+                                    >
+                                        {zenginMetinAktif ? 'Basit Metin Editörüne Geç' : 'Zengin Metin Editörüne Geç'}
+                                    </button>
+                                </div>
+                                <div className="space-y-4">
+                    {cevaplar.map((cevap, index) => (
+                                        <div key={index} className="flex items-start gap-4">
+                                            <div className="flex-shrink-0 pt-3">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        setDogruCevap(String.fromCharCode(65 + index));
+                                                    }}
+                                                    className={`w-8 h-8 flex items-center justify-center rounded-lg font-medium transition-all duration-200 ${
+                                                        dogruCevap === String.fromCharCode(65 + index)
+                                                            ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 ring-2 ring-green-500'
+                                                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                                    }`}
+                                                >
+                                                    {String.fromCharCode(65 + index)}
+                                                </button>
+                                            </div>
+                                            <div className="flex-1">
+                                                {zenginMetinAktif ? (
+                                                    <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
+                                                        <ReactQuill
+                                                            theme="snow"
+                                                            value={cevap}
+                                                            onChange={(value) => {
+                                                                const newCevaplar = [...cevaplar];
+                                                                newCevaplar[index] = value;
+                                                                setCevaplar(newCevaplar);
+                                                            }}
+                                                            modules={modules}
+                                                            formats={formats}
+                                                            className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <input
+                                                        type="text"
+                            value={cevap}
+                                                        onChange={(e) => {
+                                                            const newCevaplar = [...cevaplar];
+                                                            newCevaplar[index] = e.target.value;
+                                                            setCevaplar(newCevaplar);
+                                                        }}
+                                                        placeholder={`${String.fromCharCode(65 + index)} şıkkının cevabını girin`}
+                                                        className={`w-full px-4 py-3 rounded-xl border-2 ${
+                                                            dogruCevap === String.fromCharCode(65 + index)
+                                                                ? 'border-green-200 dark:border-green-800'
+                                                                : 'border-gray-200 dark:border-gray-700'
+                                                        } bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200`}
+                                                    />
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                    Açıklama
+                                </label>
+                                <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
+                                    <Editor
+                                        apiKey="your-tinymce-api-key"
+                                        value={soru.aciklama}
+                                        onEditorChange={(content) => setSoru({ ...soru, aciklama: content })}
+                                        init={{
+                                            height: 300,
+                                            menubar: false,
+                                            plugins: [
+                                                'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                                                'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                                                'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount'
+                                            ],
+                                            toolbar: 'undo redo | blocks | ' +
+                                                'bold italic forecolor | alignleft aligncenter ' +
+                                                'alignright alignjustify | bullist numlist outdent indent | ' +
+                                                'removeformat | image | help',
+                                            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                                            images_upload_handler: handleImageUpload
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
+                                    Soru Resmi (Opsiyonel)
+                </label>
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="relative flex-1">
+                    <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleResimYukle}
+                                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40"
+                                            />
+                                        </div>
+                                        {soru?.soruResmi && (
+                                            <button
+                                                onClick={handleResimSil}
+                                                className="px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all duration-200 font-medium"
+                                            >
+                                                Resmi Sil
+                                            </button>
+                                        )}
+                                    </div>
+                                    {resimYukleniyor && (
+                                        <div className="text-sm text-blue-600 dark:text-blue-400 animate-pulse">
+                                            Resim yükleniyor...
+                                        </div>
+                                    )}
+                                    {soru?.soruResmi && (
+                                        <div className="mt-4 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
+                                            <img 
+                                                src={soru.soruResmi} 
+                                                alt="Soru resmi" 
+                                                className="w-full h-auto"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </form>
 
-                <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-end space-x-4">
+                    <div className="p-8 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex justify-end gap-4">
                     <button
-                        onClick={onClose}
-                        className="px-6 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                        disabled={isSaving}
+                            onClick={onClose}
+                            className="px-6 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 font-medium"
                     >
-                        İptal
+                            İptal
                     </button>
                     <button
-                        onClick={handleUpdate}
-                        disabled={isSaving}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                    >
-                        {isSaving ? (
-                            <>
-                                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Güncelleniyor...
-                            </>
-                        ) : (
-                            'Güncelle'
-                        )}
+                            type="submit"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center ml-4"
+                            disabled={isSaving}
+                        >
+                            {isSaving ? (
+                                <div className="flex items-center">
+                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Güncelleniyor...
+                                </div>
+                            ) : (
+                                <div className="flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                    </svg>
+                                    Güncelle
+                                </div>
+                            )}
                     </button>
                 </div>
+                </form>
             </div>
         </div>
     );
