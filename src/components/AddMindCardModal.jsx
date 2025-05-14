@@ -66,24 +66,29 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
         'link'
     ];
 
-    const handleEditorChange = (content) => {
-        // Base64 resimlerini URL'e çevirmek için içeriği kontrol et
+    const handleEditorChange = async (content) => {
         if (content.includes('data:image')) {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = content;
             const images = tempDiv.getElementsByTagName('img');
             
-            Array.from(images).forEach(async (img) => {
+            // Tüm resimleri paralel olarak yükle
+            const uploadPromises = Array.from(images).map(async (img) => {
                 if (img.src.startsWith('data:image')) {
                     try {
                         const imageUrl = await uploadBase64Image(img.src);
                         img.src = imageUrl;
+                        return true;
                     } catch (error) {
                         console.error('Resim yüklenirken hata:', error);
+                        return false;
                     }
                 }
+                return true;
             });
-            
+
+            // Tüm resim yüklemeleri tamamlanana kadar bekle
+            await Promise.all(uploadPromises);
             content = tempDiv.innerHTML;
         }
 
@@ -171,25 +176,40 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        console.log('Form değerleri:', {
-            selectedKonu,
-            altKonu,
-            content: formData.content,
-            formData
-        });
-
         if (!selectedKonu || !altKonu.trim() || !formData.content.trim()) {
-            console.log('Validation failed:', {
-                selectedKonu: !selectedKonu,
-                altKonu: !altKonu.trim(),
-                content: !formData.content.trim()
-            });
             toast.error('Lütfen tüm alanları doldurun!');
             return;
         }
 
         setLoading(true);
         try {
+            // İçerikteki base64 resimleri kontrol et ve yükle
+            let finalContent = formData.content;
+            if (finalContent.includes('data:image')) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = finalContent;
+                const images = tempDiv.getElementsByTagName('img');
+                
+                // Tüm resimleri paralel olarak yükle
+                const uploadPromises = Array.from(images).map(async (img) => {
+                    if (img.src.startsWith('data:image')) {
+                        try {
+                            const imageUrl = await uploadBase64Image(img.src);
+                            img.src = imageUrl;
+                            return true;
+                        } catch (error) {
+                            console.error('Resim yüklenirken hata:', error);
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+
+                // Tüm resim yüklemeleri tamamlanana kadar bekle
+                await Promise.all(uploadPromises);
+                finalContent = tempDiv.innerHTML;
+            }
+
             const konuRef = doc(db, "miniCards-konular", selectedKonu);
             const cardsRef = collection(konuRef, "cards");
 
@@ -211,8 +231,8 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             const newCardRef = doc(cardsRef);
             batch.set(newCardRef, {
                 altKonu,
-                content: formData.content,
-                imageUrl: formData.imageUrl, // URL olarak kaydet
+                content: finalContent, // URL'lere dönüştürülmüş içeriği kullan
+                imageUrl: formData.imageUrl,
                 kartNo,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
