@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
 import { collection, addDoc, doc, serverTimestamp, getDocs, query, orderBy, limit, where, writeBatch } from "firebase/firestore";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "react-hot-toast";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -11,7 +12,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
     const [formData, setFormData] = useState({
         content: "",
         image: null,
-        resimPreview: null
+        imageUrl: null
     });
     const { topics } = useTopics();
     const [selectedKonu, setSelectedKonu] = useState("");
@@ -66,13 +67,54 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
     ];
 
     const handleEditorChange = (content) => {
+        // Base64 resimlerini URL'e çevirmek için içeriği kontrol et
+        if (content.includes('data:image')) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            const images = tempDiv.getElementsByTagName('img');
+            
+            Array.from(images).forEach(async (img) => {
+                if (img.src.startsWith('data:image')) {
+                    try {
+                        const imageUrl = await uploadBase64Image(img.src);
+                        img.src = imageUrl;
+                    } catch (error) {
+                        console.error('Resim yüklenirken hata:', error);
+                    }
+                }
+            });
+            
+            content = tempDiv.innerHTML;
+        }
+
         setFormData(prev => ({
             ...prev,
             content: content
         }));
     };
 
-    const handleImageChange = (e) => {
+    const uploadBase64Image = async (base64String) => {
+        try {
+            // Base64'ü Blob'a çevir
+            const response = await fetch(base64String);
+            const blob = await response.blob();
+            
+            // Firebase Storage'a yükle
+            const storage = getStorage();
+            const timestamp = Date.now();
+            const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${blob.size}.${blob.type.split('/')[1]}`);
+            
+            await uploadBytes(imageRef, blob);
+            const downloadUrl = await getDownloadURL(imageRef);
+            
+            return downloadUrl;
+        } catch (error) {
+            console.error('Resim yüklenirken hata:', error);
+            throw error;
+        }
+    };
+
+    const handleImageChange = async (e) => {
         const file = e.target.files[0];
         if (file) {
             const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -82,21 +124,34 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                 setFormData(prev => ({
                     ...prev,
                     image: null,
-                    resimPreview: null
+                    imageUrl: null
                 }));
                 return;
             }
 
-            // Resim önizleme için URL oluştur
-            const reader = new FileReader();
-            reader.onloadend = () => {
+            try {
+                setLoading(true);
+                // Firebase Storage'a yükle
+                const storage = getStorage();
+                const timestamp = Date.now();
+                const imageRef = storageRef(storage, `mind-cards-images/${timestamp}-${file.name}`);
+                
+                await uploadBytes(imageRef, file);
+                const downloadUrl = await getDownloadURL(imageRef);
+
                 setFormData(prev => ({
                     ...prev,
                     image: file,
-                    resimPreview: reader.result
+                    imageUrl: downloadUrl
                 }));
-            };
-            reader.readAsDataURL(file);
+
+                toast.success("Resim başarıyla yüklendi!");
+            } catch (error) {
+                console.error('Resim yüklenirken hata:', error);
+                toast.error('Resim yüklenirken bir hata oluştu!');
+            } finally {
+                setLoading(false);
+            }
         }
     };
 
@@ -157,6 +212,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
             batch.set(newCardRef, {
                 altKonu,
                 content: formData.content,
+                imageUrl: formData.imageUrl, // URL olarak kaydet
                 kartNo,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
@@ -401,10 +457,10 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                                         accept="image/*"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                     />
-                                    {formData.resimPreview && (
+                                    {formData.imageUrl && (
                                         <div className="mt-2">
                                             <img 
-                                                src={formData.resimPreview} 
+                                                src={formData.imageUrl} 
                                                 alt="Önizleme" 
                                                 className="max-h-40 rounded-md"
                                             />
