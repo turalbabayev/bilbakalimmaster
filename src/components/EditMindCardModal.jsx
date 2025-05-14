@@ -233,7 +233,7 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                         automatic_uploads: true,
                                         images_reuse_filename: true,
                                         paste_data_images: true,
-                                        paste_as_text: false,
+                                        paste_as_text: true,
                                         paste_enable_default_filters: true,
                                         paste_word_valid_elements: "p,b,strong,i,em,h1,h2,h3,h4,h5,h6",
                                         paste_retain_style_properties: "color,background-color,font-size",
