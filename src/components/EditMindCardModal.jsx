@@ -209,22 +209,36 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                     config={{
                                         readonly: false,
                                         height: 300,
+                                        enableDragAndDropFileToEditor: true,
                                         uploader: {
                                             insertImageAsBase64URI: false,
-                                            url: async function(data) {
+                                            processFileName: (fileName) => {
+                                                return `${Date.now()}_${fileName}`;
+                                            },
+                                            prepareData: function (formData) {
+                                                return formData;
+                                            },
+                                            defaultHandlerSuccess: function (data) {
+                                                if (data.files && data.files.length) {
+                                                    return data.files[0];
+                                                }
+                                                return '';
+                                            },
+                                            url: async function(formData) {
                                                 try {
-                                                    if (!data['files[]'] || !data['files[]'][0]) {
+                                                    const file = formData.getAll('files[0]')[0];
+                                                    if (!file) {
                                                         throw new Error('Dosya bulunamadı');
                                                     }
 
-                                                    const file = data['files[]'][0];
                                                     const url = await handleImageUpload(file);
-
+                                                    
                                                     return {
                                                         success: true,
                                                         data: {
                                                             baseurl: '',
                                                             files: [url],
+                                                            messages: ['Resim başarıyla yüklendi'],
                                                             isImages: [true]
                                                         }
                                                     };
@@ -232,7 +246,9 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                                     console.error('Resim yükleme hatası:', error);
                                                     return {
                                                         success: false,
-                                                        message: 'Resim yüklenirken bir hata oluştu'
+                                                        data: {
+                                                            messages: ['Resim yüklenirken bir hata oluştu']
+                                                        }
                                                     };
                                                 }
                                             }
