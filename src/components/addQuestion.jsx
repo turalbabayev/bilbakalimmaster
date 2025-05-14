@@ -20,6 +20,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [zenginMetinAktif, setZenginMetinAktif] = useState(false);
     const [dogruCevapSecimi, setDogruCevapSecimi] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const editorRef = useRef(null);
 
     // Quill editör modülleri ve formatları
     const modules = {
@@ -83,9 +84,8 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
         setSoruResmi(null);
     };
 
-    const handleImageUpload = async (blobInfo) => {
+    const handleImageUpload = async (file) => {
         try {
-            const file = new File([blobInfo.blob()], blobInfo.filename(), { type: blobInfo.blob().type });
             const storageRef = ref(storage, `soru_resimleri/${Date.now()}_${file.name}`);
             await uploadBytes(storageRef, file);
             const downloadURL = await getDownloadURL(storageRef);
@@ -187,12 +187,28 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                             </label>
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
                                 <JoditEditor
+                                    ref={editorRef}
                                     value={soruMetni}
                                     config={{
                                         readonly: false,
                                         height: 300,
                                         uploader: {
-                                            insertImageAsBase64URI: true
+                                            insertImageAsBase64URI: false,
+                                            url: async (files) => {
+                                                const urls = [];
+                                                for (let file of files) {
+                                                    try {
+                                                        const url = await handleImageUpload(file);
+                                                        urls.push(url);
+                                                    } catch (error) {
+                                                        console.error('Resim yükleme hatası:', error);
+                                                    }
+                                                }
+                                                return {
+                                                    files: urls,
+                                                    baseurl: ''
+                                                };
+                                            }
                                         },
                                         buttons: [
                                             'source', '|',
@@ -302,7 +318,22 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                         readonly: false,
                                         height: 300,
                                         uploader: {
-                                            insertImageAsBase64URI: true
+                                            insertImageAsBase64URI: false,
+                                            url: async (files) => {
+                                                const urls = [];
+                                                for (let file of files) {
+                                                    try {
+                                                        const url = await handleImageUpload(file);
+                                                        urls.push(url);
+                                                    } catch (error) {
+                                                        console.error('Resim yükleme hatası:', error);
+                                                    }
+                                                }
+                                                return {
+                                                    files: urls,
+                                                    baseurl: ''
+                                                };
+                                            }
                                         },
                                         buttons: [
                                             'source', '|',

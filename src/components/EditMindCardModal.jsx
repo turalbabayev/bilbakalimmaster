@@ -213,7 +213,22 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                         readonly: false,
                                         height: 300,
                                         uploader: {
-                                            insertImageAsBase64URI: true
+                                            insertImageAsBase64URI: false,
+                                            url: async (files) => {
+                                                const urls = [];
+                                                for (let file of files) {
+                                                    try {
+                                                        const url = await handleImageUpload(file);
+                                                        urls.push(url);
+                                                    } catch (error) {
+                                                        console.error('Resim yükleme hatası:', error);
+                                                    }
+                                                }
+                                                return {
+                                                    files: urls,
+                                                    baseurl: ''
+                                                };
+                                            }
                                         },
                                         buttons: [
                                             'source', '|',
