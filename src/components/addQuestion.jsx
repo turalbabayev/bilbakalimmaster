@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { db, storage } from "../firebase";
 import { collection, addDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { CKEditor } from '@ckeditor/ckeditor5-react';
-import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
+import JoditEditor from "jodit-react";
 import { toast } from 'react-hot-toast';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -187,21 +186,26 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                 Soru Metni
                             </label>
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                <CKEditor
-                                    editor={ClassicEditor}
-                                    data={soruMetni}
-                                    onChange={(event, editor) => {
-                                        const data = editor.getData();
-                                        setSoruMetni(data);
-                                    }}
+                                <JoditEditor
+                                    value={soruMetni}
                                     config={{
-                                        simpleUpload: {
-                                            uploadUrl: 'your-upload-url',
-                                            headers: {
-                                                'X-CSRF-TOKEN': 'your-csrf-token'
-                                            }
-                                        }
+                                        readonly: false,
+                                        height: 300,
+                                        uploader: {
+                                            insertImageAsBase64URI: true
+                                        },
+                                        buttons: [
+                                            'source', '|',
+                                            'bold', 'italic', 'underline', '|',
+                                            'ul', 'ol', '|',
+                                            'font', 'fontsize', 'brush', 'paragraph', '|',
+                                            'image', 'table', 'link', '|',
+                                            'left', 'center', 'right', 'justify', '|',
+                                            'undo', 'redo', '|',
+                                            'hr', 'eraser', 'fullsize'
+                                        ]
                                     }}
+                                    onBlur={(newContent) => setSoruMetni(newContent)}
                                 />
                             </div>
                         </div>
@@ -292,21 +296,26 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                                 Açıklama
                             </label>
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                <CKEditor
-                                    editor={ClassicEditor}
-                                    data={aciklama}
-                                    onChange={(event, editor) => {
-                                        const data = editor.getData();
-                                        setAciklama(data);
-                                    }}
+                                <JoditEditor
+                                    value={aciklama}
                                     config={{
-                                        simpleUpload: {
-                                            uploadUrl: 'your-upload-url',
-                                            headers: {
-                                                'X-CSRF-TOKEN': 'your-csrf-token'
-                                            }
-                                        }
+                                        readonly: false,
+                                        height: 300,
+                                        uploader: {
+                                            insertImageAsBase64URI: true
+                                        },
+                                        buttons: [
+                                            'source', '|',
+                                            'bold', 'italic', 'underline', '|',
+                                            'ul', 'ol', '|',
+                                            'font', 'fontsize', 'brush', 'paragraph', '|',
+                                            'image', 'table', 'link', '|',
+                                            'left', 'center', 'right', 'justify', '|',
+                                            'undo', 'redo', '|',
+                                            'hr', 'eraser', 'fullsize'
+                                        ]
                                     }}
+                                    onBlur={(newContent) => setAciklama(newContent)}
                                 />
                             </div>
                         </div>

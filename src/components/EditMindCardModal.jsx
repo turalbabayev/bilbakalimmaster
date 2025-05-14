@@ -3,8 +3,7 @@ import { db } from "../firebase";
 import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit, where, writeBatch, getDocs } from "firebase/firestore";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "react-hot-toast";
-import { CKEditor } from '@ckeditor/ckeditor5-react';
-import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
+import JoditEditor from "jodit-react";
 import { useTopics } from '../hooks/useTopics';
 
 const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
@@ -207,24 +206,27 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                 <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
                                     İçerik
                                 </label>
-                                <CKEditor
-                                    editor={ClassicEditor}
-                                    data={formData.content}
-                                    onChange={(event, editor) => {
-                                        const data = editor.getData();
-                                        setFormData(prev => ({
-                                            ...prev,
-                                            content: data
-                                        }));
-                                    }}
+                                <JoditEditor
+                                    ref={editorRef}
+                                    value={formData.content}
                                     config={{
-                                        simpleUpload: {
-                                            uploadUrl: 'your-upload-url',
-                                            headers: {
-                                                'X-CSRF-TOKEN': 'your-csrf-token'
-                                            }
-                                        }
+                                        readonly: false,
+                                        height: 300,
+                                        uploader: {
+                                            insertImageAsBase64URI: true
+                                        },
+                                        buttons: [
+                                            'source', '|',
+                                            'bold', 'italic', 'underline', '|',
+                                            'ul', 'ol', '|',
+                                            'font', 'fontsize', 'brush', 'paragraph', '|',
+                                            'image', 'table', 'link', '|',
+                                            'left', 'center', 'right', 'justify', '|',
+                                            'undo', 'redo', '|',
+                                            'hr', 'eraser', 'fullsize'
+                                        ]
                                     }}
+                                    onBlur={(newContent) => setFormData(prev => ({ ...prev, content: newContent }))}
                                 />
                             </div>
                             

@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { db, storage } from "../firebase";
 import { doc, getDoc, updateDoc, collection, getDocs } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { CKEditor } from '@ckeditor/ckeditor5-react';
-import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
+import JoditEditor from "jodit-react";
 import { toast } from 'react-hot-toast';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -382,24 +381,26 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                                     Soru Metni
                                 </label>
                                 <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                    <CKEditor
-                                        editor={ClassicEditor}
-                                        data={soru?.soruMetni || ""}
-                                        onChange={(event, editor) => {
-                                            const data = editor.getData();
-                                            setSoru(prev => ({
-                                                ...prev,
-                                                soruMetni: data
-                                            }));
-                                        }}
+                                    <JoditEditor
+                                        value={soru?.soruMetni || ""}
                                         config={{
-                                            simpleUpload: {
-                                                uploadUrl: 'your-upload-url',
-                                                headers: {
-                                                    'X-CSRF-TOKEN': 'your-csrf-token'
-                                                }
-                                            }
+                                            readonly: false,
+                                            height: 300,
+                                            uploader: {
+                                                insertImageAsBase64URI: true
+                                            },
+                                            buttons: [
+                                                'source', '|',
+                                                'bold', 'italic', 'underline', '|',
+                                                'ul', 'ol', '|',
+                                                'font', 'fontsize', 'brush', 'paragraph', '|',
+                                                'image', 'table', 'link', '|',
+                                                'left', 'center', 'right', 'justify', '|',
+                                                'undo', 'redo', '|',
+                                                'hr', 'eraser', 'fullsize'
+                                            ]
                                         }}
+                                        onBlur={(newContent) => setSoru(prev => ({ ...prev, soruMetni: newContent }))}
                                     />
                                 </div>
                             </div>
@@ -490,24 +491,26 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                                     Açıklama
                                 </label>
                                 <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                    <CKEditor
-                                        editor={ClassicEditor}
-                                        data={soru?.aciklama || ""}
-                                        onChange={(event, editor) => {
-                                            const data = editor.getData();
-                                            setSoru(prev => ({
-                                                ...prev,
-                                                aciklama: data
-                                            }));
-                                        }}
+                                    <JoditEditor
+                                        value={soru?.aciklama || ""}
                                         config={{
-                                            simpleUpload: {
-                                                uploadUrl: 'your-upload-url',
-                                                headers: {
-                                                    'X-CSRF-TOKEN': 'your-csrf-token'
-                                                }
-                                            }
+                                            readonly: false,
+                                            height: 300,
+                                            uploader: {
+                                                insertImageAsBase64URI: true
+                                            },
+                                            buttons: [
+                                                'source', '|',
+                                                'bold', 'italic', 'underline', '|',
+                                                'ul', 'ol', '|',
+                                                'font', 'fontsize', 'brush', 'paragraph', '|',
+                                                'image', 'table', 'link', '|',
+                                                'left', 'center', 'right', 'justify', '|',
+                                                'undo', 'redo', '|',
+                                                'hr', 'eraser', 'fullsize'
+                                            ]
                                         }}
+                                        onBlur={(newContent) => setSoru(prev => ({ ...prev, aciklama: newContent }))}
                                     />
                                 </div>
                             </div>
