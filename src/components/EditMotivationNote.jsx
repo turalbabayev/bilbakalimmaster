@@ -17,17 +17,30 @@ const EditMotivationNote = ({ isOpen, onClose, noteId, onSuccess }) => {
         const fetchNote = async () => {
             if (noteId) {
                 try {
+                    console.log('Veri yükleniyor, noteId:', noteId);
                     const noteDoc = await getDoc(doc(db, "motivation-notes", noteId));
+                    console.log('Firestore\'dan gelen veri:', noteDoc.data());
+                    
                     if (noteDoc.exists()) {
+                        const noteData = noteDoc.data();
                         setFormData({
-                            baslik: noteDoc.data().baslik,
-                            icerik: noteDoc.data().icerik
+                            baslik: noteData.baslik || '',
+                            icerik: noteData.icerik || ''
                         });
+                        console.log('Form verisi güncellendi:', {
+                            baslik: noteData.baslik,
+                            icerik: noteData.icerik
+                        });
+                    } else {
+                        console.log('Not bulunamadı');
+                        toast.error('Not bulunamadı!');
                     }
                 } catch (error) {
                     console.error('Not yüklenirken hata:', error);
                     toast.error('Not yüklenirken bir hata oluştu!');
                 }
+            } else {
+                console.log('noteId bulunamadı');
             }
         };
 

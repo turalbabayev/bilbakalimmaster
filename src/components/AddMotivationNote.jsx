@@ -55,14 +55,27 @@ const AddMotivationNote = ({ isOpen, onClose, onSuccess }) => {
 
         setLoading(true);
         try {
+            console.log('Eklenecek veri:', formData);
+            
             const docRef = await addDoc(collection(db, "motivation-notes"), {
                 ...formData,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
             });
 
+            console.log('Başarıyla eklendi, döküman ID:', docRef.id);
             toast.success('Not başarıyla eklendi!');
-            onSuccess?.();
+            
+            // Form verilerini sıfırla
+            setFormData({
+                baslik: "",
+                icerik: ""
+            });
+            
+            // Başarı callback'ini çağır ve modalı kapat
+            if (typeof onSuccess === 'function') {
+                onSuccess();
+            }
             onClose();
         } catch (error) {
             console.error('Not eklenirken hata:', error);
