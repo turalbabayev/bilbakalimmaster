@@ -168,7 +168,7 @@ const MotivationNotesList = forwardRef(({ onAddClick }, ref) => {
                     setIsEditModalOpen(false);
                     setSelectedNote(null);
                 }}
-                note={selectedNote}
+                noteId={selectedNote?.id}
                 onSuccess={fetchNotes}
             />
         </div>

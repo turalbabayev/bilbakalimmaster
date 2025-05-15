@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { db, storage } from "../firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "react-hot-toast";
 import { Editor } from '@tinymce/tinymce-react';
@@ -55,10 +55,18 @@ const AddMotivationNote = ({ isOpen, onClose, onSuccess }) => {
 
         setLoading(true);
         try {
-            console.log('Eklenecek veri:', formData);
+            // Mevcut not sayısını al
+            const notesRef = collection(db, "motivation-notes");
+            const q = query(notesRef, orderBy("siraNo", "desc"), limit(1));
+            const snapshot = await getDocs(q);
+            const lastNote = snapshot.docs[0]?.data();
+            const nextSiraNo = lastNote ? lastNote.siraNo + 1 : 1;
+
+            console.log('Eklenecek veri:', { ...formData, siraNo: nextSiraNo });
             
             const docRef = await addDoc(collection(db, "motivation-notes"), {
                 ...formData,
+                siraNo: nextSiraNo,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
             });
