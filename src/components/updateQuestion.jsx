@@ -491,7 +491,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                                 </label>
                                 <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
                                     <Editor
-                                        apiKey="your-tinymce-api-key"
+                                        apiKey="83kpgxax9nnx3wf6kruxk3rhefe9xso7fgxkah69lh4eie05"
                                         value={soru.aciklama}
                                         onEditorChange={(content) => setSoru({ ...soru, aciklama: content })}
                                         init={{
