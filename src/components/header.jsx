@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
-import { FaBell } from 'react-icons/fa';
+import { FaBell, FaUsers } from 'react-icons/fa';
 
 const Header = () => {
     const navigate = useNavigate();
@@ -27,7 +27,7 @@ const Header = () => {
         { path: "/games", label: "Oyunlar" },
         { path: "/notes", label: "Notlar" },
         { path: "/deneme-sinavlari", label: "Deneme Sınavları" },
-        { path: "/notifications", label: "Bildirimler", icon: <FaBell className="inline-block mr-1" /> }
+        { path: "/users", label: "Kullanıcılar", icon: <FaUsers className="inline-block mr-1" /> }
     ];
 
     const isActive = (path) => {
