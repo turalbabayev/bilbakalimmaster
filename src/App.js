@@ -13,6 +13,7 @@ import UsersPage from './pages/MainPage/users_page';
 import DeleteAccountPage from './pages/DeleteAccount';
 import ProtectedRouter from './routes/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
+import DenemeSinavlariPage from './pages/MainPage/deneme-sinavlari';
 
 function App() {
     return (
@@ -30,6 +31,7 @@ function App() {
                     <Route path='/notes' element={<ProtectedRouter><NotesPage /></ProtectedRouter>} />
                     <Route path='/users' element={<ProtectedRouter><UsersPage /></ProtectedRouter>} />
                     <Route path='/delete-account' element={<DeleteAccountPage />} />
+                    <Route path='/deneme-sinavlari' element={<ProtectedRouter><DenemeSinavlariPage /></ProtectedRouter>} />
                 </Routes>
             </Router>
         </AuthProvider>
