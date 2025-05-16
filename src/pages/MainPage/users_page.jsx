@@ -3,7 +3,8 @@ import Layout from '../../components/layout';
 import { db } from '../../firebase';
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
-import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt } from 'react-icons/fa';
+import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt, FaChartPie, FaChartBar } from 'react-icons/fa';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const UsersPage = () => {
     const [users, setUsers] = useState([]);
@@ -18,6 +19,15 @@ const UsersPage = () => {
         ios: 0,
         android: 0
     });
+
+    // Grafik renkleri
+    const COLORS = {
+        premium: '#FCD34D', // Sarı
+        free: '#9CA3AF',    // Gri
+        guest: '#A78BFA',   // Mor
+        ios: '#4B5563',     // Koyu Gri
+        android: '#34D399'  // Yeşil
+    };
 
     const fetchUsers = async () => {
         try {
@@ -85,6 +95,19 @@ const UsersPage = () => {
                 return users;
         }
     };
+
+    // Pasta grafik verisi
+    const getPieChartData = () => [
+        { name: 'Premium', value: stats.premium, color: COLORS.premium },
+        { name: 'Ücretsiz', value: stats.free, color: COLORS.free },
+        { name: 'Misafir', value: stats.guest, color: COLORS.guest }
+    ];
+
+    // Çubuk grafik verisi
+    const getBarChartData = () => [
+        { name: 'iOS', value: stats.ios, color: COLORS.ios },
+        { name: 'Android', value: stats.android, color: COLORS.android }
+    ];
 
     const StatCard = ({ title, count, icon: Icon, color, onClick, isActive }) => (
         <div
@@ -162,6 +185,71 @@ const UsersPage = () => {
                             onClick={() => setActiveFilter('android')}
                             isActive={activeFilter === 'android'}
                         />
+                    </div>
+
+                    {/* Grafikler */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        {/* Üyelik Dağılımı - Pasta Grafik */}
+                        <div className="bg-white rounded-2xl shadow-lg p-6">
+                            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                                <FaChartPie className="text-indigo-600" />
+                                Üyelik Dağılımı
+                            </h2>
+                            <div className="h-80">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={getPieChartData()}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={false}
+                                            label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                                            outerRadius={100}
+                                            fill="#8884d8"
+                                            dataKey="value"
+                                        >
+                                            {getPieChartData().map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                        <Legend />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* Platform Dağılımı - Çubuk Grafik */}
+                        <div className="bg-white rounded-2xl shadow-lg p-6">
+                            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                                <FaChartBar className="text-indigo-600" />
+                                Platform Dağılımı
+                            </h2>
+                            <div className="h-80">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart
+                                        data={getBarChartData()}
+                                        margin={{
+                                            top: 20,
+                                            right: 30,
+                                            left: 20,
+                                            bottom: 5,
+                                        }}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="name" />
+                                        <YAxis />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Bar dataKey="value" name="Kullanıcı Sayısı">
+                                            {getBarChartData().map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="bg-white rounded-2xl shadow-lg p-6">
