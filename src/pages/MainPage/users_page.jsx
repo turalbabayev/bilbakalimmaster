@@ -1,37 +1,58 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/layout';
 import { db } from '../../firebase';
-import { collection, getDocs } from 'firebase/firestore';
-import { FaUsers } from 'react-icons/fa';
+import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { toast } from 'react-hot-toast';
+import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap } from 'react-icons/fa';
 
 const UsersPage = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [updatingUserId, setUpdatingUserId] = useState(null);
+
+    const fetchUsers = async () => {
+        try {
+            console.log('Kullanıcılar getiriliyor...');
+            const usersRef = collection(db, 'users');
+            const snapshot = await getDocs(usersRef);
+            const usersData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            console.log('Getirilen kullanıcılar:', usersData);
+            setUsers(usersData);
+        } catch (error) {
+            console.error('Kullanıcılar yüklenirken hata:', error);
+            toast.error('Kullanıcılar yüklenirken bir hata oluştu!');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchUsers = async () => {
-            try {
-                const usersRef = collection(db, 'users');
-                const snapshot = await getDocs(usersRef);
-                const usersData = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                setUsers(usersData);
-            } catch (error) {
-                console.error('Kullanıcılar yüklenirken hata:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchUsers();
     }, []);
+
+    const handlePremiumUpdate = async (userId, newPremiumStatus) => {
+        setUpdatingUserId(userId);
+        try {
+            await updateDoc(doc(db, 'users', userId), {
+                isPremium: newPremiumStatus
+            });
+            toast.success(`Kullanıcı ${newPremiumStatus ? 'premium' : 'ücretsiz'} üyeliğe geçirildi!`);
+            fetchUsers(); // Listeyi yenile
+        } catch (error) {
+            console.error('Premium durumu güncellenirken hata:', error);
+            toast.error('Premium durumu güncellenirken bir hata oluştu!');
+        } finally {
+            setUpdatingUserId(null);
+        }
+    };
 
     return (
         <Layout>
             <div className="container mx-auto px-4 py-8">
-                <div className="max-w-6xl mx-auto">
+                <div className="max-w-7xl mx-auto">
                     <h1 className="text-3xl font-bold text-gray-800 mb-8 flex items-center gap-3">
                         <FaUsers className="text-indigo-600" />
                         Kullanıcılar
@@ -50,30 +71,67 @@ const UsersPage = () => {
                                     <thead>
                                         <tr>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Kullanıcı Adı
+                                                Kullanıcı
                                             </th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 E-posta
                                             </th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Üyelik Tipi
+                                                Platform
                                             </th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Kayıt Tarihi
+                                                Uzmanlık Alanı
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Üyelik Durumu
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                İşlemler
                                             </th>
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
                                         {users.map((user) => (
-                                            <tr key={user.id}>
+                                            <tr key={user.id} className="hover:bg-gray-50">
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="text-sm font-medium text-gray-900">
-                                                        {user.displayName || 'İsimsiz Kullanıcı'}
+                                                    <div className="flex items-center">
+                                                        <div className="flex-shrink-0 h-10 w-10">
+                                                            <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                                                                <span className="text-indigo-600 font-medium">
+                                                                    {user.name ? user.name[0].toUpperCase() : '?'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="ml-4">
+                                                            <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                                                                {user.name} {user.surname}
+                                                                {user.isGuest && (
+                                                                    <FaUserSecret className="text-gray-400" title="Misafir Kullanıcı" />
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="text-sm text-gray-500">
                                                         {user.email}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-xl">
+                                                        {user.device_type === 'iOS' ? (
+                                                            <FaApple className="text-gray-700" title="iOS" />
+                                                        ) : user.device_type === 'Android' ? (
+                                                            <FaAndroid className="text-green-500" title="Android" />
+                                                        ) : (
+                                                            '-'
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="flex items-center text-sm text-gray-500">
+                                                        <FaGraduationCap className="mr-2" />
+                                                        {user.expertise || '-'}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
@@ -85,8 +143,26 @@ const UsersPage = () => {
                                                         {user.isPremium ? 'Premium' : 'Ücretsiz'}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {user.createdAt?.toDate().toLocaleDateString('tr-TR') || '-'}
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                    <button
+                                                        onClick={() => handlePremiumUpdate(user.id, !user.isPremium)}
+                                                        disabled={updatingUserId === user.id}
+                                                        className={`inline-flex items-center px-3 py-1 border border-transparent text-xs leading-4 font-medium rounded-md text-white ${
+                                                            user.isPremium 
+                                                            ? 'bg-red-600 hover:bg-red-700' 
+                                                            : 'bg-green-600 hover:bg-green-700'
+                                                        } focus:outline-none transition ease-in-out duration-150 ${
+                                                            updatingUserId === user.id ? 'opacity-50 cursor-not-allowed' : ''
+                                                        }`}
+                                                    >
+                                                        {updatingUserId === user.id ? (
+                                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                            </svg>
+                                                        ) : null}
+                                                        {user.isPremium ? 'Ücretsiz Yap' : 'Premium Yap'}
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}
