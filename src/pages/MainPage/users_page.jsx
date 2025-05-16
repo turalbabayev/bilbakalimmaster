@@ -360,24 +360,27 @@ const UsersPage = () => {
                                                             const timestamp = user.created_at || user.createdAt;
                                                             if (!timestamp) return '-';
                                                             
+                                                            let date;
                                                             if (timestamp.toDate) {
-                                                                return timestamp.toDate().toLocaleString('tr-TR', {
-                                                                    year: 'numeric',
-                                                                    month: 'long',
-                                                                    day: 'numeric',
-                                                                    hour: '2-digit',
-                                                                    minute: '2-digit'
-                                                                });
+                                                                // Firestore Timestamp
+                                                                date = timestamp.toDate();
                                                             } else if (timestamp instanceof Date) {
-                                                                return timestamp.toLocaleString('tr-TR', {
-                                                                    year: 'numeric',
-                                                                    month: 'long',
-                                                                    day: 'numeric',
-                                                                    hour: '2-digit',
-                                                                    minute: '2-digit'
-                                                                });
+                                                                // JavaScript Date objesi
+                                                                date = timestamp;
+                                                            } else if (typeof timestamp === 'string') {
+                                                                // ISO string formatı
+                                                                date = new Date(timestamp);
+                                                            } else {
+                                                                return '-';
                                                             }
-                                                            return '-';
+
+                                                            return date.toLocaleString('tr-TR', {
+                                                                year: 'numeric',
+                                                                month: 'long',
+                                                                day: 'numeric',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            });
                                                         } catch (error) {
                                                             console.error('Tarih dönüştürme hatası:', error);
                                                             return '-';
