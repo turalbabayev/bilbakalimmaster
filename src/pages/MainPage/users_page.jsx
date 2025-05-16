@@ -355,13 +355,34 @@ const UsersPage = () => {
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {user.created_at?.toDate().toLocaleString('tr-TR', {
-                                                        year: 'numeric',
-                                                        month: 'long',
-                                                        day: 'numeric',
-                                                        hour: '2-digit',
-                                                        minute: '2-digit'
-                                                    }) || '-'}
+                                                    {(() => {
+                                                        try {
+                                                            const timestamp = user.created_at || user.createdAt;
+                                                            if (!timestamp) return '-';
+                                                            
+                                                            if (timestamp.toDate) {
+                                                                return timestamp.toDate().toLocaleString('tr-TR', {
+                                                                    year: 'numeric',
+                                                                    month: 'long',
+                                                                    day: 'numeric',
+                                                                    hour: '2-digit',
+                                                                    minute: '2-digit'
+                                                                });
+                                                            } else if (timestamp instanceof Date) {
+                                                                return timestamp.toLocaleString('tr-TR', {
+                                                                    year: 'numeric',
+                                                                    month: 'long',
+                                                                    day: 'numeric',
+                                                                    hour: '2-digit',
+                                                                    minute: '2-digit'
+                                                                });
+                                                            }
+                                                            return '-';
+                                                        } catch (error) {
+                                                            console.error('Tarih dönüştürme hatası:', error);
+                                                            return '-';
+                                                        }
+                                                    })()}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                                                     <button
