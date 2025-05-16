@@ -294,6 +294,9 @@ const UsersPage = () => {
                                                 Üyelik Durumu
                                             </th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Kayıt Tarihi
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 İşlemler
                                             </th>
                                         </tr>
@@ -350,6 +353,15 @@ const UsersPage = () => {
                                                     }`}>
                                                         {user.isPremium ? 'Premium' : 'Ücretsiz'}
                                                     </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {user.created_at?.toDate().toLocaleString('tr-TR', {
+                                                        year: 'numeric',
+                                                        month: 'long',
+                                                        day: 'numeric',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    }) || '-'}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                                                     <button
