@@ -3,12 +3,21 @@ import Layout from '../../components/layout';
 import { db } from '../../firebase';
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
-import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap } from 'react-icons/fa';
+import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt } from 'react-icons/fa';
 
 const UsersPage = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [updatingUserId, setUpdatingUserId] = useState(null);
+    const [activeFilter, setActiveFilter] = useState('all');
+    const [stats, setStats] = useState({
+        total: 0,
+        premium: 0,
+        free: 0,
+        guest: 0,
+        ios: 0,
+        android: 0
+    });
 
     const fetchUsers = async () => {
         try {
@@ -21,6 +30,17 @@ const UsersPage = () => {
             }));
             console.log('Getirilen kullanıcılar:', usersData);
             setUsers(usersData);
+
+            // İstatistikleri hesapla
+            const newStats = {
+                total: usersData.length,
+                premium: usersData.filter(user => user.isPremium).length,
+                free: usersData.filter(user => !user.isPremium && !user.isGuest).length,
+                guest: usersData.filter(user => user.isGuest).length,
+                ios: usersData.filter(user => user.device_type === 'iOS').length,
+                android: usersData.filter(user => user.device_type === 'Android').length
+            };
+            setStats(newStats);
         } catch (error) {
             console.error('Kullanıcılar yüklenirken hata:', error);
             toast.error('Kullanıcılar yüklenirken bir hata oluştu!');
@@ -40,7 +60,7 @@ const UsersPage = () => {
                 isPremium: newPremiumStatus
             });
             toast.success(`Kullanıcı ${newPremiumStatus ? 'premium' : 'ücretsiz'} üyeliğe geçirildi!`);
-            fetchUsers(); // Listeyi yenile
+            fetchUsers();
         } catch (error) {
             console.error('Premium durumu güncellenirken hata:', error);
             toast.error('Premium durumu güncellenirken bir hata oluştu!');
@@ -48,6 +68,40 @@ const UsersPage = () => {
             setUpdatingUserId(null);
         }
     };
+
+    const getFilteredUsers = () => {
+        switch (activeFilter) {
+            case 'premium':
+                return users.filter(user => user.isPremium);
+            case 'free':
+                return users.filter(user => !user.isPremium && !user.isGuest);
+            case 'guest':
+                return users.filter(user => user.isGuest);
+            case 'ios':
+                return users.filter(user => user.device_type === 'iOS');
+            case 'android':
+                return users.filter(user => user.device_type === 'Android');
+            default:
+                return users;
+        }
+    };
+
+    const StatCard = ({ title, count, icon: Icon, color, onClick, isActive }) => (
+        <div
+            onClick={onClick}
+            className={`${
+                isActive ? 'ring-2 ring-offset-2 ring-' + color + '-500' : ''
+            } cursor-pointer transform hover:scale-105 transition-all duration-200 bg-white rounded-xl shadow-md p-4 flex items-center space-x-4`}
+        >
+            <div className={`p-3 rounded-lg bg-${color}-100`}>
+                <Icon className={`h-6 w-6 text-${color}-600`} />
+            </div>
+            <div>
+                <p className="text-sm font-medium text-gray-600">{title}</p>
+                <p className="text-2xl font-semibold text-gray-900">{count}</p>
+            </div>
+        </div>
+    );
 
     return (
         <Layout>
@@ -58,13 +112,79 @@ const UsersPage = () => {
                         Kullanıcılar
                     </h1>
 
+                    {/* İstatistik Kartları */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+                        <StatCard
+                            title="Toplam Kullanıcı"
+                            count={stats.total}
+                            icon={FaUsers}
+                            color="blue"
+                            onClick={() => setActiveFilter('all')}
+                            isActive={activeFilter === 'all'}
+                        />
+                        <StatCard
+                            title="Premium Üyeler"
+                            count={stats.premium}
+                            icon={FaCrown}
+                            color="yellow"
+                            onClick={() => setActiveFilter('premium')}
+                            isActive={activeFilter === 'premium'}
+                        />
+                        <StatCard
+                            title="Ücretsiz Üyeler"
+                            count={stats.free}
+                            icon={FaUserAlt}
+                            color="gray"
+                            onClick={() => setActiveFilter('free')}
+                            isActive={activeFilter === 'free'}
+                        />
+                        <StatCard
+                            title="Misafir Kullanıcılar"
+                            count={stats.guest}
+                            icon={FaUserSecret}
+                            color="purple"
+                            onClick={() => setActiveFilter('guest')}
+                            isActive={activeFilter === 'guest'}
+                        />
+                        <StatCard
+                            title="iOS Kullanıcıları"
+                            count={stats.ios}
+                            icon={FaApple}
+                            color="gray"
+                            onClick={() => setActiveFilter('ios')}
+                            isActive={activeFilter === 'ios'}
+                        />
+                        <StatCard
+                            title="Android Kullanıcıları"
+                            count={stats.android}
+                            icon={FaAndroid}
+                            color="green"
+                            onClick={() => setActiveFilter('android')}
+                            isActive={activeFilter === 'android'}
+                        />
+                    </div>
+
                     <div className="bg-white rounded-2xl shadow-lg p-6">
                         {loading ? (
                             <div className="flex justify-center items-center h-40">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                             </div>
-                        ) : users.length === 0 ? (
-                            <p className="text-center text-gray-500">Henüz hiç kullanıcı bulunmuyor.</p>
+                        ) : getFilteredUsers().length === 0 ? (
+                            <div className="text-center py-12">
+                                <FaUsers className="mx-auto h-12 w-12 text-gray-400" />
+                                <h3 className="mt-2 text-sm font-medium text-gray-900">Kullanıcı Bulunamadı</h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Seçili filtre için kullanıcı bulunmamaktadır.
+                                </p>
+                                <div className="mt-6">
+                                    <button
+                                        onClick={() => setActiveFilter('all')}
+                                        className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                                    >
+                                        Tüm Kullanıcıları Göster
+                                    </button>
+                                </div>
+                            </div>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
@@ -91,7 +211,7 @@ const UsersPage = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
-                                        {users.map((user) => (
+                                        {getFilteredUsers().map((user) => (
                                             <tr key={user.id} className="hover:bg-gray-50">
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="flex items-center">
