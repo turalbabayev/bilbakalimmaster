@@ -14,6 +14,11 @@ import DeleteAccountPage from './pages/DeleteAccount';
 import ProtectedRouter from './routes/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import DenemeSinavlariPage from './pages/MainPage/deneme-sinavlari';
+import CreateExamPage from './pages/MainPage/create-exam';
+import QuestionBankPage from './pages/MainPage/question-bank';
+import ExamListPage from './pages/MainPage/exam-list';
+import ExamResultsPage from './pages/MainPage/exam-results';
+import ExamStatsPage from './pages/MainPage/exam-stats';
 
 function App() {
     return (
@@ -32,6 +37,11 @@ function App() {
                     <Route path='/users' element={<ProtectedRouter><UsersPage /></ProtectedRouter>} />
                     <Route path='/delete-account' element={<DeleteAccountPage />} />
                     <Route path='/deneme-sinavlari' element={<ProtectedRouter><DenemeSinavlariPage /></ProtectedRouter>} />
+                    <Route path="/deneme-sinavlari/olustur" element={<ProtectedRouter><CreateExamPage /></ProtectedRouter>} />
+                    <Route path="/deneme-sinavlari/soru-bankasi" element={<ProtectedRouter><QuestionBankPage /></ProtectedRouter>} />
+                    <Route path="/deneme-sinavlari/liste" element={<ProtectedRouter><ExamListPage /></ProtectedRouter>} />
+                    <Route path="/deneme-sinavlari/sonuclar" element={<ProtectedRouter><ExamResultsPage /></ProtectedRouter>} />
+                    <Route path="/deneme-sinavlari/istatistikler" element={<ProtectedRouter><ExamStatsPage /></ProtectedRouter>} />
                 </Routes>
             </Router>
         </AuthProvider>
