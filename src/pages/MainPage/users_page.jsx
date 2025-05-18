@@ -3,8 +3,10 @@ import Layout from '../../components/layout';
 import { db } from '../../firebase';
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
-import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt, FaChartPie, FaChartBar } from 'react-icons/fa';
+import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt, FaChartPie, FaChartBar, FaSearch, FaSort, FaSortAmountDown, FaSortAmountUp, FaFilter } from 'react-icons/fa';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Menu, Transition } from '@headlessui/react';
+import { Fragment } from 'react';
 
 const UsersPage = () => {
     const [users, setUsers] = useState([]);
@@ -19,6 +21,11 @@ const UsersPage = () => {
         ios: 0,
         android: 0
     });
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortBy, setSortBy] = useState('date'); // date, name, guest, premium
+    const [sortOrder, setSortOrder] = useState('desc'); // asc, desc
+    const [filteredUsers, setFilteredUsers] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     // Grafik renkleri
     const COLORS = {
@@ -30,6 +37,7 @@ const UsersPage = () => {
     };
 
     const fetchUsers = async () => {
+        setIsLoading(true);
         try {
             console.log('Kullanıcılar getiriliyor...');
             const usersRef = collection(db, 'users');
@@ -40,6 +48,7 @@ const UsersPage = () => {
             }));
             console.log('Getirilen kullanıcılar:', usersData);
             setUsers(usersData);
+            setFilteredUsers(usersData);
 
             // İstatistikleri hesapla
             const newStats = {
@@ -56,12 +65,19 @@ const UsersPage = () => {
             toast.error('Kullanıcılar yüklenirken bir hata oluştu!');
         } finally {
             setLoading(false);
+            setIsLoading(false);
         }
     };
 
     useEffect(() => {
         fetchUsers();
     }, []);
+
+    useEffect(() => {
+        if (users.length > 0) {
+            filterAndSortUsers();
+        }
+    }, [searchTerm, sortBy, sortOrder, users]);
 
     const handlePremiumUpdate = async (userId, newPremiumStatus) => {
         setUpdatingUserId(userId);
@@ -126,6 +142,77 @@ const UsersPage = () => {
         </div>
     );
 
+    const handleSearch = (e) => {
+        setSearchTerm(e.target.value);
+        // TODO: Implement search functionality
+    };
+
+    const handleSort = (type) => {
+        if (sortBy === type) {
+            // Aynı kritere tıklandığında sıralama yönünü değiştir
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortBy(type);
+            setSortOrder('desc');
+        }
+    };
+
+    const sortOptions = [
+        { id: 'date', name: 'Kayıt Tarihi' },
+        { id: 'name', name: 'İsim' },
+        { id: 'guest', name: 'Misafir Durumu' },
+        { id: 'premium', name: 'Premium Durumu' }
+    ];
+
+    const filterAndSortUsers = () => {
+        let filtered = [...users];
+
+        // Arama filtresi
+        if (searchTerm) {
+            const searchLower = searchTerm.toLowerCase();
+            filtered = filtered.filter(user => 
+                (user.name?.toLowerCase().includes(searchLower) ||
+                user.surname?.toLowerCase().includes(searchLower) ||
+                user.email?.toLowerCase().includes(searchLower))
+            );
+        }
+
+        // Sıralama
+        filtered.sort((a, b) => {
+            let compareResult = 0;
+            
+            switch (sortBy) {
+                case 'date':
+                    const dateA = a.created_at?.toDate?.() || a.createdAt?.toDate?.() || new Date(0);
+                    const dateB = b.created_at?.toDate?.() || b.createdAt?.toDate?.() || new Date(0);
+                    compareResult = dateB - dateA; // Varsayılan olarak yeniden eskiye
+                    break;
+                    
+                case 'name':
+                    const nameA = `${a.name || ''} ${a.surname || ''}`.toLowerCase();
+                    const nameB = `${b.name || ''} ${b.surname || ''}`.toLowerCase();
+                    compareResult = nameA.localeCompare(nameB);
+                    break;
+                    
+                case 'guest':
+                    compareResult = (b.isGuest ? 1 : 0) - (a.isGuest ? 1 : 0);
+                    break;
+                    
+                case 'premium':
+                    compareResult = (b.isPremium ? 1 : 0) - (a.isPremium ? 1 : 0);
+                    break;
+                    
+                default:
+                    return 0;
+            }
+            
+            // Sıralama yönünü uygula
+            return sortOrder === 'asc' ? -compareResult : compareResult;
+        });
+
+        setFilteredUsers(filtered);
+    };
+
     return (
         <Layout>
             <div className="container mx-auto px-4 py-8">
@@ -134,6 +221,80 @@ const UsersPage = () => {
                         <FaUsers className="text-indigo-600" />
                         Kullanıcılar
                     </h1>
+
+                    {/* Arama ve Filtreleme Araç Çubuğu */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+                        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                            {/* Arama Alanı */}
+                            <div className="w-full md:w-96">
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        placeholder="Kullanıcı ara..."
+                                        value={searchTerm}
+                                        onChange={handleSearch}
+                                    />
+                                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                </div>
+                            </div>
+
+                            {/* Sıralama Menüsü */}
+                            <div className="flex items-center gap-2">
+                                <Menu as="div" className="relative inline-block text-left">
+                                    <Menu.Button className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                        <FaSort className="mr-2 h-4 w-4" />
+                                        Sırala
+                                    </Menu.Button>
+
+                                    <Transition
+                                        as={Fragment}
+                                        enter="transition ease-out duration-100"
+                                        enterFrom="transform opacity-0 scale-95"
+                                        enterTo="transform opacity-100 scale-100"
+                                        leave="transition ease-in duration-75"
+                                        leaveFrom="transform opacity-100 scale-100"
+                                        leaveTo="transform opacity-0 scale-95"
+                                    >
+                                        <Menu.Items className="absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-10">
+                                            <div className="py-1">
+                                                {sortOptions.map((option) => (
+                                                    <Menu.Item key={option.id}>
+                                                        {({ active }) => (
+                                                            <button
+                                                                onClick={() => handleSort(option.id)}
+                                                                className={`
+                                                                    ${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'}
+                                                                    ${sortBy === option.id ? 'bg-indigo-50 text-indigo-600' : ''}
+                                                                    group flex items-center w-full px-4 py-2 text-sm
+                                                                `}
+                                                            >
+                                                                {sortBy === option.id ? (
+                                                                    sortOrder === 'asc' ? (
+                                                                        <FaSortAmountUp className="mr-3 h-4 w-4" />
+                                                                    ) : (
+                                                                        <FaSortAmountDown className="mr-3 h-4 w-4" />
+                                                                    )
+                                                                ) : (
+                                                                    <span className="mr-3 w-4" />
+                                                                )}
+                                                                {option.name}
+                                                            </button>
+                                                        )}
+                                                    </Menu.Item>
+                                                ))}
+                                            </div>
+                                        </Menu.Items>
+                                    </Transition>
+                                </Menu>
+
+                                <button className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                    <FaFilter className="mr-2 h-4 w-4" />
+                                    Filtrele
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
                     {/* İstatistik Kartları */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
@@ -253,11 +414,11 @@ const UsersPage = () => {
                     </div>
 
                     <div className="bg-white rounded-2xl shadow-lg p-6">
-                        {loading ? (
+                        {isLoading ? (
                             <div className="flex justify-center items-center h-40">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                             </div>
-                        ) : getFilteredUsers().length === 0 ? (
+                        ) : filteredUsers.length === 0 ? (
                             <div className="text-center py-12">
                                 <FaUsers className="mx-auto h-12 w-12 text-gray-400" />
                                 <h3 className="mt-2 text-sm font-medium text-gray-900">Kullanıcı Bulunamadı</h3>
@@ -302,7 +463,7 @@ const UsersPage = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
-                                        {getFilteredUsers().map((user) => (
+                                        {filteredUsers.map((user) => (
                                             <tr key={user.id} className="hover:bg-gray-50">
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="flex items-center">
