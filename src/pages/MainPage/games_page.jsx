@@ -480,6 +480,12 @@ function GamesPage() {
                             <FaFileUpload /> JSON Yükle
                         </button>
                         <button
+                            onClick={exportToDocx}
+                            className="bg-purple-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-purple-700 transition-all transform hover:scale-105 shadow-lg"
+                        >
+                            <FaFileDownload /> Toplu İndir
+                        </button>
+                        <button
                             onClick={() => {
                                 setEditingQuestion(null);
                                 setFormData({ question: '', answer: '', word: '', matchingWord: '' });
