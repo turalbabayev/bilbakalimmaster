@@ -87,15 +87,28 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
                 const updateData = {};
                 
                 if (selectedTarget === 'content') {
+                    // HTML içeriğine font-size stilini ekle
+                    const contentWithStyle = card.content.replace(
+                        /<([^>]+)>/g,
+                        (match, tag) => {
+                            if (tag.startsWith('/')) return match;
+                            return `<${tag} style="font-size: ${fontSize}px;">`;
+                        }
+                    );
                     updateData.contentColor = selectedColor;
-                    updateData.content = card.content;
+                    updateData.content = contentWithStyle;
                 } else {
+                    // Başlık için de font-size stilini ekle
+                    const titleWithStyle = card.altKonu.replace(
+                        /<([^>]+)>/g,
+                        (match, tag) => {
+                            if (tag.startsWith('/')) return match;
+                            return `<${tag} style="font-size: ${fontSize}px;">`;
+                        }
+                    );
                     updateData.titleColor = selectedColor;
-                    updateData.altKonu = card.altKonu;
+                    updateData.altKonu = titleWithStyle;
                 }
-
-                // Font boyutunu da ekle
-                updateData.fontSize = fontSize;
 
                 updateData.updatedAt = serverTimestamp();
 
@@ -258,18 +271,12 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
                                 >
                                     <h3 
                                         className="font-semibold mb-2"
-                                        style={{ 
-                                            color: card.titleColor || 'inherit',
-                                            fontSize: `${card.fontSize || 16}px`
-                                        }}
+                                        style={{ color: card.titleColor || 'inherit' }}
                                         dangerouslySetInnerHTML={{ __html: card.altKonu }}
                                     />
                                     <div 
                                         className="prose dark:prose-invert max-w-none"
-                                        style={{ 
-                                            color: card.contentColor || 'inherit',
-                                            fontSize: `${card.fontSize || 16}px`
-                                        }}
+                                        style={{ color: card.contentColor || 'inherit' }}
                                         dangerouslySetInnerHTML={{ __html: card.content }}
                                     />
                                 </div>
