@@ -9,7 +9,7 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
     const [selectedColor, setSelectedColor] = useState('#000000');
     const [startRange, setStartRange] = useState(1);
     const [endRange, setEndRange] = useState(10);
-    const [fontSize, setFontSize] = useState(16); // Varsayılan font boyutu
+    const [selectedHeading, setSelectedHeading] = useState('p'); // Varsayılan olarak paragraf
 
     // Seçili kartların rengini kontrol et
     useEffect(() => {
@@ -87,27 +87,21 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
                 const updateData = {};
                 
                 if (selectedTarget === 'content') {
-                    // HTML içeriğine font-size stilini ekle
-                    const contentWithStyle = card.content.replace(
-                        /<([^>]+)>/g,
-                        (match, tag) => {
-                            if (tag.startsWith('/')) return match;
-                            return `<${tag} style="font-size: ${fontSize}px;">`;
-                        }
+                    // HTML içeriğindeki paragrafları seçilen başlık etiketiyle değiştir
+                    const contentWithHeading = card.content.replace(
+                        /<p[^>]*>(.*?)<\/p>/g,
+                        `<${selectedHeading}>$1</${selectedHeading}>`
                     );
                     updateData.contentColor = selectedColor;
-                    updateData.content = contentWithStyle;
+                    updateData.content = contentWithHeading;
                 } else {
-                    // Başlık için de font-size stilini ekle
-                    const titleWithStyle = card.altKonu.replace(
-                        /<([^>]+)>/g,
-                        (match, tag) => {
-                            if (tag.startsWith('/')) return match;
-                            return `<${tag} style="font-size: ${fontSize}px;">`;
-                        }
+                    // Başlık için de aynı işlemi yap
+                    const titleWithHeading = card.altKonu.replace(
+                        /<p[^>]*>(.*?)<\/p>/g,
+                        `<${selectedHeading}>$1</${selectedHeading}>`
                     );
                     updateData.titleColor = selectedColor;
-                    updateData.altKonu = titleWithStyle;
+                    updateData.altKonu = titleWithHeading;
                 }
 
                 updateData.updatedAt = serverTimestamp();
@@ -116,7 +110,7 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
             });
 
             await batch.commit();
-            toast.success(`Seçili kartların ${selectedTarget === 'content' ? 'içerik' : 'başlık'} rengi ve font boyutu güncellendi!`);
+            toast.success(`Seçili kartların ${selectedTarget === 'content' ? 'içerik' : 'başlık'} rengi ve boyutu güncellendi!`);
             onSuccess?.();
             onClose();
         } catch (error) {
@@ -141,7 +135,7 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
 
                     {/* Sabit Araçlar */}
                     <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-                        {/* Renk ve Font Seçici */}
+                        {/* Renk ve Başlık Seçici */}
                         <div className="px-8 py-4 flex flex-wrap gap-4 items-center border-b border-gray-200 dark:border-gray-700">
                             <div className="flex items-center space-x-4">
                                 <button
@@ -175,17 +169,21 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
 
                             <div className="flex items-center space-x-2">
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Font Boyutu:
+                                    Yazı Boyutu:
                                 </label>
-                                <input
-                                    type="number"
-                                    min="8"
-                                    max="72"
-                                    value={fontSize}
-                                    onChange={(e) => setFontSize(Number(e.target.value))}
-                                    className="w-20 px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                                />
-                                <span className="text-sm text-gray-500">px</span>
+                                <select
+                                    value={selectedHeading}
+                                    onChange={(e) => setSelectedHeading(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                                >
+                                    <option value="p">Normal Metin</option>
+                                    <option value="h1">En Büyük (H1)</option>
+                                    <option value="h2">Büyük (H2)</option>
+                                    <option value="h3">Orta (H3)</option>
+                                    <option value="h4">Küçük (H4)</option>
+                                    <option value="h5">Daha Küçük (H5)</option>
+                                    <option value="h6">En Küçük (H6)</option>
+                                </select>
                             </div>
                         </div>
 
