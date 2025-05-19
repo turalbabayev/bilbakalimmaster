@@ -121,21 +121,72 @@ const UsersPage = () => {
     };
 
     const getFilteredUsers = () => {
+        let filtered = [...users];
+
+        // Arama filtresi
+        if (searchTerm) {
+            const searchLower = searchTerm.toLowerCase();
+            filtered = filtered.filter(user => 
+                (user.name?.toLowerCase().includes(searchLower) || '') ||
+                (user.surname?.toLowerCase().includes(searchLower) || '') ||
+                (user.email?.toLowerCase().includes(searchLower) || '')
+            );
+        }
+
+        // Aktif filtreye göre filtreleme
         switch (activeFilter) {
             case 'premium':
-                return users.filter(user => user.isPremium);
+                filtered = filtered.filter(user => user.isPremium);
+                break;
             case 'free':
-                return users.filter(user => !user.isPremium && !user.isGuest);
+                filtered = filtered.filter(user => !user.isPremium && !user.isGuest);
+                break;
             case 'guest':
-                return users.filter(user => user.isGuest);
+                filtered = filtered.filter(user => user.isGuest);
+                break;
             case 'ios':
-                return users.filter(user => user.device_type === 'iOS');
+                filtered = filtered.filter(user => user.device_type === 'iOS');
+                break;
             case 'android':
-                return users.filter(user => user.device_type === 'Android');
+                filtered = filtered.filter(user => user.device_type === 'Android');
+                break;
             default:
-                return users;
+                break;
         }
+
+        // Sıralama
+        if (sortBy) {
+            filtered.sort((a, b) => {
+                let comparison = 0;
+                switch (sortBy) {
+                    case 'date':
+                        const dateA = a.created_at?.toDate?.() || a.createdAt?.toDate?.() || new Date(0);
+                        const dateB = b.created_at?.toDate?.() || b.createdAt?.toDate?.() || new Date(0);
+                        comparison = dateA - dateB;
+                        break;
+                    case 'name':
+                        const nameA = `${a.name || ''} ${a.surname || ''}`.toLowerCase();
+                        const nameB = `${b.name || ''} ${b.surname || ''}`.toLowerCase();
+                        comparison = nameA.localeCompare(nameB);
+                        break;
+                    case 'guest':
+                        comparison = (a.isGuest ? 1 : 0) - (b.isGuest ? 1 : 0);
+                        break;
+                    case 'premium':
+                        comparison = (a.isPremium ? 1 : 0) - (b.isPremium ? 1 : 0);
+                        break;
+                }
+                return sortOrder === 'asc' ? comparison : -comparison;
+            });
+        }
+
+        return filtered;
     };
+
+    useEffect(() => {
+        const filtered = getFilteredUsers();
+        setFilteredUsers(filtered);
+    }, [users, searchTerm, sortBy, sortOrder, activeFilter]);
 
     // Pasta grafik verisi
     const getPieChartData = () => [
