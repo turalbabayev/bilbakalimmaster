@@ -16,8 +16,9 @@ import { ref, onValue, update, get, remove, push, set, child, off } from "fireba
 import { getDatabase } from "firebase/database";
 import { toast } from "react-hot-toast";
 import { db } from "../../firebase";
-import { collection, doc, getDoc, getDocs, onSnapshot, deleteDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, onSnapshot, deleteDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import UpdateModal from "../../components/updateModal";
+import { FaEdit, FaTrash, FaArrowLeft, FaPlus, FaFilter, FaCheck, FaTimes } from 'react-icons/fa';
 
 function QuestionContent() {
     const { id } = useParams();
@@ -407,6 +408,31 @@ function QuestionContent() {
         }
     };
 
+    // Zorluk seviyesini güncelleme fonksiyonu
+    const handleDifficultyChange = async (soruId, difficulty) => {
+        try {
+            // Soru referansını bul
+            const soruRef = findSoruRefById(soruId);
+            if (!soruRef) {
+                throw new Error('Soru referansı bulunamadı');
+            }
+
+            // Firestore'da güncelleme yap
+            const soruDocRef = doc(db, soruRef);
+            await updateDoc(soruDocRef, {
+                difficulty: difficulty,
+                updatedAt: serverTimestamp()
+            });
+
+            // Soruları yenile
+            await refreshQuestions();
+            toast.success('Zorluk seviyesi güncellendi!');
+        } catch (error) {
+            console.error('Zorluk seviyesi güncellenirken hata:', error);
+            toast.error('Zorluk seviyesi güncellenirken bir hata oluştu!');
+        }
+    };
+
     return (
         <Layout>
             <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
@@ -560,10 +586,45 @@ function QuestionContent() {
                                                                         <div className="flex justify-between items-start">
                                                                             <div className="flex-1 min-w-0">
                                                                                 <div className="flex flex-col p-6">
-                                                                                    <div className="flex flex-col space-y-1">
-                                                                                        <h3 className="text-lg font-semibold mb-2">
+                                                                                    <div className="flex justify-between items-start mb-4">
+                                                                                        <h3 className="text-lg font-semibold">
                                                                                             {index + 1}. Soru: 
                                                                                         </h3>
+                                                                                        <div className="flex items-center space-x-2">
+                                                                                            <span className="text-sm text-gray-500 dark:text-gray-400 mr-2">Zorluk:</span>
+                                                                                            <button
+                                                                                                onClick={() => handleDifficultyChange(soru.id, 'easy')}
+                                                                                                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                                                                                                    soru.difficulty === 'easy'
+                                                                                                        ? 'bg-green-500 text-white'
+                                                                                                        : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500'
+                                                                                                }`}
+                                                                                            >
+                                                                                                Kolay
+                                                                                            </button>
+                                                                                            <button
+                                                                                                onClick={() => handleDifficultyChange(soru.id, 'medium')}
+                                                                                                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                                                                                                    soru.difficulty === 'medium'
+                                                                                                        ? 'bg-yellow-500 text-white'
+                                                                                                        : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500'
+                                                                                                }`}
+                                                                                            >
+                                                                                                Orta
+                                                                                            </button>
+                                                                                            <button
+                                                                                                onClick={() => handleDifficultyChange(soru.id, 'hard')}
+                                                                                                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                                                                                                    soru.difficulty === 'hard'
+                                                                                                        ? 'bg-red-500 text-white'
+                                                                                                        : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500'
+                                                                                                }`}
+                                                                                            >
+                                                                                                Zor
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div className="flex flex-col space-y-1">
                                                                                         {soru.soruResmi && (
                                                                                             <div className="mb-4">
                                                                                                 <img 
