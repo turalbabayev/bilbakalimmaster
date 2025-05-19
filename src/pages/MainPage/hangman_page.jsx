@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaPlus, FaFileDownload } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
+import { Document, Packer, Paragraph, TextRun } from 'docx';
 
 const HangmanPage = () => {
     const [questions, setQuestions] = useState([]);
@@ -78,20 +79,108 @@ const HangmanPage = () => {
         setShowModal(true);
     };
 
+    // DOCX'e dönüştürme ve indirme fonksiyonu
+    const exportToDocx = async () => {
+        try {
+            // Yeni bir DOCX dokümanı oluştur
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: "Adam Asmaca Soruları",
+                                    bold: true,
+                                    size: 32
+                                })
+                            ],
+                            spacing: {
+                                after: 200
+                            }
+                        }),
+                        ...questions.map((q, index) => [
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: `${index + 1}. Soru: ${q.question}`,
+                                        bold: true
+                                    })
+                                ],
+                                spacing: {
+                                    after: 100
+                                }
+                            }),
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: `Cevap: ${q.answer}`
+                                    })
+                                ],
+                                spacing: {
+                                    after: 100
+                                }
+                            }),
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: `Zorluk: ${q.difficulty || 'Belirtilmemiş'}`,
+                                        color: q.difficulty === 'Kolay' ? '008000' : 
+                                               q.difficulty === 'Orta' ? 'FFA500' : 'FF0000'
+                                    })
+                                ],
+                                spacing: {
+                                    after: 200
+                                }
+                            })
+                        ]).flat()
+                    ]
+                }]
+            });
+
+            // DOCX dosyasını oluştur
+            const buffer = await Packer.toBuffer(doc);
+            
+            // Blob oluştur ve indir
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'adam_asmaca_sorulari.docx';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            toast.success('Sorular başarıyla indirildi!');
+        } catch (error) {
+            console.error('Dosya indirilirken hata:', error);
+            toast.error('Dosya indirilirken bir hata oluştu!');
+        }
+    };
+
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-gray-800">Adam Asmaca Soruları</h1>
-                <button
-                    onClick={() => {
-                        setEditingQuestion(null);
-                        setFormData({ question: '', answer: '', difficulty: 'Kolay' });
-                        setShowModal(true);
-                    }}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors"
-                >
-                    <FaPlus /> Yeni Soru Ekle
-                </button>
+                <div className="flex space-x-3">
+                    <button
+                        onClick={exportToDocx}
+                        className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700 transition-colors"
+                    >
+                        <FaFileDownload /> Toplu İndir
+                    </button>
+                    <button
+                        onClick={() => {
+                            setEditingQuestion(null);
+                            setFormData({ question: '', answer: '', difficulty: 'Kolay' });
+                            setShowModal(true);
+                        }}
+                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors"
+                    >
+                        <FaPlus /> Yeni Soru Ekle
+                    </button>
+                </div>
             </div>
 
             {loading ? (
