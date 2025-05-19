@@ -9,6 +9,7 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
     const [selectedColor, setSelectedColor] = useState('#000000');
     const [startRange, setStartRange] = useState(1);
     const [endRange, setEndRange] = useState(10);
+    const [fontSize, setFontSize] = useState(16); // Varsayılan font boyutu
 
     // Seçili kartların rengini kontrol et
     useEffect(() => {
@@ -93,18 +94,21 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
                     updateData.altKonu = card.altKonu;
                 }
 
+                // Font boyutunu da ekle
+                updateData.fontSize = fontSize;
+
                 updateData.updatedAt = serverTimestamp();
 
                 batch.update(cardRef, updateData);
             });
 
             await batch.commit();
-            toast.success(`Seçili kartların ${selectedTarget === 'content' ? 'içerik' : 'başlık'} rengi güncellendi!`);
+            toast.success(`Seçili kartların ${selectedTarget === 'content' ? 'içerik' : 'başlık'} rengi ve font boyutu güncellendi!`);
             onSuccess?.();
             onClose();
         } catch (error) {
-            console.error('Renk güncellenirken hata:', error);
-            toast.error('Renk güncellenirken bir hata oluştu!');
+            console.error('Güncelleme sırasında hata:', error);
+            toast.error('Güncelleme sırasında bir hata oluştu!');
         }
     };
 
@@ -118,13 +122,13 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
                     {/* Sabit Başlık */}
                     <div className="p-8 border-b border-gray-200 dark:border-gray-700">
                         <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-                            Toplu Renk Değiştirme
+                            Toplu Kart Düzenleme
                         </h2>
                     </div>
 
                     {/* Sabit Araçlar */}
                     <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-                        {/* Renk Seçici */}
+                        {/* Renk ve Font Seçici */}
                         <div className="px-8 py-4 flex flex-wrap gap-4 items-center border-b border-gray-200 dark:border-gray-700">
                             <div className="flex items-center space-x-4">
                                 <button
@@ -155,6 +159,21 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
                                 onChange={(e) => setSelectedColor(e.target.value)}
                                 className="w-20 h-10 rounded cursor-pointer"
                             />
+
+                            <div className="flex items-center space-x-2">
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Font Boyutu:
+                                </label>
+                                <input
+                                    type="number"
+                                    min="8"
+                                    max="72"
+                                    value={fontSize}
+                                    onChange={(e) => setFontSize(Number(e.target.value))}
+                                    className="w-20 px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                                />
+                                <span className="text-sm text-gray-500">px</span>
+                            </div>
                         </div>
 
                         {/* Kart Seçim Araçları */}
@@ -239,12 +258,18 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
                                 >
                                     <h3 
                                         className="font-semibold mb-2"
-                                        style={{ color: card.titleColor || 'inherit' }}
+                                        style={{ 
+                                            color: card.titleColor || 'inherit',
+                                            fontSize: `${card.fontSize || 16}px`
+                                        }}
                                         dangerouslySetInnerHTML={{ __html: card.altKonu }}
                                     />
                                     <div 
                                         className="prose dark:prose-invert max-w-none"
-                                        style={{ color: card.contentColor || 'inherit' }}
+                                        style={{ 
+                                            color: card.contentColor || 'inherit',
+                                            fontSize: `${card.fontSize || 16}px`
+                                        }}
                                         dangerouslySetInnerHTML={{ __html: card.content }}
                                     />
                                 </div>
