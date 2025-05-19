@@ -384,10 +384,9 @@ function GamesPage() {
         }
     };
 
-    // DOCX'e dönüştürme ve indirme fonksiyonu
-    const exportToDocx = async () => {
+    // DOCX'e dönüştürme ve indirme fonksiyonları
+    const exportHangmanToDocx = async () => {
         try {
-            // Yeni bir DOCX dokümanı oluştur
             const doc = new Document({
                 sections: [{
                     properties: {},
@@ -431,24 +430,140 @@ function GamesPage() {
                 }]
             });
 
-            // DOCX dosyasını blob olarak oluştur
             const blob = await Packer.toBlob(doc);
-            
-            // Blob'u indir
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'adam_asmaca_sorulari.docx';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
-
-            toast.success('Sorular başarıyla indirildi!');
+            downloadDocx(blob, 'adam_asmaca_sorulari.docx');
         } catch (error) {
             console.error('Dosya indirilirken hata:', error);
             toast.error('Dosya indirilirken bir hata oluştu!');
         }
+    };
+
+    const exportWordPuzzleToDocx = async () => {
+        try {
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: "Kelime Bulmaca Soruları",
+                                    bold: true,
+                                    size: 32
+                                })
+                            ],
+                            spacing: {
+                                after: 200
+                            }
+                        }),
+                        ...wordPuzzles.map((q, index) => [
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: `${index + 1}. Soru: ${q.question}`,
+                                        bold: true
+                                    })
+                                ],
+                                spacing: {
+                                    after: 100
+                                }
+                            }),
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: `Cevap: ${q.answer}`
+                                    })
+                                ],
+                                spacing: {
+                                    after: 200
+                                }
+                            })
+                        ]).flat()
+                    ]
+                }]
+            });
+
+            const blob = await Packer.toBlob(doc);
+            downloadDocx(blob, 'kelime_bulmaca_sorulari.docx');
+        } catch (error) {
+            console.error('Dosya indirilirken hata:', error);
+            toast.error('Dosya indirilirken bir hata oluştu!');
+        }
+    };
+
+    const exportMatchingToDocx = async () => {
+        try {
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: "Eşleştirme Çiftleri",
+                                    bold: true,
+                                    size: 32
+                                })
+                            ],
+                            spacing: {
+                                after: 200
+                            }
+                        }),
+                        ...matchingPairs.map((pair, index) => [
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: `${index + 1}. Çift:`,
+                                        bold: true
+                                    })
+                                ],
+                                spacing: {
+                                    after: 100
+                                }
+                            }),
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: `Kelime: ${pair.word}`
+                                    })
+                                ],
+                                spacing: {
+                                    after: 50
+                                }
+                            }),
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: `Eşleşen: ${pair.matchingWord}`
+                                    })
+                                ],
+                                spacing: {
+                                    after: 200
+                                }
+                            })
+                        ]).flat()
+                    ]
+                }]
+            });
+
+            const blob = await Packer.toBlob(doc);
+            downloadDocx(blob, 'eslestirme_ciftleri.docx');
+        } catch (error) {
+            console.error('Dosya indirilirken hata:', error);
+            toast.error('Dosya indirilirken bir hata oluştu!');
+        }
+    };
+
+    const downloadDocx = (blob, filename) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        toast.success('Sorular başarıyla indirildi!');
     };
 
     if (showHangman || showWordPuzzle || showMatching) {
@@ -479,7 +594,7 @@ function GamesPage() {
                             <FaFileUpload /> JSON Yükle
                         </button>
                         <button
-                            onClick={exportToDocx}
+                            onClick={showHangman ? exportHangmanToDocx : (showWordPuzzle ? exportWordPuzzleToDocx : exportMatchingToDocx)}
                             className="bg-purple-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-purple-700 transition-all transform hover:scale-105 shadow-lg"
                         >
                             <FaFileDownload /> Toplu İndir
