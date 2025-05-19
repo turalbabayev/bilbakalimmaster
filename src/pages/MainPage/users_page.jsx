@@ -8,6 +8,14 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { Menu, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 
+const expertiseOptions = [
+    'Servis Asistanı',
+    'Servis Görevlisi',
+    'Servis Yetkilisi',
+    'Yönetmen Yardımcısı',
+    'Yönetmen'
+];
+
 const UsersPage = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -26,6 +34,7 @@ const UsersPage = () => {
     const [sortOrder, setSortOrder] = useState('desc'); // asc, desc
     const [filteredUsers, setFilteredUsers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [updatingExpertise, setUpdatingExpertise] = useState(null);
 
     // Grafik renkleri
     const COLORS = {
@@ -92,6 +101,22 @@ const UsersPage = () => {
             toast.error('Premium durumu güncellenirken bir hata oluştu!');
         } finally {
             setUpdatingUserId(null);
+        }
+    };
+
+    const handleExpertiseUpdate = async (userId, newExpertise) => {
+        setUpdatingExpertise(userId);
+        try {
+            await updateDoc(doc(db, 'users', userId), {
+                expertise: newExpertise
+            });
+            toast.success('Uzmanlık alanı güncellendi!');
+            fetchUsers();
+        } catch (error) {
+            console.error('Uzmanlık alanı güncellenirken hata:', error);
+            toast.error('Uzmanlık alanı güncellenirken bir hata oluştu!');
+        } finally {
+            setUpdatingExpertise(null);
         }
     };
 
@@ -503,7 +528,48 @@ const UsersPage = () => {
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="flex items-center text-sm text-gray-500">
                                                         <FaGraduationCap className="mr-2" />
-                                                        {user.expertise || '-'}
+                                                        <Menu as="div" className="relative inline-block text-left">
+                                                            <Menu.Button className="inline-flex items-center justify-center px-3 py-1 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                                                {user.expertise || 'Seçiniz'}
+                                                                {updatingExpertise === user.id && (
+                                                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                    </svg>
+                                                                )}
+                                                            </Menu.Button>
+
+                                                            <Transition
+                                                                as={Fragment}
+                                                                enter="transition ease-out duration-100"
+                                                                enterFrom="transform opacity-0 scale-95"
+                                                                enterTo="transform opacity-100 scale-100"
+                                                                leave="transition ease-in duration-75"
+                                                                leaveFrom="transform opacity-100 scale-100"
+                                                                leaveTo="transform opacity-0 scale-95"
+                                                            >
+                                                                <Menu.Items className="absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-10">
+                                                                    <div className="py-1">
+                                                                        {expertiseOptions.map((option) => (
+                                                                            <Menu.Item key={option}>
+                                                                                {({ active }) => (
+                                                                                    <button
+                                                                                        onClick={() => handleExpertiseUpdate(user.id, option)}
+                                                                                        className={`
+                                                                                            ${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'}
+                                                                                            ${user.expertise === option ? 'bg-indigo-50 text-indigo-600' : ''}
+                                                                                            group flex items-center w-full px-4 py-2 text-sm
+                                                                                        `}
+                                                                                    >
+                                                                                        {option}
+                                                                                    </button>
+                                                                                )}
+                                                                            </Menu.Item>
+                                                                        ))}
+                                                                    </div>
+                                                                </Menu.Items>
+                                                            </Transition>
+                                                        </Menu>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
