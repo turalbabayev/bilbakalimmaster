@@ -4,7 +4,8 @@ import { db } from "../../firebase";
 import { collection, getDocs, addDoc, query, orderBy, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import { useNavigate } from 'react-router-dom';
-import { FaEdit, FaTrash, FaPlus, FaArrowLeft, FaFileUpload } from "react-icons/fa";
+import { FaEdit, FaTrash, FaPlus, FaArrowLeft, FaFileUpload, FaFileDownload } from "react-icons/fa";
+import { Document, Packer, Paragraph, TextRun } from 'docx';
 
 function GamesPage() {
     const [games, setGames] = useState([]);
@@ -380,6 +381,74 @@ function GamesPage() {
                 );
             default:
                 return null;
+        }
+    };
+
+    // DOCX'e dönüştürme ve indirme fonksiyonu
+    const exportToDocx = async () => {
+        try {
+            // Yeni bir DOCX dokümanı oluştur
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: "Adam Asmaca Soruları",
+                                    bold: true,
+                                    size: 32
+                                })
+                            ],
+                            spacing: {
+                                after: 200
+                            }
+                        }),
+                        ...questions.map((q, index) => [
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: `${index + 1}. Soru: ${q.question}`,
+                                        bold: true
+                                    })
+                                ],
+                                spacing: {
+                                    after: 100
+                                }
+                            }),
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: `Cevap: ${q.answer}`
+                                    })
+                                ],
+                                spacing: {
+                                    after: 200
+                                }
+                            })
+                        ]).flat()
+                    ]
+                }]
+            });
+
+            // DOCX dosyasını oluştur
+            const buffer = await Packer.toBuffer(doc);
+            
+            // Blob oluştur ve indir
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'adam_asmaca_sorulari.docx';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            toast.success('Sorular başarıyla indirildi!');
+        } catch (error) {
+            console.error('Dosya indirilirken hata:', error);
+            toast.error('Dosya indirilirken bir hata oluştu!');
         }
     };
 
