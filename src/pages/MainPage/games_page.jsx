@@ -431,11 +431,10 @@ function GamesPage() {
                 }]
             });
 
-            // DOCX dosyasını oluştur
-            const buffer = await Packer.toBuffer(doc);
+            // DOCX dosyasını blob olarak oluştur
+            const blob = await Packer.toBlob(doc);
             
-            // Blob oluştur ve indir
-            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+            // Blob'u indir
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
