@@ -19,6 +19,7 @@ import QuestionBankPage from './pages/MainPage/question-bank';
 import ExamListPage from './pages/MainPage/exam-list';
 import ExamResultsPage from './pages/MainPage/exam-results';
 import ExamStatsPage from './pages/MainPage/exam-stats';
+import ErrorLogsPage from './pages/MainPage/error_logs_page';
 
 function App() {
     return (
@@ -42,6 +43,7 @@ function App() {
                     <Route path="/deneme-sinavlari/liste" element={<ProtectedRouter><ExamListPage /></ProtectedRouter>} />
                     <Route path="/deneme-sinavlari/sonuclar" element={<ProtectedRouter><ExamResultsPage /></ProtectedRouter>} />
                     <Route path="/deneme-sinavlari/istatistikler" element={<ProtectedRouter><ExamStatsPage /></ProtectedRouter>} />
+                    <Route path="/error-logs" element={<ProtectedRouter><ErrorLogsPage /></ProtectedRouter>} />
                 </Routes>
             </Router>
         </AuthProvider>

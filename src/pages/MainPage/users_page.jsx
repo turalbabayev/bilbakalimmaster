@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/layout';
 import { db } from '../../firebase';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
-import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt, FaChartPie, FaChartBar, FaSearch, FaSort, FaSortAmountDown, FaSortAmountUp, FaFilter } from 'react-icons/fa';
+import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt, FaChartPie, FaChartBar, FaSearch, FaSort, FaSortAmountDown, FaSortAmountUp, FaFilter, FaMobile, FaExchangeAlt } from 'react-icons/fa';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Menu, Transition } from '@headlessui/react';
+import { Menu, Transition, Dialog } from '@headlessui/react';
 import { Fragment } from 'react';
 
 const expertiseOptions = [
@@ -35,6 +35,10 @@ const UsersPage = () => {
     const [filteredUsers, setFilteredUsers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [updatingExpertise, setUpdatingExpertise] = useState(null);
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
+    const [loginAttempts, setLoginAttempts] = useState(null);
+    const [selectedDeviceId, setSelectedDeviceId] = useState('');
 
     // Grafik renkleri
     const COLORS = {
@@ -289,6 +293,45 @@ const UsersPage = () => {
         setFilteredUsers(filtered);
     };
 
+    const fetchLoginAttempts = async (userId) => {
+        try {
+            const attemptsRef = doc(db, 'users', userId, 'login_attempts', 'device_attempts');
+            const attemptsSnap = await getDoc(attemptsRef);
+            if (attemptsSnap.exists()) {
+                setLoginAttempts(attemptsSnap.data());
+            } else {
+                setLoginAttempts(null);
+            }
+        } catch (error) {
+            console.error('Login attempts yüklenirken hata:', error);
+            toast.error('Login attempts bilgisi alınamadı!');
+        }
+    };
+
+    const handleDeviceIdChange = async (newDeviceId) => {
+        if (!selectedUser) return;
+
+        try {
+            const attemptsRef = doc(db, 'users', selectedUser.id, 'login_attempts', 'device_attempts');
+            await updateDoc(attemptsRef, {
+                original_device_id: newDeviceId,
+                attempted_device_ids: [newDeviceId]
+            });
+
+            // Kullanıcı dokümanını da güncelle
+            await updateDoc(doc(db, 'users', selectedUser.id), {
+                device_id: newDeviceId
+            });
+
+            toast.success('Cihaz ID başarıyla güncellendi!');
+            setIsDeviceModalOpen(false);
+            fetchUsers(); // Kullanıcı listesini yenile
+        } catch (error) {
+            console.error('Cihaz ID güncellenirken hata:', error);
+            toast.error('Cihaz ID güncellenirken bir hata oluştu!');
+        }
+    };
+
     return (
         <Layout>
             <div className="container mx-auto px-4 py-8">
@@ -534,6 +577,9 @@ const UsersPage = () => {
                                                 Kayıt Tarihi
                                             </th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Cihaz ID
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 İşlemler
                                             </th>
                                         </tr>
@@ -665,7 +711,24 @@ const UsersPage = () => {
                                                         }
                                                     })()}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="flex items-center text-sm text-gray-500">
+                                                        <FaMobile className="mr-2" />
+                                                        {user.device_id || 'Belirtilmemiş'}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedUser(user);
+                                                            fetchLoginAttempts(user.id);
+                                                            setIsDeviceModalOpen(true);
+                                                        }}
+                                                        className="text-indigo-600 hover:text-indigo-900 mr-4"
+                                                    >
+                                                        <FaExchangeAlt className="inline-block mr-1" />
+                                                        Cihaz ID Değiştir
+                                                    </button>
                                                     <button
                                                         onClick={() => handlePremiumUpdate(user.id, !user.isPremium)}
                                                         disabled={updatingUserId === user.id}
@@ -695,6 +758,99 @@ const UsersPage = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Cihaz ID Değiştirme Modalı */}
+            <Transition appear show={isDeviceModalOpen} as={Fragment}>
+                <Dialog as="div" className="relative z-10" onClose={() => setIsDeviceModalOpen(false)}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black bg-opacity-25" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
+                                        Cihaz ID Değiştir
+                                    </Dialog.Title>
+
+                                    <div className="mt-4">
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700">Mevcut Cihaz ID</label>
+                                                <div className="mt-1 text-sm text-gray-500">{selectedUser?.device_id || 'Belirtilmemiş'}</div>
+                                            </div>
+
+                                            {loginAttempts && (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">Denenen Cihaz ID'leri</label>
+                                                    <div className="mt-1">
+                                                        {loginAttempts.attempted_device_ids?.map((deviceId, index) => (
+                                                            <div key={index} className="text-sm text-gray-500">
+                                                                {deviceId}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700">Yeni Cihaz ID</label>
+                                                <select
+                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                                    value={selectedDeviceId}
+                                                    onChange={(e) => setSelectedDeviceId(e.target.value)}
+                                                >
+                                                    <option value="">Seçiniz</option>
+                                                    {loginAttempts?.attempted_device_ids?.map((deviceId, index) => (
+                                                        <option key={index} value={deviceId}>
+                                                            {deviceId}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 flex justify-end space-x-3">
+                                        <button
+                                            type="button"
+                                            className="inline-flex justify-center rounded-md border border-transparent bg-indigo-100 px-4 py-2 text-sm font-medium text-indigo-900 hover:bg-indigo-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+                                            onClick={() => setIsDeviceModalOpen(false)}
+                                        >
+                                            İptal
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+                                            onClick={() => handleDeviceIdChange(selectedDeviceId)}
+                                            disabled={!selectedDeviceId}
+                                        >
+                                            Değiştir
+                                        </button>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
         </Layout>
     );
 };
