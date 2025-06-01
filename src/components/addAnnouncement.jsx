@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
-const AddAnnouncement = ({ isOpen, onClose, selectedType }) => {
+const AddAnnouncement = ({ isOpen, onClose, selectedType, editItem }) => {
     const [formData, setFormData] = useState({
         baslik: "",
         aciklama: "",
@@ -16,8 +18,57 @@ const AddAnnouncement = ({ isOpen, onClose, selectedType }) => {
         resimTuru: "",
         resimPreview: null,
         aktif: true,
-        tarih: new Date().toISOString()
+        tarih: new Date().toISOString(),
+        toplantiLinki: "",
+        gosterimHedefi: "herkes",
+        expertise: "tumUnvanlar"
     });
+
+    useEffect(() => {
+        if (editItem) {
+            setFormData({
+                ...editItem,
+                resimPreview: editItem.resim ? `data:${editItem.resimTuru || 'image/png'};base64,${editItem.resim}` : null
+            });
+        } else {
+            setFormData({
+                baslik: "",
+                aciklama: "",
+                kisaAciklama: "",
+                uzunAciklama: "",
+                ucret: 0,
+                odemeSonrasiIcerik: "",
+                target: "",
+                resim: "",
+                resimTuru: "",
+                resimPreview: null,
+                aktif: true,
+                tarih: new Date().toISOString(),
+                toplantiLinki: "",
+                gosterimHedefi: "herkes",
+                expertise: "tumUnvanlar"
+            });
+        }
+    }, [editItem]);
+
+    const quillModules = {
+        toolbar: [
+            [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            [{ 'color': [] }, { 'background': [] }],
+            ['link', 'image'],
+            ['clean']
+        ],
+    };
+
+    const quillFormats = [
+        'header',
+        'bold', 'italic', 'underline', 'strike',
+        'list', 'bullet',
+        'color', 'background',
+        'link', 'image'
+    ];
 
     const handleInputChange = (e) => {
         const { name, value, type } = e.target;
@@ -137,13 +188,36 @@ const AddAnnouncement = ({ isOpen, onClose, selectedType }) => {
                 return;
         }
 
+        // Expertise değerlerini güncelle
+        const expertiseLabels = {
+            servisAsistani: 'Servis Asistanı',
+            servisGorevlisi: 'Servis Görevlisi',
+            servisYetkilisi: 'Servis Yetkilisi',
+            yonetmenYardimcisi: 'Yönetmen Yardımcısı',
+            yonetmen: 'Yönetmen',
+            tumUnvanlar: 'Tüm Ünvanlar'
+        };
+
+        const updatedFormData = {
+            ...formData,
+            expertise: expertiseLabels[formData.expertise] || formData.expertise
+        };
+
         try {
-            const docRef = await addDoc(collection(db, collectionName), formData);
-            toast.success(`${selectedType} başarıyla eklendi!`);
+            if (editItem) {
+                // Güncelleme işlemi
+                const docRef = doc(db, collectionName, editItem.id);
+                await updateDoc(docRef, updatedFormData);
+                toast.success(`${selectedType} başarıyla güncellendi!`);
+            } else {
+                // Yeni ekleme işlemi
+                await addDoc(collection(db, collectionName), updatedFormData);
+                toast.success(`${selectedType} başarıyla eklendi!`);
+            }
             onClose();
         } catch (error) {
-            console.error(`${selectedType} eklenirken bir hata oluştu:`, error);
-            toast.error(`${selectedType} eklenirken bir hata oluştu!`);
+            console.error(`${selectedType} ${editItem ? 'güncellenirken' : 'eklenirken'} bir hata oluştu:`, error);
+            toast.error(`${selectedType} ${editItem ? 'güncellenirken' : 'eklenirken'} bir hata oluştu!`);
         }
     };
 
@@ -154,7 +228,7 @@ const AddAnnouncement = ({ isOpen, onClose, selectedType }) => {
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-                        Yeni {selectedType} Ekle
+                        {editItem ? `${selectedType} Düzenle` : `Yeni ${selectedType} Ekle`}
                     </h2>
                     <button
                         onClick={onClose}
@@ -183,20 +257,141 @@ const AddAnnouncement = ({ isOpen, onClose, selectedType }) => {
                     </div>
 
                     {selectedType === "Duyuru" && (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Açıklama
-                            </label>
-                            <textarea
-                                name="aciklama"
-                                value={formData.aciklama}
-                                onChange={handleInputChange}
-                                required
-                                rows="4"
-                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
-                                placeholder="Duyuru açıklaması giriniz"
-                            />
-                        </div>
+                        <>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Açıklama
+                                </label>
+                                <div className="bg-white dark:bg-gray-700 rounded-lg">
+                                    <ReactQuill
+                                        theme="snow"
+                                        value={formData.aciklama}
+                                        onChange={(content) => setFormData(prev => ({ ...prev, aciklama: content }))}
+                                        modules={quillModules}
+                                        formats={quillFormats}
+                                        className="h-64 mb-12"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Toplantı Linki (Opsiyonel)
+                                </label>
+                                <input
+                                    type="url"
+                                    name="toplantiLinki"
+                                    value={formData.toplantiLinki}
+                                    onChange={handleInputChange}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                                    placeholder="https://meet.google.com/..."
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Gösterim Hedefi
+                                </label>
+                                <div className="flex space-x-4">
+                                    <label className="inline-flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="gosterimHedefi"
+                                            value="herkes"
+                                            checked={formData.gosterimHedefi === "herkes"}
+                                            onChange={handleInputChange}
+                                            className="form-radio h-4 w-4 text-indigo-600"
+                                        />
+                                        <span className="ml-2 text-gray-700 dark:text-gray-300">Herkese Göster</span>
+                                    </label>
+                                    <label className="inline-flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="gosterimHedefi"
+                                            value="premium"
+                                            checked={formData.gosterimHedefi === "premium"}
+                                            onChange={handleInputChange}
+                                            className="form-radio h-4 w-4 text-indigo-600"
+                                        />
+                                        <span className="ml-2 text-gray-700 dark:text-gray-300">Sadece Premium</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Ünvan Bazlı Gösterim
+                                </label>
+                                <div className="space-y-2">
+                                    <label className="flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="expertise"
+                                            value="tumUnvanlar"
+                                            checked={formData.expertise === "tumUnvanlar"}
+                                            onChange={handleInputChange}
+                                            className="form-radio h-4 w-4 text-indigo-600"
+                                        />
+                                        <span className="ml-2 text-gray-700 dark:text-gray-300">Tüm Ünvanlar</span>
+                                    </label>
+                                    <label className="flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="expertise"
+                                            value="servisAsistani"
+                                            checked={formData.expertise === "servisAsistani"}
+                                            onChange={handleInputChange}
+                                            className="form-radio h-4 w-4 text-indigo-600"
+                                        />
+                                        <span className="ml-2 text-gray-700 dark:text-gray-300">Servis Asistanı</span>
+                                    </label>
+                                    <label className="flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="expertise"
+                                            value="servisGorevlisi"
+                                            checked={formData.expertise === "servisGorevlisi"}
+                                            onChange={handleInputChange}
+                                            className="form-radio h-4 w-4 text-indigo-600"
+                                        />
+                                        <span className="ml-2 text-gray-700 dark:text-gray-300">Servis Görevlisi</span>
+                                    </label>
+                                    <label className="flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="expertise"
+                                            value="servisYetkilisi"
+                                            checked={formData.expertise === "servisYetkilisi"}
+                                            onChange={handleInputChange}
+                                            className="form-radio h-4 w-4 text-indigo-600"
+                                        />
+                                        <span className="ml-2 text-gray-700 dark:text-gray-300">Servis Yetkilisi</span>
+                                    </label>
+                                    <label className="flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="expertise"
+                                            value="yonetmenYardimcisi"
+                                            checked={formData.expertise === "yonetmenYardimcisi"}
+                                            onChange={handleInputChange}
+                                            className="form-radio h-4 w-4 text-indigo-600"
+                                        />
+                                        <span className="ml-2 text-gray-700 dark:text-gray-300">Yönetmen Yardımcısı</span>
+                                    </label>
+                                    <label className="flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="expertise"
+                                            value="yonetmen"
+                                            checked={formData.expertise === "yonetmen"}
+                                            onChange={handleInputChange}
+                                            className="form-radio h-4 w-4 text-indigo-600"
+                                        />
+                                        <span className="ml-2 text-gray-700 dark:text-gray-300">Yönetmen</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </>
                     )}
 
                     {(selectedType === "Bilgilendirme" || selectedType === "Etkinlik") && (
@@ -349,7 +544,7 @@ const AddAnnouncement = ({ isOpen, onClose, selectedType }) => {
                             type="submit"
                             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                         >
-                            Kaydet
+                            {editItem ? 'Güncelle' : 'Kaydet'}
                         </button>
                     </div>
                 </form>

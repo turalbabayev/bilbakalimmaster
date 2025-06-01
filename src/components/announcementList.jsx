@@ -230,9 +230,53 @@ const AnnouncementList = () => {
                                 </div>
                                 
                                 {item.tip === "Duyuru" && (
-                                    <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3">
-                                        {item.aciklama}
-                                    </p>
+                                    <>
+                                        <div 
+                                            className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3 prose prose-sm dark:prose-invert max-w-none"
+                                            dangerouslySetInnerHTML={{ __html: item.aciklama }}
+                                        />
+                                        
+                                        {item.toplantiLinki && (
+                                            <div className="mb-4">
+                                                <a 
+                                                    href={item.toplantiLinki}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                                >
+                                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                    </svg>
+                                                    Toplantıya Katıl
+                                                </a>
+                                            </div>
+                                        )}
+
+                                        <div className="flex flex-wrap gap-2 mb-4">
+                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                item.gosterimHedefi === 'premium' 
+                                                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                                                    : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                            }`}>
+                                                {item.gosterimHedefi === 'premium' ? 'Premium' : 'Herkese Açık'}
+                                            </span>
+
+                                            {item.expertise && item.expertise !== 'Tüm Ünvanlar' && (
+                                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                                    {(() => {
+                                                        const expertiseLabels = {
+                                                            'Servis Asistanı': 'Servis Asistanı',
+                                                            'Servis Görevlisi': 'Servis Görevlisi',
+                                                            'Servis Yetkilisi': 'Servis Yetkilisi',
+                                                            'Yönetmen Yardımcısı': 'Yönetmen Yardımcısı',
+                                                            'Yönetmen': 'Yönetmen'
+                                                        };
+                                                        return expertiseLabels[item.expertise] || item.expertise;
+                                                    })()}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </>
                                 )}
                                 
                                 {item.tip === "Etkinlik" && (
@@ -276,6 +320,18 @@ const AnnouncementList = () => {
                                 
                                 <div className="flex justify-end space-x-2">
                                     <button
+                                        onClick={() => {
+                                            setSelectedItem(item);
+                                            setEditMode(true);
+                                            setIsModalOpen(true);
+                                        }}
+                                        className="px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800 rounded-lg font-medium transition-colors"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                        </svg>
+                                    </button>
+                                    <button
                                         onClick={() => handleToggleActive(item.id, item.aktif, item.tip)}
                                         className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
                                             item.aktif 
@@ -313,8 +369,13 @@ const AnnouncementList = () => {
             {isModalOpen && (
                 <AddAnnouncement 
                     isOpen={isModalOpen} 
-                    onClose={() => setIsModalOpen(false)}
+                    onClose={() => {
+                        setIsModalOpen(false);
+                        setEditMode(false);
+                        setSelectedItem(null);
+                    }}
                     selectedType={activeTab === 'announcements' ? 'Duyuru' : activeTab === 'informations' ? 'Bilgilendirme' : 'Etkinlik'}
+                    editItem={editMode ? selectedItem : null}
                 />
             )}
         </div>
