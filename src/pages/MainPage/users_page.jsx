@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/layout';
 import { db } from '../../firebase';
-import { collection, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, getDoc, query, where, orderBy, deleteDoc } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
 import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt, FaChartPie, FaChartBar, FaSearch, FaSort, FaSortAmountDown, FaSortAmountUp, FaFilter, FaMobile, FaExchangeAlt } from 'react-icons/fa';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Menu, Transition, Dialog } from '@headlessui/react';
 import { Fragment } from 'react';
+
 
 const expertiseOptions = [
     'Servis Asistanı',
@@ -332,14 +333,34 @@ const UsersPage = () => {
         }
     };
 
+    const handleDownloadEmails = () => {
+        // Misafir kullanıcı hariç tüm kullanıcıların maillerini al
+        const filteredEmails = users.filter(user => !user.email?.includes('guest_'));
+        const emails = filteredEmails.map(user => user.email).join(", ");
+
+        // Mailleri panoya kopyala
+        navigator.clipboard.writeText(emails)
+            .then(() => {
+                toast.success(`${filteredEmails.length} adet mail adresi panoya kopyalandı!`);
+            })
+            .catch(() => {
+                toast.error("Mail adresleri kopyalanırken bir hata oluştu!");
+            });
+    };
+
     return (
         <Layout>
             <div className="container mx-auto px-4 py-8">
                 <div className="max-w-7xl mx-auto">
-                    <h1 className="text-3xl font-bold text-gray-800 mb-8 flex items-center gap-3">
-                        <FaUsers className="text-indigo-600" />
-                        Kullanıcılar
-                    </h1>
+                    <div className="flex justify-between items-center mb-6">
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Kullanıcılar</h1>
+                        <button
+                            onClick={handleDownloadEmails}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            Mail Adreslerini Kopyala
+                        </button>
+                    </div>
 
                     {/* Arama ve Filtreleme Araç Çubuğu */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
