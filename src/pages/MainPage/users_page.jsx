@@ -40,6 +40,11 @@ const UsersPage = () => {
     const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
     const [loginAttempts, setLoginAttempts] = useState(null);
     const [selectedDeviceId, setSelectedDeviceId] = useState('');
+    const [isManagerModalOpen, setIsManagerModalOpen] = useState(false);
+    const [isAssistantManagerModalOpen, setIsAssistantManagerModalOpen] = useState(false);
+    const [isServiceOfficerModalOpen, setIsServiceOfficerModalOpen] = useState(false);
+    const [isServiceStaffModalOpen, setIsServiceStaffModalOpen] = useState(false);
+    const [isServiceAssistantModalOpen, setIsServiceAssistantModalOpen] = useState(false);
 
     // Grafik renkleri
     const COLORS = {
@@ -169,6 +174,11 @@ const UsersPage = () => {
                         const dateB = b.created_at?.toDate?.() || b.createdAt?.toDate?.() || new Date(0);
                         comparison = dateA - dateB;
                         break;
+                    case 'premiumPurchaseDate':
+                        const premiumDateA = a.premiumPurchaseDate?.toDate?.() || new Date(0);
+                        const premiumDateB = b.premiumPurchaseDate?.toDate?.() || new Date(0);
+                        comparison = premiumDateA - premiumDateB;
+                        break;
                     case 'name':
                         const nameA = `${a.name || ''} ${a.surname || ''}`.toLowerCase();
                         const nameB = `${b.name || ''} ${b.surname || ''}`.toLowerCase();
@@ -240,10 +250,19 @@ const UsersPage = () => {
 
     const sortOptions = [
         { id: 'date', name: 'Kayıt Tarihi' },
+        { id: 'premiumPurchaseDate', name: 'Premium Başlangıç' },
         { id: 'name', name: 'İsim' },
         { id: 'guest', name: 'Misafir Durumu' },
         { id: 'premium', name: 'Premium Durumu' }
     ];
+
+    const handlePremiumUsers = () => {
+        const premiumUsers = users.filter(user => user.isPremium);
+        setFilteredUsers(premiumUsers);
+        setActiveFilter('premium');
+        setSortBy('premiumPurchaseDate'); // Premium sekmesine geçince otomatik olarak premium tarihine göre sırala
+        setSortOrder('desc'); // Varsayılan olarak yeniden eskiye
+    };
 
     const filterAndSortUsers = () => {
         let filtered = [...users];
@@ -258,6 +277,27 @@ const UsersPage = () => {
             );
         }
 
+        // Aktif filtreye göre filtreleme
+        switch (activeFilter) {
+            case 'premium':
+                filtered = filtered.filter(user => user.isPremium);
+                break;
+            case 'free':
+                filtered = filtered.filter(user => !user.isPremium && !user.isGuest);
+                break;
+            case 'guest':
+                filtered = filtered.filter(user => user.isGuest);
+                break;
+            case 'ios':
+                filtered = filtered.filter(user => user.device_type === 'iOS');
+                break;
+            case 'android':
+                filtered = filtered.filter(user => user.device_type === 'Android');
+                break;
+            default:
+                break;
+        }
+
         // Sıralama
         filtered.sort((a, b) => {
             let compareResult = 0;
@@ -266,7 +306,13 @@ const UsersPage = () => {
                 case 'date':
                     const dateA = a.created_at?.toDate?.() || a.createdAt?.toDate?.() || new Date(0);
                     const dateB = b.created_at?.toDate?.() || b.createdAt?.toDate?.() || new Date(0);
-                    compareResult = dateB - dateA; // Varsayılan olarak yeniden eskiye
+                    compareResult = dateB - dateA;
+                    break;
+                    
+                case 'premiumPurchaseDate':
+                    const premiumDateA = a.premiumPurchaseDate?.toDate?.() || new Date(0);
+                    const premiumDateB = b.premiumPurchaseDate?.toDate?.() || new Date(0);
+                    compareResult = premiumDateB - premiumDateA;
                     break;
                     
                 case 'name':
@@ -348,18 +394,183 @@ const UsersPage = () => {
             });
     };
 
+    const handleDownloadPremiumEmails = () => {
+        // Sadece premium kullanıcıların maillerini al
+        const filteredEmails = users.filter(user => user.isPremium);
+        const emails = filteredEmails.map(user => user.email).join(", ");
+
+        // Mailleri panoya kopyala
+        navigator.clipboard.writeText(emails)
+            .then(() => {
+                toast.success(`${filteredEmails.length} adet premium kullanıcı mail adresi panoya kopyalandı!`);
+            })
+            .catch(() => {
+                toast.error("Mail adresleri kopyalanırken bir hata oluştu!");
+            });
+    };
+
+    const handleDownloadManagerEmails = (onlyPremium = false) => {
+        // Filtreleme seçeneğine göre Yönetmenleri al
+        const filteredEmails = users.filter(user => {
+            if (onlyPremium) {
+                return user.expertise === 'Yönetmen' && user.isPremium;
+            }
+            return user.expertise === 'Yönetmen';
+        });
+        const emails = filteredEmails.map(user => user.email).join(", ");
+
+        // Mailleri panoya kopyala
+        navigator.clipboard.writeText(emails)
+            .then(() => {
+                toast.success(`${filteredEmails.length} adet Yönetmen mail adresi panoya kopyalandı!`);
+            })
+            .catch(() => {
+                toast.error("Mail adresleri kopyalanırken bir hata oluştu!");
+            });
+        setIsManagerModalOpen(false);
+    };
+
+    const handleDownloadAssistantManagerEmails = (onlyPremium = false) => {
+        // Filtreleme seçeneğine göre Yönetmen Yardımcılarını al
+        const filteredEmails = users.filter(user => {
+            if (onlyPremium) {
+                return user.expertise === 'Yönetmen Yardımcısı' && user.isPremium;
+            }
+            return user.expertise === 'Yönetmen Yardımcısı';
+        });
+        const emails = filteredEmails.map(user => user.email).join(", ");
+
+        // Mailleri panoya kopyala
+        navigator.clipboard.writeText(emails)
+            .then(() => {
+                toast.success(`${filteredEmails.length} adet Yönetmen Yardımcısı mail adresi panoya kopyalandı!`);
+            })
+            .catch(() => {
+                toast.error("Mail adresleri kopyalanırken bir hata oluştu!");
+            });
+        setIsAssistantManagerModalOpen(false);
+    };
+
+    const handleDownloadServiceOfficerEmails = (onlyPremium = false) => {
+        // Filtreleme seçeneğine göre Servis Yetkililerini al
+        const filteredEmails = users.filter(user => {
+            if (onlyPremium) {
+                return user.expertise === 'Servis Yetkilisi' && user.isPremium;
+            }
+            return user.expertise === 'Servis Yetkilisi';
+        });
+        const emails = filteredEmails.map(user => user.email).join(", ");
+
+        // Mailleri panoya kopyala
+        navigator.clipboard.writeText(emails)
+            .then(() => {
+                toast.success(`${filteredEmails.length} adet Servis Yetkilisi mail adresi panoya kopyalandı!`);
+            })
+            .catch(() => {
+                toast.error("Mail adresleri kopyalanırken bir hata oluştu!");
+            });
+        setIsServiceOfficerModalOpen(false);
+    };
+
+    const handleDownloadServiceStaffEmails = (onlyPremium = false) => {
+        // Filtreleme seçeneğine göre Servis Görevlilerini al
+        const filteredEmails = users.filter(user => {
+            if (onlyPremium) {
+                return user.expertise === 'Servis Görevlisi' && user.isPremium;
+            }
+            return user.expertise === 'Servis Görevlisi';
+        });
+        const emails = filteredEmails.map(user => user.email).join(", ");
+
+        // Mailleri panoya kopyala
+        navigator.clipboard.writeText(emails)
+            .then(() => {
+                toast.success(`${filteredEmails.length} adet Servis Görevlisi mail adresi panoya kopyalandı!`);
+            })
+            .catch(() => {
+                toast.error("Mail adresleri kopyalanırken bir hata oluştu!");
+            });
+        setIsServiceStaffModalOpen(false);
+    };
+
+    const handleDownloadServiceAssistantEmails = (onlyPremium = false) => {
+        // Filtreleme seçeneğine göre Servis Asistanlarını al
+        const filteredEmails = users.filter(user => {
+            if (onlyPremium) {
+                return user.expertise === 'Servis Asistanı' && user.isPremium;
+            }
+            return user.expertise === 'Servis Asistanı';
+        });
+        const emails = filteredEmails.map(user => user.email).join(", ");
+
+        // Mailleri panoya kopyala
+        navigator.clipboard.writeText(emails)
+            .then(() => {
+                toast.success(`${filteredEmails.length} adet Servis Asistanı mail adresi panoya kopyalandı!`);
+            })
+            .catch(() => {
+                toast.error("Mail adresleri kopyalanırken bir hata oluştu!");
+            });
+        setIsServiceAssistantModalOpen(false);
+    };
+
     return (
         <Layout>
             <div className="container mx-auto px-4 py-8">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex justify-between items-center mb-6">
                         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Kullanıcılar</h1>
-                        <button
-                            onClick={handleDownloadEmails}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                            Mail Adreslerini Kopyala
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                onClick={handleDownloadEmails}
+                                className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1"
+                            >
+                                <FaUsers className="text-xs" />
+                                Tüm Mailler
+                            </button>
+                            <button
+                                onClick={handleDownloadPremiumEmails}
+                                className="px-3 py-1.5 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700 transition-colors flex items-center gap-1"
+                            >
+                                <FaCrown className="text-xs" />
+                                Premium Mailler
+                            </button>
+                            <button
+                                onClick={() => setIsManagerModalOpen(true)}
+                                className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-1"
+                            >
+                                <FaUsers className="text-xs" />
+                                Yönetmen Mailleri
+                            </button>
+                            <button
+                                onClick={() => setIsAssistantManagerModalOpen(true)}
+                                className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1"
+                            >
+                                <FaUsers className="text-xs" />
+                                Yön. Yrd. Mailleri
+                            </button>
+                            <button
+                                onClick={() => setIsServiceOfficerModalOpen(true)}
+                                className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1"
+                            >
+                                <FaUsers className="text-xs" />
+                                Servis Yetk. Mailleri
+                            </button>
+                            <button
+                                onClick={() => setIsServiceStaffModalOpen(true)}
+                                className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-1"
+                            >
+                                <FaUsers className="text-xs" />
+                                Servis Görev. Mailleri
+                            </button>
+                            <button
+                                onClick={() => setIsServiceAssistantModalOpen(true)}
+                                className="px-3 py-1.5 bg-cyan-600 text-white text-sm rounded-lg hover:bg-cyan-700 transition-colors flex items-center gap-1"
+                            >
+                                <FaUsers className="text-xs" />
+                                Servis Asist. Mailleri
+                            </button>
+                        </div>
                     </div>
 
                     {/* Arama ve Filtreleme Araç Çubuğu */}
@@ -451,7 +662,7 @@ const UsersPage = () => {
                             count={stats.premium}
                             icon={FaCrown}
                             color="yellow"
-                            onClick={() => setActiveFilter('premium')}
+                            onClick={handlePremiumUsers}
                             isActive={activeFilter === 'premium'}
                         />
                         <StatCard
@@ -598,6 +809,9 @@ const UsersPage = () => {
                                                 Kayıt Tarihi
                                             </th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Premium Başlangıç
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 Cihaz ID
                                             </th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -703,6 +917,39 @@ const UsersPage = () => {
                                                     {(() => {
                                                         try {
                                                             const timestamp = user.created_at || user.createdAt;
+                                                            if (!timestamp) return '-';
+                                                            
+                                                            let date;
+                                                            if (timestamp.toDate) {
+                                                                // Firestore Timestamp
+                                                                date = timestamp.toDate();
+                                                            } else if (timestamp instanceof Date) {
+                                                                // JavaScript Date objesi
+                                                                date = timestamp;
+                                                            } else if (typeof timestamp === 'string') {
+                                                                // ISO string formatı
+                                                                date = new Date(timestamp);
+                                                            } else {
+                                                                return '-';
+                                                            }
+
+                                                            return date.toLocaleString('tr-TR', {
+                                                                year: 'numeric',
+                                                                month: 'long',
+                                                                day: 'numeric',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            });
+                                                        } catch (error) {
+                                                            console.error('Tarih dönüştürme hatası:', error);
+                                                            return '-';
+                                                        }
+                                                    })()}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {(() => {
+                                                        try {
+                                                            const timestamp = user.premiumPurchaseDate;
                                                             if (!timestamp) return '-';
                                                             
                                                             let date;
@@ -864,6 +1111,436 @@ const UsersPage = () => {
                                             disabled={!selectedDeviceId}
                                         >
                                             Değiştir
+                                        </button>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
+            {/* Yönetmen Mail Kopyalama Modalı */}
+            <Transition appear show={isManagerModalOpen} as={Fragment}>
+                <Dialog as="div" className="relative z-10" onClose={() => setIsManagerModalOpen(false)}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black bg-opacity-25" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900 mb-4">
+                                        Yönetmen Mail Adreslerini Kopyala
+                                    </Dialog.Title>
+
+                                    <div className="mt-4 space-y-4">
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                            <h4 className="text-sm font-medium text-gray-900 mb-2">Hangi Yönetmenlerin mail adreslerini kopyalamak istersiniz?</h4>
+                                            <div className="space-y-3">
+                                                <button
+                                                    onClick={() => handleDownloadManagerEmails(false)}
+                                                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <FaUsers className="text-purple-600 mr-3" />
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-medium text-gray-900">Tüm Yönetmenler</p>
+                                                            <p className="text-xs text-gray-500">Sistemdeki tüm Yönetmen unvanlı kullanıcılar</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm text-gray-500">
+                                                        {users.filter(user => user.expertise === 'Yönetmen').length} kullanıcı
+                                                    </span>
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleDownloadManagerEmails(true)}
+                                                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <FaCrown className="text-yellow-600 mr-3" />
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-medium text-gray-900">Premium Yönetmenler</p>
+                                                            <p className="text-xs text-gray-500">Sadece Premium üye olan Yönetmenler</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm text-gray-500">
+                                                        {users.filter(user => user.expertise === 'Yönetmen' && user.isPremium).length} kullanıcı
+                                                    </span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 flex justify-end">
+                                        <button
+                                            type="button"
+                                            className="inline-flex justify-center rounded-md border border-transparent bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2"
+                                            onClick={() => setIsManagerModalOpen(false)}
+                                        >
+                                            İptal
+                                        </button>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
+            {/* Yönetmen Yardımcısı Mail Kopyalama Modalı */}
+            <Transition appear show={isAssistantManagerModalOpen} as={Fragment}>
+                <Dialog as="div" className="relative z-10" onClose={() => setIsAssistantManagerModalOpen(false)}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black bg-opacity-25" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900 mb-4">
+                                        Yönetmen Yardımcısı Mail Adreslerini Kopyala
+                                    </Dialog.Title>
+
+                                    <div className="mt-4 space-y-4">
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                            <h4 className="text-sm font-medium text-gray-900 mb-2">Hangi Yönetmen Yardımcılarının mail adreslerini kopyalamak istersiniz?</h4>
+                                            <div className="space-y-3">
+                                                <button
+                                                    onClick={() => handleDownloadAssistantManagerEmails(false)}
+                                                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <FaUsers className="text-indigo-600 mr-3" />
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-medium text-gray-900">Tüm Yönetmen Yardımcıları</p>
+                                                            <p className="text-xs text-gray-500">Sistemdeki tüm Yönetmen Yardımcısı unvanlı kullanıcılar</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm text-gray-500">
+                                                        {users.filter(user => user.expertise === 'Yönetmen Yardımcısı').length} kullanıcı
+                                                    </span>
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleDownloadAssistantManagerEmails(true)}
+                                                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <FaCrown className="text-yellow-600 mr-3" />
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-medium text-gray-900">Premium Yönetmen Yardımcıları</p>
+                                                            <p className="text-xs text-gray-500">Sadece Premium üye olan Yönetmen Yardımcıları</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm text-gray-500">
+                                                        {users.filter(user => user.expertise === 'Yönetmen Yardımcısı' && user.isPremium).length} kullanıcı
+                                                    </span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 flex justify-end">
+                                        <button
+                                            type="button"
+                                            className="inline-flex justify-center rounded-md border border-transparent bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2"
+                                            onClick={() => setIsAssistantManagerModalOpen(false)}
+                                        >
+                                            İptal
+                                        </button>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
+            {/* Servis Yetkilisi Mail Kopyalama Modalı */}
+            <Transition appear show={isServiceOfficerModalOpen} as={Fragment}>
+                <Dialog as="div" className="relative z-10" onClose={() => setIsServiceOfficerModalOpen(false)}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black bg-opacity-25" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900 mb-4">
+                                        Servis Yetkilisi Mail Adreslerini Kopyala
+                                    </Dialog.Title>
+
+                                    <div className="mt-4 space-y-4">
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                            <h4 className="text-sm font-medium text-gray-900 mb-2">Hangi Servis Yetkililerinin mail adreslerini kopyalamak istersiniz?</h4>
+                                            <div className="space-y-3">
+                                                <button
+                                                    onClick={() => handleDownloadServiceOfficerEmails(false)}
+                                                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <FaUsers className="text-green-600 mr-3" />
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-medium text-gray-900">Tüm Servis Yetkilileri</p>
+                                                            <p className="text-xs text-gray-500">Sistemdeki tüm Servis Yetkilisi unvanlı kullanıcılar</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm text-gray-500">
+                                                        {users.filter(user => user.expertise === 'Servis Yetkilisi').length} kullanıcı
+                                                    </span>
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleDownloadServiceOfficerEmails(true)}
+                                                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <FaCrown className="text-yellow-600 mr-3" />
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-medium text-gray-900">Premium Servis Yetkilileri</p>
+                                                            <p className="text-xs text-gray-500">Sadece Premium üye olan Servis Yetkilileri</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm text-gray-500">
+                                                        {users.filter(user => user.expertise === 'Servis Yetkilisi' && user.isPremium).length} kullanıcı
+                                                    </span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 flex justify-end">
+                                        <button
+                                            type="button"
+                                            className="inline-flex justify-center rounded-md border border-transparent bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2"
+                                            onClick={() => setIsServiceOfficerModalOpen(false)}
+                                        >
+                                            İptal
+                                        </button>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
+            {/* Servis Görevlisi Mail Kopyalama Modalı */}
+            <Transition appear show={isServiceStaffModalOpen} as={Fragment}>
+                <Dialog as="div" className="relative z-10" onClose={() => setIsServiceStaffModalOpen(false)}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black bg-opacity-25" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900 mb-4">
+                                        Servis Görevlisi Mail Adreslerini Kopyala
+                                    </Dialog.Title>
+
+                                    <div className="mt-4 space-y-4">
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                            <h4 className="text-sm font-medium text-gray-900 mb-2">Hangi Servis Görevlilerinin mail adreslerini kopyalamak istersiniz?</h4>
+                                            <div className="space-y-3">
+                                                <button
+                                                    onClick={() => handleDownloadServiceStaffEmails(false)}
+                                                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <FaUsers className="text-teal-600 mr-3" />
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-medium text-gray-900">Tüm Servis Görevlileri</p>
+                                                            <p className="text-xs text-gray-500">Sistemdeki tüm Servis Görevlisi unvanlı kullanıcılar</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm text-gray-500">
+                                                        {users.filter(user => user.expertise === 'Servis Görevlisi').length} kullanıcı
+                                                    </span>
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleDownloadServiceStaffEmails(true)}
+                                                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <FaCrown className="text-yellow-600 mr-3" />
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-medium text-gray-900">Premium Servis Görevlileri</p>
+                                                            <p className="text-xs text-gray-500">Sadece Premium üye olan Servis Görevlileri</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm text-gray-500">
+                                                        {users.filter(user => user.expertise === 'Servis Görevlisi' && user.isPremium).length} kullanıcı
+                                                    </span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 flex justify-end">
+                                        <button
+                                            type="button"
+                                            className="inline-flex justify-center rounded-md border border-transparent bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2"
+                                            onClick={() => setIsServiceStaffModalOpen(false)}
+                                        >
+                                            İptal
+                                        </button>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
+            {/* Servis Asistanı Mail Kopyalama Modalı */}
+            <Transition appear show={isServiceAssistantModalOpen} as={Fragment}>
+                <Dialog as="div" className="relative z-10" onClose={() => setIsServiceAssistantModalOpen(false)}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black bg-opacity-25" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900 mb-4">
+                                        Servis Asistanı Mail Adreslerini Kopyala
+                                    </Dialog.Title>
+
+                                    <div className="mt-4 space-y-4">
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                            <h4 className="text-sm font-medium text-gray-900 mb-2">Hangi Servis Asistanlarının mail adreslerini kopyalamak istersiniz?</h4>
+                                            <div className="space-y-3">
+                                                <button
+                                                    onClick={() => handleDownloadServiceAssistantEmails(false)}
+                                                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <FaUsers className="text-cyan-600 mr-3" />
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-medium text-gray-900">Tüm Servis Asistanları</p>
+                                                            <p className="text-xs text-gray-500">Sistemdeki tüm Servis Asistanı unvanlı kullanıcılar</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm text-gray-500">
+                                                        {users.filter(user => user.expertise === 'Servis Asistanı').length} kullanıcı
+                                                    </span>
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleDownloadServiceAssistantEmails(true)}
+                                                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <FaCrown className="text-yellow-600 mr-3" />
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-medium text-gray-900">Premium Servis Asistanları</p>
+                                                            <p className="text-xs text-gray-500">Sadece Premium üye olan Servis Asistanları</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm text-gray-500">
+                                                        {users.filter(user => user.expertise === 'Servis Asistanı' && user.isPremium).length} kullanıcı
+                                                    </span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 flex justify-end">
+                                        <button
+                                            type="button"
+                                            className="inline-flex justify-center rounded-md border border-transparent bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2"
+                                            onClick={() => setIsServiceAssistantModalOpen(false)}
+                                        >
+                                            İptal
                                         </button>
                                     </div>
                                 </Dialog.Panel>
