@@ -3,7 +3,7 @@ import Layout from '../../components/layout';
 import { db } from '../../firebase';
 import { collection, getDocs, doc, updateDoc, getDoc, query, where, orderBy, deleteDoc } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
-import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt, FaChartPie, FaChartBar, FaSearch, FaSort, FaSortAmountDown, FaSortAmountUp, FaFilter, FaMobile, FaExchangeAlt } from 'react-icons/fa';
+import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt, FaChartPie, FaChartBar, FaSearch, FaSort, FaSortAmountDown, FaSortAmountUp, FaFilter, FaMobile, FaExchangeAlt, FaEdit } from 'react-icons/fa';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Menu, Transition, Dialog } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -45,6 +45,10 @@ const UsersPage = () => {
     const [isServiceOfficerModalOpen, setIsServiceOfficerModalOpen] = useState(false);
     const [isServiceStaffModalOpen, setIsServiceStaffModalOpen] = useState(false);
     const [isServiceAssistantModalOpen, setIsServiceAssistantModalOpen] = useState(false);
+    const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
+    const [editName, setEditName] = useState('');
+    const [editSurname, setEditSurname] = useState('');
+    const [editUserId, setEditUserId] = useState(null);
 
     // Grafik renkleri
     const COLORS = {
@@ -514,6 +518,26 @@ const UsersPage = () => {
         setIsServiceAssistantModalOpen(false);
     };
 
+    const openEditNameModal = (user) => {
+        setEditUserId(user.id);
+        setEditName(user.name || '');
+        setEditSurname(user.surname || '');
+        setIsEditNameModalOpen(true);
+    };
+
+    const handleEditNameSave = async () => {
+        if (!editUserId) return;
+        try {
+            const userRef = doc(db, 'users', editUserId);
+            await updateDoc(userRef, { name: editName, surname: editSurname });
+            setUsers((prev) => prev.map(u => u.id === editUserId ? { ...u, name: editName, surname: editSurname } : u));
+            toast.success('Kullanıcı adı ve soyadı güncellendi!');
+            setIsEditNameModalOpen(false);
+        } catch (err) {
+            toast.error('Güncelleme başarısız!');
+        }
+    };
+
     return (
         <Layout>
             <div className="container mx-auto px-4 py-8">
@@ -831,13 +855,20 @@ const UsersPage = () => {
                                                                 </span>
                                                             </div>
                                                         </div>
-                                                        <div className="ml-4">
+                                                        <div className="ml-4 flex items-center gap-2">
                                                             <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
                                                                 {user.name} {user.surname}
                                                                 {user.isGuest && (
                                                                     <FaUserSecret className="text-gray-400" title="Misafir Kullanıcı" />
                                                                 )}
                                                             </div>
+                                                            <button
+                                                                className="ml-1 p-1 rounded hover:bg-gray-200 text-gray-500 hover:text-indigo-600"
+                                                                title="Düzenle"
+                                                                onClick={() => openEditNameModal(user)}
+                                                            >
+                                                                <FaEdit />
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -1549,6 +1580,50 @@ const UsersPage = () => {
                     </div>
                 </Dialog>
             </Transition>
+
+            {/* Ad Soyad Düzenleme Modalı */}
+            {isEditNameModalOpen && (
+                <div className="fixed z-50 inset-0 overflow-y-auto">
+                    <div className="flex items-center justify-center min-h-screen px-4">
+                        <div className="fixed inset-0 bg-black opacity-30" onClick={() => setIsEditNameModalOpen(false)}></div>
+                        <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full mx-auto p-8 z-10">
+                            <h3 className="text-lg font-bold mb-4">Ad & Soyad Düzenle</h3>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Ad</label>
+                                <input
+                                    type="text"
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    value={editName}
+                                    onChange={e => setEditName(e.target.value)}
+                                />
+                            </div>
+                            <div className="mb-6">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Soyad</label>
+                                <input
+                                    type="text"
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    value={editSurname}
+                                    onChange={e => setEditSurname(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    onClick={() => setIsEditNameModalOpen(false)}
+                                    className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                >
+                                    İptal
+                                </button>
+                                <button
+                                    onClick={handleEditNameSave}
+                                    className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+                                >
+                                    Kaydet
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </Layout>
     );
 };
