@@ -849,7 +849,21 @@ const UsersPage = () => {
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="flex items-center">
                                                         <div className="flex-shrink-0 h-10 w-10">
-                                                            <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                                                            {user.character?.image ? (
+                                                                <img 
+                                                                    src={`/${user.character.image.split('/').pop()}`}
+                                                                    alt="Profil"
+                                                                    className="h-10 w-10 rounded-full object-cover"
+                                                                    onError={(e) => {
+                                                                        // Resim yüklenemezse harf göster
+                                                                        e.target.style.display = 'none';
+                                                                        e.target.nextSibling.style.display = 'flex';
+                                                                    }}
+                                                                />
+                                                            ) : null}
+                                                            <div 
+                                                                className={`h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center ${user.character?.image ? 'hidden' : ''}`}
+                                                            >
                                                                 <span className="text-indigo-600 font-medium">
                                                                     {user.name ? user.name[0].toUpperCase() : '?'}
                                                                 </span>
