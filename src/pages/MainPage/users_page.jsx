@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Layout from '../../components/layout';
 import { db } from '../../firebase';
 import { collection, getDocs, doc, updateDoc, getDoc, query, where, orderBy, deleteDoc } from 'firebase/firestore';
@@ -49,6 +49,9 @@ const UsersPage = () => {
     const [editName, setEditName] = useState('');
     const [editSurname, setEditSurname] = useState('');
     const [editUserId, setEditUserId] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [usersPerPage] = useState(12);
+    const cardsRef = useRef(null);
 
     // Grafik renkleri
     const COLORS = {
@@ -206,6 +209,31 @@ const UsersPage = () => {
         const filtered = getFilteredUsers();
         setFilteredUsers(filtered);
     }, [users, searchTerm, sortBy, sortOrder, activeFilter]);
+
+    // Pagination hesaplamaları
+    const indexOfLastUser = currentPage * usersPerPage;
+    const indexOfFirstUser = indexOfLastUser - usersPerPage;
+    const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
+    const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+
+    // Sayfa değiştirme fonksiyonu
+    const handlePageChange = (pageNumber) => {
+        setCurrentPage(pageNumber);
+        // Kartların bulunduğu alana scroll yap
+        setTimeout(() => {
+            if (cardsRef.current) {
+                cardsRef.current.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+            }
+        }, 100);
+    };
+
+    // Filtreleme değiştiğinde sayfa 1'e dön
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filteredUsers.length, searchTerm, activeFilter]);
 
     // Pasta grafik verisi
     const getPieChartData = () => [
@@ -724,60 +752,107 @@ const UsersPage = () => {
                     </div>
 
                     {/* Grafikler */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                        {/* Üyelik Dağılımı - Pasta Grafik */}
-                        <div className="bg-white rounded-2xl shadow-lg p-6">
-                            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                                <FaChartPie className="text-indigo-600" />
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                        {/* Üyelik Dağılımı - Modern Donut Chart */}
+                        <div className="bg-white rounded-xl shadow-md p-4">
+                            <h2 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                <div className="w-2 h-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"></div>
                                 Üyelik Dağılımı
                             </h2>
-                            <div className="h-80">
+                            <div className="h-48">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
                                             data={getPieChartData()}
                                             cx="50%"
                                             cy="50%"
-                                            labelLine={false}
-                                            label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                                            outerRadius={100}
-                                            fill="#8884d8"
+                                            innerRadius={35}
+                                            outerRadius={70}
+                                            paddingAngle={2}
                                             dataKey="value"
                                         >
                                             {getPieChartData().map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                                <Cell 
+                                                    key={`cell-${index}`} 
+                                                    fill={entry.color}
+                                                    stroke="rgba(255,255,255,0.8)"
+                                                    strokeWidth={1}
+                                                />
                                             ))}
                                         </Pie>
-                                        <Tooltip />
-                                        <Legend />
+                                        <Tooltip 
+                                            contentStyle={{
+                                                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                                border: 'none',
+                                                borderRadius: '8px',
+                                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                                            }}
+                                            formatter={(value, name) => {
+                                                const total = stats.total;
+                                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                                return [`${value} kullanıcı (${percentage}%)`, name];
+                                            }}
+                                        />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
+                            {/* Custom Legend */}
+                            <div className="flex justify-center gap-4 mt-2">
+                                {getPieChartData().map((entry, index) => {
+                                    const percentage = stats.total > 0 ? ((entry.value / stats.total) * 100).toFixed(1) : 0;
+                                    return (
+                                        <div key={index} className="flex items-center gap-1">
+                                            <div 
+                                                className="w-3 h-3 rounded-full"
+                                                style={{ backgroundColor: entry.color }}
+                                            ></div>
+                                            <span className="text-xs text-gray-600">{entry.name}</span>
+                                            <span className="text-xs font-medium text-gray-800">({entry.value})</span>
+                                            <span className="text-xs text-gray-500">%{percentage}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
 
-                        {/* Platform Dağılımı - Çubuk Grafik */}
-                        <div className="bg-white rounded-2xl shadow-lg p-6">
-                            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                                <FaChartBar className="text-indigo-600" />
+                        {/* Platform Dağılımı - Modern Gradient Bar Chart */}
+                        <div className="bg-white rounded-xl shadow-md p-4">
+                            <h2 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                <div className="w-2 h-2 bg-gradient-to-r from-green-500 to-blue-500 rounded-full"></div>
                                 Platform Dağılımı
                             </h2>
-                            <div className="h-80">
+                            <div className="h-48">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart
                                         data={getBarChartData()}
-                                        margin={{
-                                            top: 20,
-                                            right: 30,
-                                            left: 20,
-                                            bottom: 5,
-                                        }}
+                                        margin={{ top: 10, right: 20, left: 10, bottom: 20 }}
+                                        barCategoryGap="20%"
                                     >
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="name" />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Legend />
-                                        <Bar dataKey="value" name="Kullanıcı Sayısı">
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+                                        <XAxis 
+                                            dataKey="name" 
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{ fontSize: 12, fill: '#6B7280' }}
+                                        />
+                                        <YAxis 
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{ fontSize: 11, fill: '#6B7280' }}
+                                        />
+                                        <Tooltip 
+                                            contentStyle={{
+                                                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                                border: 'none',
+                                                borderRadius: '8px',
+                                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                                            }}
+                                        />
+                                        <Bar 
+                                            dataKey="value" 
+                                            radius={[4, 4, 0, 0]}
+                                            name="Kullanıcı Sayısı"
+                                        >
                                             {getBarChartData().map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={entry.color} />
                                             ))}
@@ -785,13 +860,31 @@ const UsersPage = () => {
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
+                            {/* Platform Stats */}
+                            <div className="flex justify-center gap-6 mt-2">
+                                {getBarChartData().map((entry, index) => (
+                                    <div key={index} className="text-center">
+                                        <div className="flex items-center justify-center gap-1 mb-1">
+                                            {entry.name === 'iOS' ? (
+                                                <FaApple className="text-gray-600 text-sm" />
+                                            ) : (
+                                                <FaAndroid className="text-green-600 text-sm" />
+                                            )}
+                                            <span className="text-xs text-gray-600">{entry.name}</span>
+                                        </div>
+                                        <div className="text-lg font-bold text-gray-800">{entry.value}</div>
+                                        <div className="text-xs text-gray-500">kullanıcı</div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
                     <div className="bg-white rounded-2xl shadow-lg p-6">
                         {isLoading ? (
-                            <div className="flex justify-center items-center h-40">
+                            <div className="flex justify-center items-center h-32">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                                <span className="ml-2 text-gray-600">Yükleniyor...</span>
                             </div>
                         ) : filteredUsers.length === 0 ? (
                             <div className="text-center py-12">
@@ -810,262 +903,439 @@ const UsersPage = () => {
                                 </div>
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead>
-                                        <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Kullanıcı
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                E-posta
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Platform
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Uzmanlık Alanı
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Üyelik Durumu
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Kayıt Tarihi
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Premium Başlangıç
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Cihaz ID
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                İşlemler
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                        {filteredUsers.map((user) => (
-                                            <tr key={user.id} className="hover:bg-gray-50">
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="flex items-center">
-                                                        <div className="flex-shrink-0 h-10 w-10">
-                                                            {user.character?.image ? (
-                                                                <img 
-                                                                    src={`/${user.character.image.split('/').pop()}`}
-                                                                    alt="Profil"
-                                                                    className="h-10 w-10 rounded-full object-cover"
-                                                                    onError={(e) => {
-                                                                        // Resim yüklenemezse harf göster
-                                                                        e.target.style.display = 'none';
-                                                                        e.target.nextSibling.style.display = 'flex';
-                                                                    }}
-                                                                />
-                                                            ) : null}
-                                                            <div 
-                                                                className={`h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center ${user.character?.image ? 'hidden' : ''}`}
-                                                            >
-                                                                <span className="text-indigo-600 font-medium">
-                                                                    {user.name ? user.name[0].toUpperCase() : '?'}
+                            <div ref={cardsRef}>
+                                {/* Üst Pagination */}
+                                {totalPages > 1 && (
+                                    <div className="mb-6 flex items-center justify-between">
+                                        <div className="flex-1 flex justify-between sm:hidden">
+                                            <button
+                                                onClick={() => handlePageChange(currentPage - 1)}
+                                                disabled={currentPage === 1}
+                                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md ${
+                                                    currentPage === 1
+                                                        ? 'border-gray-300 text-gray-500 bg-gray-100 cursor-not-allowed'
+                                                        : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                Önceki
+                                            </button>
+                                            <span className="text-sm text-gray-700 flex items-center">
+                                                Sayfa {currentPage} / {totalPages}
+                                            </span>
+                                            <button
+                                                onClick={() => handlePageChange(currentPage + 1)}
+                                                disabled={currentPage === totalPages}
+                                                className={`ml-3 relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md ${
+                                                    currentPage === totalPages
+                                                        ? 'border-gray-300 text-gray-500 bg-gray-100 cursor-not-allowed'
+                                                        : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                Sonraki
+                                            </button>
+                                        </div>
+                                        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                                            <div>
+                                                <p className="text-sm text-gray-700">
+                                                    <span className="font-medium">{indexOfFirstUser + 1}</span>
+                                                    {' '}-{' '}
+                                                    <span className="font-medium">{Math.min(indexOfLastUser, filteredUsers.length)}</span>
+                                                    {' '}arası, toplam{' '}
+                                                    <span className="font-medium">{filteredUsers.length}</span>
+                                                    {' '}kullanıcı
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                                    <button
+                                                        onClick={() => handlePageChange(currentPage - 1)}
+                                                        disabled={currentPage === 1}
+                                                        className={`relative inline-flex items-center px-2 py-2 rounded-l-md border text-sm font-medium ${
+                                                            currentPage === 1
+                                                                ? 'border-gray-300 text-gray-300 bg-gray-100 cursor-not-allowed'
+                                                                : 'border-gray-300 text-gray-500 bg-white hover:bg-gray-50'
+                                                        }`}
+                                                    >
+                                                        ‹
+                                                    </button>
+
+                                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => {
+                                                        if (
+                                                            pageNumber === 1 ||
+                                                            pageNumber === totalPages ||
+                                                            (pageNumber >= currentPage - 2 && pageNumber <= currentPage + 2)
+                                                        ) {
+                                                            return (
+                                                                <button
+                                                                    key={pageNumber}
+                                                                    onClick={() => handlePageChange(pageNumber)}
+                                                                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                                                        currentPage === pageNumber
+                                                                            ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                                                                            : 'border-gray-300 text-gray-500 bg-white hover:bg-gray-50'
+                                                                    }`}
+                                                                >
+                                                                    {pageNumber}
+                                                                </button>
+                                                            );
+                                                        }
+                                                        if (
+                                                            pageNumber === currentPage - 3 ||
+                                                            pageNumber === currentPage + 3
+                                                        ) {
+                                                            return (
+                                                                <span key={pageNumber} className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                                                                    ...
                                                                 </span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="ml-4 flex items-center gap-2">
-                                                            <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                                                                {user.name} {user.surname}
-                                                                {user.isGuest && (
-                                                                    <FaUserSecret className="text-gray-400" title="Misafir Kullanıcı" />
-                                                                )}
-                                                            </div>
-                                                            <button
-                                                                className="ml-1 p-1 rounded hover:bg-gray-200 text-gray-500 hover:text-indigo-600"
-                                                                title="Düzenle"
-                                                                onClick={() => openEditNameModal(user)}
-                                                            >
-                                                                <FaEdit />
-                                                            </button>
-                                                        </div>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    })}
+
+                                                    <button
+                                                        onClick={() => handlePageChange(currentPage + 1)}
+                                                        disabled={currentPage === totalPages}
+                                                        className={`relative inline-flex items-center px-2 py-2 rounded-r-md border text-sm font-medium ${
+                                                            currentPage === totalPages
+                                                                ? 'border-gray-300 text-gray-300 bg-gray-100 cursor-not-allowed'
+                                                                : 'border-gray-300 text-gray-500 bg-white hover:bg-gray-50'
+                                                        }`}
+                                                    >
+                                                        ›
+                                                    </button>
+                                                </nav>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div ref={cardsRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {currentUsers.map((user) => (
+                                        <div key={user.id} className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-shadow duration-300">
+                                            {/* Kullanıcı Başlığı */}
+                                            <div className="flex items-center mb-4">
+                                                <div className="flex-shrink-0 h-12 w-12">
+                                                    {user.character?.image ? (
+                                                        <img 
+                                                            src={`/${user.character.image.split('/').pop()}`}
+                                                            alt="Profil"
+                                                            className="h-12 w-12 rounded-full object-cover"
+                                                            onError={(e) => {
+                                                                e.target.style.display = 'none';
+                                                                e.target.nextSibling.style.display = 'flex';
+                                                            }}
+                                                        />
+                                                    ) : null}
+                                                    <div 
+                                                        className={`h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center ${user.character?.image ? 'hidden' : ''}`}
+                                                    >
+                                                        <span className="text-indigo-600 font-medium text-lg">
+                                                            {user.name ? user.name[0].toUpperCase() : '?'}
+                                                        </span>
                                                     </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="text-sm text-gray-500">
-                                                        {user.email}
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="text-xl">
-                                                        {user.device_type === 'iOS' ? (
-                                                            <FaApple className="text-gray-700" title="iOS" />
-                                                        ) : user.device_type === 'Android' ? (
-                                                            <FaAndroid className="text-green-500" title="Android" />
-                                                        ) : (
-                                                            '-'
+                                                </div>
+                                                <div className="ml-4 flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="text-lg font-semibold text-gray-900">
+                                                            {user.name} {user.surname}
+                                                        </h3>
+                                                        <button
+                                                            className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-indigo-600"
+                                                            title="Düzenle"
+                                                            onClick={() => openEditNameModal(user)}
+                                                        >
+                                                            <FaEdit size={14} />
+                                                        </button>
+                                                        {user.isGuest && (
+                                                            <FaUserSecret className="text-gray-400" title="Misafir Kullanıcı" />
                                                         )}
                                                     </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="flex items-center text-sm text-gray-500">
-                                                        <FaGraduationCap className="mr-2" />
-                                                        <Menu as="div" className="relative inline-block text-left">
-                                                            <Menu.Button className="inline-flex items-center justify-center px-3 py-1 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                                                {user.expertise || 'Seçiniz'}
-                                                                {updatingExpertise === user.id && (
-                                                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                                    </svg>
-                                                                )}
-                                                            </Menu.Button>
+                                                    <p className="text-sm text-gray-600">{user.email}</p>
+                                                </div>
+                                            </div>
 
-                                                            <Transition
-                                                                as={Fragment}
-                                                                enter="transition ease-out duration-100"
-                                                                enterFrom="transform opacity-0 scale-95"
-                                                                enterTo="transform opacity-100 scale-100"
-                                                                leave="transition ease-in duration-75"
-                                                                leaveFrom="transform opacity-100 scale-100"
-                                                                leaveTo="transform opacity-0 scale-95"
-                                                            >
-                                                                <Menu.Items className="absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-10">
-                                                                    <div className="py-1">
-                                                                        {expertiseOptions.map((option) => (
-                                                                            <Menu.Item key={option}>
-                                                                                {({ active }) => (
-                                                                                    <button
-                                                                                        onClick={() => handleExpertiseUpdate(user.id, option)}
-                                                                                        className={`
-                                                                                            ${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'}
-                                                                                            ${user.expertise === option ? 'bg-indigo-50 text-indigo-600' : ''}
-                                                                                            group flex items-center w-full px-4 py-2 text-sm
-                                                                                        `}
-                                                                                    >
-                                                                                        {option}
-                                                                                    </button>
-                                                                                )}
-                                                                            </Menu.Item>
-                                                                        ))}
-                                                                    </div>
-                                                                </Menu.Items>
-                                                            </Transition>
-                                                        </Menu>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                            {/* Kullanıcı Bilgileri */}
+                                            <div className="space-y-3">
+                                                {/* Premium Durumu */}
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium text-gray-700">Üyelik:</span>
+                                                    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
                                                         user.isPremium 
                                                         ? 'bg-green-100 text-green-800' 
                                                         : 'bg-gray-100 text-gray-800'
                                                     }`}>
                                                         {user.isPremium ? 'Premium' : 'Ücretsiz'}
                                                     </span>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {(() => {
-                                                        try {
-                                                            const timestamp = user.created_at || user.createdAt;
-                                                            if (!timestamp) return '-';
-                                                            
-                                                            let date;
-                                                            if (timestamp.toDate) {
-                                                                // Firestore Timestamp
-                                                                date = timestamp.toDate();
-                                                            } else if (timestamp instanceof Date) {
-                                                                // JavaScript Date objesi
-                                                                date = timestamp;
-                                                            } else if (typeof timestamp === 'string') {
-                                                                // ISO string formatı
-                                                                date = new Date(timestamp);
-                                                            } else {
-                                                                return '-';
-                                                            }
+                                                </div>
 
-                                                            return date.toLocaleString('tr-TR', {
-                                                                year: 'numeric',
-                                                                month: 'long',
-                                                                day: 'numeric',
-                                                                hour: '2-digit',
-                                                                minute: '2-digit'
-                                                            });
-                                                        } catch (error) {
-                                                            console.error('Tarih dönüştürme hatası:', error);
-                                                            return '-';
-                                                        }
-                                                    })()}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {(() => {
-                                                        try {
-                                                            const timestamp = user.premiumPurchaseDate;
-                                                            if (!timestamp) return '-';
-                                                            
-                                                            let date;
-                                                            if (timestamp.toDate) {
-                                                                // Firestore Timestamp
-                                                                date = timestamp.toDate();
-                                                            } else if (timestamp instanceof Date) {
-                                                                // JavaScript Date objesi
-                                                                date = timestamp;
-                                                            } else if (typeof timestamp === 'string') {
-                                                                // ISO string formatı
-                                                                date = new Date(timestamp);
-                                                            } else {
-                                                                return '-';
-                                                            }
-
-                                                            return date.toLocaleString('tr-TR', {
-                                                                year: 'numeric',
-                                                                month: 'long',
-                                                                day: 'numeric',
-                                                                hour: '2-digit',
-                                                                minute: '2-digit'
-                                                            });
-                                                        } catch (error) {
-                                                            console.error('Tarih dönüştürme hatası:', error);
-                                                            return '-';
-                                                        }
-                                                    })()}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="flex items-center text-sm text-gray-500">
-                                                        <FaMobile className="mr-2" />
-                                                        {user.device_id || 'Belirtilmemiş'}
+                                                {/* Cihaz Bilgisi */}
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium text-gray-700">Cihaz:</span>
+                                                    <div className="flex items-center text-sm text-gray-600">
+                                                        {user.device_type === 'iOS' ? (
+                                                            <FaApple className="mr-1" />
+                                                        ) : user.device_type === 'Android' ? (
+                                                            <FaAndroid className="mr-1" />
+                                                        ) : null}
+                                                        {user.device_type || 'Belirtilmemiş'}
                                                     </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                </div>
+
+                                                {/* Uzmanlık */}
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium text-gray-700">Uzmanlık:</span>
+                                                    <Menu as="div" className="relative inline-block text-left">
+                                                        <Menu.Button className="inline-flex items-center justify-center px-3 py-1 border border-gray-300 rounded-lg shadow-sm text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
+                                                            {user.expertise || 'Seçiniz'}
+                                                            {updatingExpertise === user.id && (
+                                                                <svg className="animate-spin ml-1 h-3 w-3 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                </svg>
+                                                            )}
+                                                        </Menu.Button>
+                                                        <Transition
+                                                            as={Fragment}
+                                                            enter="transition ease-out duration-100"
+                                                            enterFrom="transform opacity-0 scale-95"
+                                                            enterTo="transform opacity-100 scale-100"
+                                                            leave="transition ease-in duration-75"
+                                                            leaveFrom="transform opacity-100 scale-100"
+                                                            leaveTo="transform opacity-0 scale-95"
+                                                        >
+                                                            <Menu.Items className="absolute right-0 mt-2 w-48 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-10">
+                                                                <div className="py-1">
+                                                                    {expertiseOptions.map((option) => (
+                                                                        <Menu.Item key={option}>
+                                                                            {({ active }) => (
+                                                                                <button
+                                                                                    onClick={() => handleExpertiseUpdate(user.id, option)}
+                                                                                    className={`
+                                                                                        ${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'}
+                                                                                        ${user.expertise === option ? 'bg-indigo-50 text-indigo-600' : ''}
+                                                                                        group flex items-center w-full px-4 py-2 text-sm
+                                                                                    `}
+                                                                                >
+                                                                                    {option}
+                                                                                </button>
+                                                                            )}
+                                                                        </Menu.Item>
+                                                                    ))}
+                                                                </div>
+                                                            </Menu.Items>
+                                                        </Transition>
+                                                    </Menu>
+                                                </div>
+
+                                                {/* Kayıt Tarihi */}
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium text-gray-700">Kayıt Tarihi:</span>
+                                                    <span className="text-xs text-gray-600">
+                                                        {(() => {
+                                                            try {
+                                                                const timestamp = user.created_at || user.createdAt;
+                                                                if (!timestamp) return '-';
+                                                                
+                                                                let date;
+                                                                if (timestamp.toDate) {
+                                                                    date = timestamp.toDate();
+                                                                } else if (timestamp instanceof Date) {
+                                                                    date = timestamp;
+                                                                } else if (typeof timestamp === 'string') {
+                                                                    date = new Date(timestamp);
+                                                                } else {
+                                                                    return '-';
+                                                                }
+
+                                                                return date.toLocaleDateString('tr-TR');
+                                                            } catch (error) {
+                                                                return '-';
+                                                            }
+                                                        })()}
+                                                    </span>
+                                                </div>
+
+                                                {/* Premium Tarih */}
+                                                {user.premiumPurchaseDate && (
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-sm font-medium text-gray-700">Premium Olma Tarihi:</span>
+                                                        <span className="text-xs text-gray-600">
+                                                            {(() => {
+                                                                try {
+                                                                    const timestamp = user.premiumPurchaseDate;
+                                                                    if (!timestamp) return '-';
+                                                                    
+                                                                    let date;
+                                                                    if (timestamp.toDate) {
+                                                                        date = timestamp.toDate();
+                                                                    } else if (timestamp instanceof Date) {
+                                                                        date = timestamp;
+                                                                    } else if (typeof timestamp === 'string') {
+                                                                        date = new Date(timestamp);
+                                                                    } else {
+                                                                        return '-';
+                                                                    }
+
+                                                                    return date.toLocaleDateString('tr-TR');
+                                                                } catch (error) {
+                                                                    return '-';
+                                                                }
+                                                            })()}
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                {/* Cihaz ID */}
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium text-gray-700">Cihaz ID:</span>
+                                                    <span className="text-xs text-gray-600 truncate max-w-24" title={user.device_id}>
+                                                        {user.device_id || 'Yok'}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* İşlemler */}
+                                            <div className="mt-6 flex flex-col gap-2">
+                                                <button
+                                                    onClick={() => handlePremiumUpdate(user.id, !user.isPremium)}
+                                                    disabled={updatingUserId === user.id}
+                                                    className={`w-full inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-lg text-white ${
+                                                        user.isPremium 
+                                                        ? 'bg-red-600 hover:bg-red-700' 
+                                                        : 'bg-green-600 hover:bg-green-700'
+                                                    } focus:outline-none transition ease-in-out duration-150 ${
+                                                        updatingUserId === user.id ? 'opacity-50 cursor-not-allowed' : ''
+                                                    }`}
+                                                >
+                                                    {updatingUserId === user.id ? (
+                                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                        </svg>
+                                                    ) : null}
+                                                    {user.isPremium ? 'Ücretsiz Yap' : 'Premium Yap'}
+                                                </button>
+                                                
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedUser(user);
+                                                        fetchLoginAttempts(user.id);
+                                                        setIsDeviceModalOpen(true);
+                                                    }}
+                                                    className="w-full inline-flex items-center justify-center px-3 py-2 border border-indigo-300 text-sm font-medium rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none transition ease-in-out duration-150"
+                                                >
+                                                    <FaExchangeAlt className="mr-2" />
+                                                    Cihaz ID Değiştir
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Alt Pagination */}
+                                {totalPages > 1 && (
+                                    <div className="mt-8 flex items-center justify-between">
+                                        <div className="flex-1 flex justify-between sm:hidden">
+                                            <button
+                                                onClick={() => handlePageChange(currentPage - 1)}
+                                                disabled={currentPage === 1}
+                                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md ${
+                                                    currentPage === 1
+                                                        ? 'border-gray-300 text-gray-500 bg-gray-100 cursor-not-allowed'
+                                                        : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                Önceki
+                                            </button>
+                                            <span className="text-sm text-gray-700 flex items-center">
+                                                Sayfa {currentPage} / {totalPages}
+                                            </span>
+                                            <button
+                                                onClick={() => handlePageChange(currentPage + 1)}
+                                                disabled={currentPage === totalPages}
+                                                className={`ml-3 relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md ${
+                                                    currentPage === totalPages
+                                                        ? 'border-gray-300 text-gray-500 bg-gray-100 cursor-not-allowed'
+                                                        : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                Sonraki
+                                            </button>
+                                        </div>
+                                        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                                            <div>
+                                                <p className="text-sm text-gray-700">
+                                                    <span className="font-medium">{indexOfFirstUser + 1}</span>
+                                                    {' '}-{' '}
+                                                    <span className="font-medium">{Math.min(indexOfLastUser, filteredUsers.length)}</span>
+                                                    {' '}arası, toplam{' '}
+                                                    <span className="font-medium">{filteredUsers.length}</span>
+                                                    {' '}kullanıcı
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                                                     <button
-                                                        onClick={() => {
-                                                            setSelectedUser(user);
-                                                            fetchLoginAttempts(user.id);
-                                                            setIsDeviceModalOpen(true);
-                                                        }}
-                                                        className="text-indigo-600 hover:text-indigo-900 mr-4"
-                                                    >
-                                                        <FaExchangeAlt className="inline-block mr-1" />
-                                                        Cihaz ID Değiştir
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handlePremiumUpdate(user.id, !user.isPremium)}
-                                                        disabled={updatingUserId === user.id}
-                                                        className={`inline-flex items-center px-3 py-1 border border-transparent text-xs leading-4 font-medium rounded-md text-white ${
-                                                            user.isPremium 
-                                                            ? 'bg-red-600 hover:bg-red-700' 
-                                                            : 'bg-green-600 hover:bg-green-700'
-                                                        } focus:outline-none transition ease-in-out duration-150 ${
-                                                            updatingUserId === user.id ? 'opacity-50 cursor-not-allowed' : ''
+                                                        onClick={() => handlePageChange(currentPage - 1)}
+                                                        disabled={currentPage === 1}
+                                                        className={`relative inline-flex items-center px-2 py-2 rounded-l-md border text-sm font-medium ${
+                                                            currentPage === 1
+                                                                ? 'border-gray-300 text-gray-300 bg-gray-100 cursor-not-allowed'
+                                                                : 'border-gray-300 text-gray-500 bg-white hover:bg-gray-50'
                                                         }`}
                                                     >
-                                                        {updatingUserId === user.id ? (
-                                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                            </svg>
-                                                        ) : null}
-                                                        {user.isPremium ? 'Ücretsiz Yap' : 'Premium Yap'}
+                                                        ‹
                                                     </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+
+                                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => {
+                                                        if (
+                                                            pageNumber === 1 ||
+                                                            pageNumber === totalPages ||
+                                                            (pageNumber >= currentPage - 2 && pageNumber <= currentPage + 2)
+                                                        ) {
+                                                            return (
+                                                                <button
+                                                                    key={pageNumber}
+                                                                    onClick={() => handlePageChange(pageNumber)}
+                                                                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                                                        currentPage === pageNumber
+                                                                            ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                                                                            : 'border-gray-300 text-gray-500 bg-white hover:bg-gray-50'
+                                                                    }`}
+                                                                >
+                                                                    {pageNumber}
+                                                                </button>
+                                                            );
+                                                        }
+                                                        if (
+                                                            pageNumber === currentPage - 3 ||
+                                                            pageNumber === currentPage + 3
+                                                        ) {
+                                                            return (
+                                                                <span key={pageNumber} className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                                                                    ...
+                                                                </span>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    })}
+
+                                                    <button
+                                                        onClick={() => handlePageChange(currentPage + 1)}
+                                                        disabled={currentPage === totalPages}
+                                                        className={`relative inline-flex items-center px-2 py-2 rounded-r-md border text-sm font-medium ${
+                                                            currentPage === totalPages
+                                                                ? 'border-gray-300 text-gray-300 bg-gray-100 cursor-not-allowed'
+                                                                : 'border-gray-300 text-gray-500 bg-white hover:bg-gray-50'
+                                                        }`}
+                                                    >
+                                                        ›
+                                                    </button>
+                                                </nav>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

@@ -21,6 +21,7 @@ import ExamResultsPage from './pages/MainPage/exam-results';
 import ExamStatsPage from './pages/MainPage/exam-stats';
 import ErrorLogsPage from './pages/MainPage/error_logs_page';
 
+
 function App() {
     return (
         <AuthProvider>
