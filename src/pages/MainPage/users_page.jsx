@@ -1256,7 +1256,7 @@ const UsersPage = () => {
                                                                     return '-';
                                                                 }
 
-                                                                return date.toLocaleDateString('tr-TR');
+                                                                return date.toLocaleDateString('tr-TR') + ' ' + date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
                                                             } catch (error) {
                                                                 return '-';
                                                             }
@@ -1285,7 +1285,7 @@ const UsersPage = () => {
                                                                         return '-';
                                                                     }
 
-                                                                    return date.toLocaleDateString('tr-TR');
+                                                                    return date.toLocaleDateString('tr-TR') + ' ' + date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
                                                                 } catch (error) {
                                                                     return '-';
                                                                 }
