@@ -3,7 +3,7 @@ import Layout from '../../components/layout';
 import { db } from '../../firebase';
 import { collection, getDocs, doc, updateDoc, getDoc, query, where, orderBy, deleteDoc } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
-import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt, FaChartPie, FaChartBar, FaSearch, FaSort, FaSortAmountDown, FaSortAmountUp, FaFilter, FaMobile, FaExchangeAlt, FaEdit } from 'react-icons/fa';
+import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt, FaChartPie, FaChartBar, FaSearch, FaSort, FaSortAmountDown, FaSortAmountUp, FaFilter, FaMobile, FaExchangeAlt, FaEdit, FaEnvelope, FaChevronDown, FaUserTie, FaUserShield, FaCog, FaUserCog, FaUserClock } from 'react-icons/fa';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Menu, Transition, Dialog } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -572,56 +572,165 @@ const UsersPage = () => {
                 <div className="max-w-7xl mx-auto">
                     <div className="flex justify-between items-center mb-6">
                         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Kullanıcılar</h1>
-                        <div className="flex flex-wrap gap-2">
-                            <button
-                                onClick={handleDownloadEmails}
-                                className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1"
-                            >
-                                <FaUsers className="text-xs" />
-                                Tüm Mailler
-                            </button>
-                            <button
-                                onClick={handleDownloadPremiumEmails}
-                                className="px-3 py-1.5 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700 transition-colors flex items-center gap-1"
-                            >
-                                <FaCrown className="text-xs" />
-                                Premium Mailler
-                            </button>
-                            <button
-                                onClick={() => setIsManagerModalOpen(true)}
-                                className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-1"
-                            >
-                                <FaUsers className="text-xs" />
-                                Yönetmen Mailleri
-                            </button>
-                            <button
-                                onClick={() => setIsAssistantManagerModalOpen(true)}
-                                className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1"
-                            >
-                                <FaUsers className="text-xs" />
-                                Yön. Yrd. Mailleri
-                            </button>
-                            <button
-                                onClick={() => setIsServiceOfficerModalOpen(true)}
-                                className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1"
-                            >
-                                <FaUsers className="text-xs" />
-                                Servis Yetk. Mailleri
-                            </button>
-                            <button
-                                onClick={() => setIsServiceStaffModalOpen(true)}
-                                className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-1"
-                            >
-                                <FaUsers className="text-xs" />
-                                Servis Görev. Mailleri
-                            </button>
-                            <button
-                                onClick={() => setIsServiceAssistantModalOpen(true)}
-                                className="px-3 py-1.5 bg-cyan-600 text-white text-sm rounded-lg hover:bg-cyan-700 transition-colors flex items-center gap-1"
-                            >
-                                <FaUsers className="text-xs" />
-                                Servis Asist. Mailleri
-                            </button>
+                    </div>
+
+                    {/* Mail Adresleri İndir */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div>
+                                <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                                    <FaEnvelope className="text-indigo-600" />
+                                    Mail Adresleri İşlemleri
+                                </h2>
+                                <p className="text-sm text-gray-600 mt-1">Kullanıcı kategorilerine göre mail adreslerini kopyalayın</p>
+                            </div>
+                            
+                            <Menu as="div" className="relative inline-block text-left">
+                                <Menu.Button className="inline-flex items-center justify-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors shadow-sm">
+                                    <FaEnvelope className="mr-2 h-4 w-4" />
+                                    Mail Adreslerini Kopyala
+                                    <FaChevronDown className="ml-2 h-3 w-3" />
+                                </Menu.Button>
+
+                                <Transition
+                                    as={Fragment}
+                                    enter="transition ease-out duration-100"
+                                    enterFrom="transform opacity-0 scale-95"
+                                    enterTo="transform opacity-100 scale-100"
+                                    leave="transition ease-in duration-75"
+                                    leaveFrom="transform opacity-100 scale-100"
+                                    leaveTo="transform opacity-0 scale-95"
+                                >
+                                    <Menu.Items className="absolute right-0 mt-2 w-72 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-20">
+                                        <div className="py-2">
+                                            <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                                Genel Mail Listeleri
+                                            </div>
+                                            <Menu.Item>
+                                                {({ active }) => (
+                                                    <button
+                                                        onClick={handleDownloadEmails}
+                                                        className={`${active ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700'} group flex items-center w-full px-4 py-3 text-sm`}
+                                                    >
+                                                        <FaUsers className="mr-3 h-4 w-4 text-blue-500" />
+                                                        <div className="flex-1 text-left">
+                                                            <div className="font-medium">Tüm Kullanıcı Mailleri</div>
+                                                            <div className="text-xs text-gray-500">Sistemdeki tüm kullanıcıların mail adresleri</div>
+                                                        </div>
+                                                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">{stats.total}</span>
+                                                    </button>
+                                                )}
+                                            </Menu.Item>
+                                            <Menu.Item>
+                                                {({ active }) => (
+                                                    <button
+                                                        onClick={handleDownloadPremiumEmails}
+                                                        className={`${active ? 'bg-yellow-50 text-yellow-600' : 'text-gray-700'} group flex items-center w-full px-4 py-3 text-sm`}
+                                                    >
+                                                        <FaCrown className="mr-3 h-4 w-4 text-yellow-500" />
+                                                        <div className="flex-1 text-left">
+                                                            <div className="font-medium">Premium Kullanıcı Mailleri</div>
+                                                            <div className="text-xs text-gray-500">Sadece premium üyelerin mail adresleri</div>
+                                                        </div>
+                                                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">{stats.premium}</span>
+                                                    </button>
+                                                )}
+                                            </Menu.Item>
+                                        </div>
+                                        
+                                        <div className="py-2">
+                                            <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                                Uzmanlık Alanlarına Göre
+                                            </div>
+                                            <Menu.Item>
+                                                {({ active }) => (
+                                                    <button
+                                                        onClick={() => setIsManagerModalOpen(true)}
+                                                        className={`${active ? 'bg-purple-50 text-purple-600' : 'text-gray-700'} group flex items-center w-full px-4 py-3 text-sm`}
+                                                    >
+                                                        <FaUserTie className="mr-3 h-4 w-4 text-purple-500" />
+                                                        <div className="flex-1 text-left">
+                                                            <div className="font-medium">Yönetmen Mailleri</div>
+                                                            <div className="text-xs text-gray-500">Yönetmen unvanlı kullanıcılar</div>
+                                                        </div>
+                                                        <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
+                                                            {users.filter(user => user.expertise === 'Yönetmen').length}
+                                                        </span>
+                                                    </button>
+                                                )}
+                                            </Menu.Item>
+                                            <Menu.Item>
+                                                {({ active }) => (
+                                                    <button
+                                                        onClick={() => setIsAssistantManagerModalOpen(true)}
+                                                        className={`${active ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700'} group flex items-center w-full px-4 py-3 text-sm`}
+                                                    >
+                                                        <FaUserShield className="mr-3 h-4 w-4 text-indigo-500" />
+                                                        <div className="flex-1 text-left">
+                                                            <div className="font-medium">Yönetmen Yardımcısı Mailleri</div>
+                                                            <div className="text-xs text-gray-500">Yönetmen yardımcısı unvanlı kullanıcılar</div>
+                                                        </div>
+                                                        <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">
+                                                            {users.filter(user => user.expertise === 'Yönetmen Yardımcısı').length}
+                                                        </span>
+                                                    </button>
+                                                )}
+                                            </Menu.Item>
+                                            <Menu.Item>
+                                                {({ active }) => (
+                                                    <button
+                                                        onClick={() => setIsServiceOfficerModalOpen(true)}
+                                                        className={`${active ? 'bg-green-50 text-green-600' : 'text-gray-700'} group flex items-center w-full px-4 py-3 text-sm`}
+                                                    >
+                                                        <FaCog className="mr-3 h-4 w-4 text-green-500" />
+                                                        <div className="flex-1 text-left">
+                                                            <div className="font-medium">Servis Yetkilisi Mailleri</div>
+                                                            <div className="text-xs text-gray-500">Servis yetkilisi unvanlı kullanıcılar</div>
+                                                        </div>
+                                                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                                            {users.filter(user => user.expertise === 'Servis Yetkilisi').length}
+                                                        </span>
+                                                    </button>
+                                                )}
+                                            </Menu.Item>
+                                            <Menu.Item>
+                                                {({ active }) => (
+                                                    <button
+                                                        onClick={() => setIsServiceStaffModalOpen(true)}
+                                                        className={`${active ? 'bg-teal-50 text-teal-600' : 'text-gray-700'} group flex items-center w-full px-4 py-3 text-sm`}
+                                                    >
+                                                        <FaUserCog className="mr-3 h-4 w-4 text-teal-500" />
+                                                        <div className="flex-1 text-left">
+                                                            <div className="font-medium">Servis Görevlisi Mailleri</div>
+                                                            <div className="text-xs text-gray-500">Servis görevlisi unvanlı kullanıcılar</div>
+                                                        </div>
+                                                        <span className="text-xs bg-teal-100 text-teal-800 px-2 py-1 rounded-full">
+                                                            {users.filter(user => user.expertise === 'Servis Görevlisi').length}
+                                                        </span>
+                                                    </button>
+                                                )}
+                                            </Menu.Item>
+                                            <Menu.Item>
+                                                {({ active }) => (
+                                                    <button
+                                                        onClick={() => setIsServiceAssistantModalOpen(true)}
+                                                        className={`${active ? 'bg-cyan-50 text-cyan-600' : 'text-gray-700'} group flex items-center w-full px-4 py-3 text-sm`}
+                                                    >
+                                                        <FaUserClock className="mr-3 h-4 w-4 text-cyan-500" />
+                                                        <div className="flex-1 text-left">
+                                                            <div className="font-medium">Servis Asistanı Mailleri</div>
+                                                            <div className="text-xs text-gray-500">Servis asistanı unvanlı kullanıcılar</div>
+                                                        </div>
+                                                        <span className="text-xs bg-cyan-100 text-cyan-800 px-2 py-1 rounded-full">
+                                                            {users.filter(user => user.expertise === 'Servis Asistanı').length}
+                                                        </span>
+                                                    </button>
+                                                )}
+                                            </Menu.Item>
+                                        </div>
+                                    </Menu.Items>
+                                </Transition>
+                            </Menu>
                         </div>
                     </div>
 
