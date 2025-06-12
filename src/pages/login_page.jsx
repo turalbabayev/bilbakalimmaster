@@ -3,6 +3,7 @@ import { replace, useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
 import { AuthContext } from "../context/AuthContext";
+import { toast } from "react-hot-toast";
 
 function LoginPage() {
     const [email, setEmail] = useState("");
@@ -19,22 +20,61 @@ function LoginPage() {
 
     const handleLogin = async (e) => {
         e.preventDefault();
+        setError(""); // Her denemede hata mesajını sıfırla
 
         const allowedEmail = "bilbakalim981@gmail.com";
         const allowedPassword = "bilbakalim";
 
         if (email !== allowedEmail || password !== allowedPassword) {
-            setError("Yetkisiz giriş");
-            // alert("Yetkisiz Giriş");
+            setError("Yetkisiz giriş - Lütfen doğru email ve şifreyi giriniz");
             return;
         }
 
         try {
-            await signInWithEmailAndPassword(auth, email, password);
-            alert("Giriş Başarılı.");
-            navigate("/home", { replace: true });
+            // Firebase bağlantı kontrolü
+            if (!auth) {
+                throw new Error("Firebase Authentication bağlantısı kurulamadı");
+            }
+
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            if (userCredential.user) {
+                toast.success("Giriş başarılı!");
+                navigate("/home", { replace: true });
+            }
         } catch (err) {
-            setError("Giriş başarısız! Bilgilerinizi kontrol edin.");
+            console.error("Giriş hatası:", err);
+            let errorMessage = "Giriş başarısız! ";
+            
+            if (err.message.includes("503") || err.message.includes("Service Unavailable")) {
+                errorMessage = "Firebase servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.";
+                toast.error("Sunucu hatası: Servis geçici olarak kullanılamıyor");
+            } else {
+                switch (err.code) {
+                    case 'auth/invalid-email':
+                        errorMessage += "Geçersiz email formatı.";
+                        break;
+                    case 'auth/user-disabled':
+                        errorMessage += "Bu hesap devre dışı bırakılmış.";
+                        break;
+                    case 'auth/user-not-found':
+                        errorMessage += "Kullanıcı bulunamadı.";
+                        break;
+                    case 'auth/wrong-password':
+                        errorMessage += "Hatalı şifre.";
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMessage += "Çok fazla başarısız deneme. Lütfen daha sonra tekrar deneyin.";
+                        break;
+                    case 'auth/network-request-failed':
+                        errorMessage = "İnternet bağlantınızı kontrol edin ve tekrar deneyin.";
+                        break;
+                    default:
+                        errorMessage += "Bilgilerinizi kontrol edin.";
+                }
+            }
+            
+            setError(errorMessage);
+            toast.error(errorMessage);
         }
     };
 

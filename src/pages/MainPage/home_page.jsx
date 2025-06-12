@@ -11,6 +11,7 @@ import DeleteSubbranch from "../../components/deleteSubbranch";
 import UpdateModal from "../../components/updateModal";
 import NumberQuestions from "../../components/numberQuestions";
 import { toast } from "react-hot-toast";
+import { FaBook, FaPlus, FaTrash, FaEdit, FaChevronDown, FaChevronUp, FaQuestionCircle } from 'react-icons/fa';
 
 function HomePage() {
     const [konular, setKonular] = useState([]);
@@ -28,39 +29,34 @@ function HomePage() {
 
     useEffect(() => {
         try {
-            console.log("Firestore'dan konular çekiliyor...");
             const konularRef = collection(db, "konular");
-            console.log("konularRef:", konularRef);
-            
-            const q = query(konularRef);  // orderBy'ı kaldırdım çünkü henüz createdAt field'ı olmayabilir
-            console.log("query:", q);
+            const q = query(konularRef);
 
             const unsubscribe = onSnapshot(q, (snapshot) => {
-                console.log("snapshot alındı, doküman sayısı:", snapshot.size);
                 const data = [];
                 snapshot.forEach((doc) => {
-                    console.log("doküman id:", doc.id);
-                    console.log("doküman data:", doc.data());
                     data.push({
                         id: doc.id,
                         ...doc.data()
                     });
                 });
-                console.log("işlenmiş data:", data);
                 setKonular(data);
             }, (error) => {
                 console.error("Firestore dinleme hatası:", error);
+                toast.error("Konular yüklenirken bir hata oluştu");
             });
 
             return () => unsubscribe();
         } catch (error) {
             console.error("Firestore bağlantı hatası:", error);
+            toast.error("Veritabanına bağlanırken bir hata oluştu");
         }
     }, []);
 
     const toggleExpand = async (konuId) => {
         if (expanded === konuId) {
             setExpanded(null);
+            setAltKonular({});
             return;
         }
 
@@ -73,10 +69,9 @@ function HomePage() {
                 altkonularData[doc.id] = doc.data();
             });
 
-            setAltKonular(prev => ({
-                ...prev,
+            setAltKonular({
                 [konuId]: altkonularData
-            }));
+            });
             setExpanded(konuId);
         } catch (error) {
             console.error("Alt konular çekilirken hata oluştu:", error);
@@ -94,136 +89,140 @@ function HomePage() {
         <Layout>
             <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
                 <div className="container mx-auto py-8 px-4">
-                    <h1 className="text-3xl font-bold text-gray-800 dark:text-white text-center mb-8">Soru Bankası Yönetimi</h1>
-                    
-                    <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-6 mb-8 border border-gray-100 dark:border-gray-700">
-                        <h2 className="text-xl font-semibold text-indigo-600 dark:text-indigo-400 mb-4">Konu Yönetimi</h2>
-                        <div className="flex flex-wrap gap-3">
-                            <button
-                                onClick={() => setIsTopicModalOpen(true)}
-                                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                                </svg>
-                                Konu Ekle
-                            </button>
-                            <button
-                                onClick={() => setIsDeleteTopicModalOpen(true)}
-                                className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600 text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                </svg>
-                                Konu Sil
-                            </button>
+                    <div className="max-w-7xl mx-auto">
+                        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-8 flex items-center gap-3">
+                            <FaBook className="text-indigo-600" />
+                            Soru Bankası Yönetimi
+                        </h1>
+
+                        {/* Yönetim Kartları */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            {/* Konu Yönetimi Kartı */}
+                            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-200 overflow-hidden border border-gray-100 dark:border-gray-700">
+                                <div className="h-2 bg-indigo-500" />
+                                <div className="p-6">
+                                    <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                                        <FaBook className="text-indigo-600" />
+                                        Konu Yönetimi
+                                    </h2>
+                                    <div className="flex flex-wrap gap-3">
+                                        <button
+                                            onClick={() => setIsTopicModalOpen(true)}
+                                            className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center gap-2"
+                                        >
+                                            <FaPlus className="h-4 w-4" />
+                                            Konu Ekle
+                                        </button>
+                                        <button
+                                            onClick={() => setIsDeleteTopicModalOpen(true)}
+                                            className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center gap-2"
+                                        >
+                                            <FaTrash className="h-4 w-4" />
+                                            Konu Sil
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Alt Konu Yönetimi Kartı */}
+                            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-200 overflow-hidden border border-gray-100 dark:border-gray-700">
+                                <div className="h-2 bg-emerald-500" />
+                                <div className="p-6">
+                                    <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                                        <FaQuestionCircle className="text-emerald-600" />
+                                        Alt Konu Yönetimi
+                                    </h2>
+                                    <div className="flex flex-wrap gap-3">
+                                        <button
+                                            onClick={() => setIsModelOpen(true)}
+                                            className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center gap-2"
+                                        >
+                                            <FaPlus className="h-4 w-4" />
+                                            Alt Konu Ekle
+                                        </button>
+                                        <button
+                                            onClick={() => setIsDeleteModelOpen(true)}
+                                            className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center gap-2"
+                                        >
+                                            <FaTrash className="h-4 w-4" />
+                                            Alt Konu Sil
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-6 mb-8 border border-gray-100 dark:border-gray-700">
-                        <h2 className="text-xl font-semibold text-indigo-600 dark:text-indigo-400 mb-4">Alt Konu ve Dal Yönetimi</h2>
-                        <div className="flex flex-wrap gap-3">
-                            <button
-                                onClick={() => setIsModelOpen(true)}
-                                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                                </svg>
-                                Alt Konu Ekle
-                            </button>
-                            <button
-                                onClick={() => setIsDeleteModelOpen(true)}
-                                className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600 text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                </svg>
-                                Alt Konu Sil
-                            </button>
-                            <button
-                                onClick={() => setIsSubbranchModalOpen(true)}
-                                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                                </svg>
-                                Alt Dal Ekle
-                            </button>
-                            <button
-                                onClick={() => setIsDeleteSubbranchModalOpen(true)}
-                                className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600 text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                </svg>
-                                Alt Dal Sil
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div className="space-y-6">
-                        {konular.length > 0 ? (
-                            konular.map((konu) => (
-                                <div key={konu.id} className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-6 border border-gray-100 dark:border-gray-700 transition-all duration-200 hover:shadow-xl">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="text-xl font-semibold text-gray-800 dark:text-white">{konu.baslik || "Başlık Yok"}</h3>
-                                        <div className="flex items-center gap-3">
-                                            <button
-                                                onClick={() => openUpdateModal(`konular/${konu.id}`, "Konu")}
-                                                className="text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 transition-colors flex items-center"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                                </svg>
-                                                Güncelle
-                                            </button>
-                                            <button
-                                                onClick={() => toggleExpand(konu.id)}
-                                                className="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 transition-colors"
-                                            >
-                                                {expanded === konu.id ? 
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                        <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
-                                                    </svg> 
-                                                    : 
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                        <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                                                    </svg>
-                                                }
-                                            </button>
+
+                        {/* Konular Listesi */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-min">
+                            {konular.length > 0 ? (
+                                konular.map((konu) => (
+                                    <div 
+                                        key={konu.id} 
+                                        className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-100 dark:border-gray-700 h-fit"
+                                    >
+                                        <div className="p-6">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+                                                    {konu.baslik || "Başlık Yok"}
+                                                </h3>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => openUpdateModal(`konular/${konu.id}`, "Konu")}
+                                                        className="p-2 text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 transition-colors rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                                                        title="Güncelle"
+                                                    >
+                                                        <FaEdit className="h-5 w-5" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => toggleExpand(konu.id)}
+                                                        className="p-2 text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                                                        title={expanded === konu.id ? "Daralt" : "Genişlet"}
+                                                    >
+                                                        {expanded === konu.id ? 
+                                                            <FaChevronUp className="h-5 w-5" /> : 
+                                                            <FaChevronDown className="h-5 w-5" />
+                                                        }
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {expanded === konu.id && altKonular[konu.id] && Object.keys(altKonular[konu.id]).length > 0 && (
+                                                <div className="mt-4 space-y-3">
+                                                    {Object.entries(altKonular[konu.id]).map(([altKonuId, altKonu]) => (
+                                                        <div 
+                                                            key={altKonuId}
+                                                            className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3"
+                                                        >
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-gray-700 dark:text-gray-200">
+                                                                    {altKonu.baslik || "Alt Konu Başlığı Yok"}
+                                                                </span>
+                                                                <button
+                                                                    onClick={() => openUpdateModal(`konular/${konu.id}/altkonular/${altKonuId}`, "Alt Konu")}
+                                                                    className="p-1 text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 transition-colors rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                                                                    title="Güncelle"
+                                                                >
+                                                                    <FaEdit className="h-4 w-4" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                    {expanded === konu.id && altKonular[konu.id] && (
-                                        <div className="mt-4 pl-4 border-l-2 border-indigo-100 dark:border-indigo-900">
-                                            {Object.entries(altKonular[konu.id]).map(([key, altkonu]) => (
-                                                <div key={key} className="mt-4 pb-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                                                    <div className="flex items-center justify-between">
-                                                        <h4 className="font-medium text-lg text-indigo-600 dark:text-indigo-400">{altkonu.baslik || "Alt Konu Yok"}</h4>
-                                                        <button
-                                                            onClick={() => openUpdateModal(`konular/${konu.id}/altkonular/${key}`, "Alt Konu")}
-                                                            className="text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 transition-colors flex items-center text-sm"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                                            </svg>
-                                                            Güncelle
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
+                                ))
+                            ) : (
+                                <div className="col-span-full bg-white dark:bg-gray-800 rounded-xl shadow-sm p-8 text-center">
+                                    <p className="text-gray-600 dark:text-gray-400">Henüz hiç konu eklenmemiş.</p>
                                 </div>
-                            ))
-                        ) : (
-                            <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-8 text-center">
-                                <p className="text-gray-600 dark:text-gray-400">Henüz hiç konu eklenmemiş.</p>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
+
+            {/* Modals */}
             {isTopicModalOpen && (
                 <AddTopics 
                     closeModal={() => setIsTopicModalOpen(false)}
@@ -260,11 +259,11 @@ function HomePage() {
                 />
             )}
             {isUpdateModalOpen && (
-                <UpdateModal 
+                <UpdateModal
                     isOpen={isUpdateModalOpen}
-                    closeModal={() => setIsUpdateModalOpen(false)}
                     updatePath={updatePath}
                     itemType={updateType}
+                    closeModal={() => setIsUpdateModalOpen(false)}
                 />
             )}
         </Layout>
