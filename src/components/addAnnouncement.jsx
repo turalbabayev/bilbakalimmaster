@@ -26,8 +26,19 @@ const AddAnnouncement = ({ isOpen, onClose, selectedType, editItem }) => {
 
     useEffect(() => {
         if (editItem) {
+            // Expertise değerlerini tersine çevir
+            const reverseExpertiseLabels = {
+                'Servis Asistanı': 'servisAsistani',
+                'Servis Görevlisi': 'servisGorevlisi',
+                'Servis Yetkilisi': 'servisYetkilisi',
+                'Yönetmen Yardımcısı': 'yonetmenYardimcisi',
+                'Yönetmen': 'yonetmen',
+                'Tüm Ünvanlar': 'tumUnvanlar'
+            };
+
             setFormData({
                 ...editItem,
+                expertise: reverseExpertiseLabels[editItem.expertise] || 'tumUnvanlar',
                 resimPreview: editItem.resim ? `data:${editItem.resimTuru || 'image/png'};base64,${editItem.resim}` : null
             });
         } else {
