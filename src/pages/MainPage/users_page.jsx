@@ -3,7 +3,7 @@ import Layout from '../../components/layout';
 import { db } from '../../firebase';
 import { collection, getDocs, doc, updateDoc, getDoc, query, where, orderBy, deleteDoc } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
-import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt, FaChartPie, FaChartBar, FaSearch, FaSort, FaSortAmountDown, FaSortAmountUp, FaFilter, FaMobile, FaExchangeAlt, FaEdit, FaEnvelope, FaChevronDown, FaUserTie, FaUserShield, FaCog, FaUserCog, FaUserClock } from 'react-icons/fa';
+import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt, FaChartPie, FaChartBar, FaSearch, FaSort, FaSortAmountDown, FaSortAmountUp, FaFilter, FaMobile, FaExchangeAlt, FaEdit, FaEnvelope, FaChevronDown, FaUserTie, FaUserShield, FaCog, FaUserCog, FaUserClock, FaPaperPlane } from 'react-icons/fa';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Menu, Transition, Dialog } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -563,6 +563,51 @@ const UsersPage = () => {
             setIsEditNameModalOpen(false);
         } catch (err) {
             toast.error('Güncelleme başarısız!');
+        }
+    };
+
+    // Thunderbird ile mail gönderme fonksiyonu
+    const handleSendEmail = (email, userName) => {
+        try {
+            // Konu ve içerik hazırla
+            const subject = encodeURIComponent('Bilbakalım Destek');
+            const body = encodeURIComponent(`Merhaba ${userName || 'Değerli Kullanıcımız'},\n\n\n\nİyi günler dileriz.\nBilbakalim Ekibi`);
+            
+            // Önce standart mailto protokolünü dene (işletim sistemi varsayılan mail uygulamasını açar)
+            const mailtoUrl = `mailto:${email}?subject=${subject}&body=${body}`;
+            
+            // Yeni sekme/pencerede aç
+            const mailWindow = window.open(mailtoUrl, '_blank');
+            
+            // Eğer popup engellenmişse, kullanıcıyı yönlendir
+            if (!mailWindow || mailWindow.closed || typeof mailWindow.closed == 'undefined') {
+                // Popup engellenirse, aynı pencerede aç
+                window.location.href = mailtoUrl;
+            }
+            
+            toast.success(`${email} adresine mail uygulamanız açılıyor...`, {
+                duration: 3000,
+                icon: '✉️'
+            });
+            
+        } catch (error) {
+            console.error('Mail gönderilirken hata:', error);
+            
+            // Hata durumunda manuel kopyalama seçeneği sun
+            const mailInfo = `Alıcı: ${email}\nKonu: Bilbakalım Destek\nİçerik: Merhaba ${userName || 'Değerli Kullanıcımız'},\n\n\n\nİyi günler dileriz.\nBilbakalım Destek Ekibi`;
+            
+            navigator.clipboard.writeText(mailInfo)
+                .then(() => {
+                    toast.success('Mail bilgileri panoya kopyalandı! Thunderbird\'de manuel olarak yapıştırabilirsiniz.', {
+                        duration: 5000,
+                        icon: '📋'
+                    });
+                })
+                .catch(() => {
+                    toast.error('Mail uygulaması açılamadı! Lütfen manuel olarak mail gönderin.', {
+                        duration: 5000
+                    });
+                });
         }
     };
 
@@ -1159,7 +1204,18 @@ const UsersPage = () => {
                                                             <FaUserSecret className="text-gray-400" title="Misafir Kullanıcı" />
                                                         )}
                                                     </div>
-                                                    <p className="text-sm text-gray-600">{user.email}</p>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-sm text-gray-600">{user.email}</p>
+                                                        {!user.email?.includes('guest_') && (
+                                                            <button
+                                                                onClick={() => handleSendEmail(user.email, `${user.name} ${user.surname}`)}
+                                                                className="p-1 rounded hover:bg-blue-100 text-blue-500 hover:text-blue-600 transition-colors"
+                                                                title="Mail Gönder (Thunderbird)"
+                                                            >
+                                                                <FaPaperPlane size={12} />
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
 
