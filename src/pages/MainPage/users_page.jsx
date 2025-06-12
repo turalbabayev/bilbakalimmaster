@@ -62,6 +62,54 @@ const UsersPage = () => {
         android: '#34D399'  // Yeşil
     };
 
+    const calculateConversionMetrics = (usersData) => {
+        // Premium olmayan misafir kullanıcıları hariç tut
+        const validUsers = usersData.filter(user => !user.email?.includes('guest_'));
+        
+        // Premium kullanıcı sayısı
+        const premiumUsers = validUsers.filter(user => user.isPremium);
+        
+        // Dönüşüm oranı (%)
+        const conversionRate = validUsers.length > 0 ? (premiumUsers.length / validUsers.length) * 100 : 0;
+
+        // Ortalama dönüşüm süresi (gün)
+        let totalConversionTime = 0;
+        let validConversions = 0;
+
+        premiumUsers.forEach(user => {
+            // Tarihleri kontrol et
+            const premiumDate = user.premiumDate || user.premiumPurchaseDate;
+            const createdAt = user.created_at || user.createdAt;
+
+            if (createdAt && premiumDate) {
+                try {
+                    // Tarihleri Date objesine çevir
+                    const startDate = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
+                    const endDate = premiumDate.toDate ? premiumDate.toDate() : new Date(premiumDate);
+
+                    // Gün farkını hesapla
+                    const diffTime = Math.abs(endDate - startDate);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    // Eğer gün farkı geçerliyse ekle
+                    if (diffDays >= 0 && diffDays < 365 * 10) { // 10 yıldan az olmalı
+                        totalConversionTime += diffDays;
+                        validConversions++;
+                    }
+                } catch (error) {
+                    console.error('Tarih hesaplama hatası:', error);
+                }
+            }
+        });
+
+        const avgConversionTime = validConversions > 0 ? Math.round(totalConversionTime / validConversions) : 0;
+
+        return {
+            conversionRate: conversionRate.toFixed(1),
+            avgConversionTime: avgConversionTime
+        };
+    };
+
     const fetchUsers = async () => {
         setIsLoading(true);
         try {
@@ -76,6 +124,9 @@ const UsersPage = () => {
             setUsers(usersData);
             setFilteredUsers(usersData);
 
+            // Dönüşüm metriklerini hesapla
+            const conversionMetrics = calculateConversionMetrics(usersData);
+
             // İstatistikleri hesapla
             const newStats = {
                 total: usersData.length,
@@ -83,7 +134,9 @@ const UsersPage = () => {
                 free: usersData.filter(user => !user.isPremium && !user.isGuest).length,
                 guest: usersData.filter(user => user.isGuest).length,
                 ios: usersData.filter(user => user.device_type === 'iOS').length,
-                android: usersData.filter(user => user.device_type === 'Android').length
+                android: usersData.filter(user => user.device_type === 'Android').length,
+                conversionRate: conversionMetrics.conversionRate,
+                avgConversionTime: conversionMetrics.avgConversionTime
             };
             setStats(newStats);
         } catch (error) {
@@ -913,7 +966,7 @@ const UsersPage = () => {
                     </div>
 
                     {/* Grafikler */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
                         {/* Üyelik Dağılımı - Modern Donut Chart */}
                         <div className="bg-white rounded-xl shadow-md p-4">
                             <h2 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
@@ -1037,6 +1090,35 @@ const UsersPage = () => {
                                         <div className="text-xs text-gray-500">kullanıcı</div>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+
+                        {/* Dönüşüm Analizi */}
+                        <div className="bg-white rounded-xl shadow-md p-4">
+                            <h2 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                <div className="w-2 h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
+                                Dönüşüm Analizi
+                            </h2>
+                            <div className="h-48 flex items-center justify-center">
+                                <div className="text-center space-y-8">
+                                    {/* Dönüşüm Oranı */}
+                                    <div>
+                                        <div className="text-3xl font-bold text-indigo-600">
+                                            %{stats.conversionRate}
+                                        </div>
+                                        <div className="text-sm text-gray-600 mt-1">Dönüşüm Oranı</div>
+                                        <div className="text-xs text-gray-500">Premium üyeliğe geçiş oranı</div>
+                                    </div>
+
+                                    {/* Ortalama Dönüşüm Süresi */}
+                                    <div>
+                                        <div className="text-3xl font-bold text-purple-600">
+                                            {stats.avgConversionTime} gün
+                                        </div>
+                                        <div className="text-sm text-gray-600 mt-1">Ortalama Dönüşüm Süresi</div>
+                                        <div className="text-xs text-gray-500">Kayıttan premium üyeliğe geçiş süresi</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
