@@ -570,19 +570,26 @@ const UsersPage = () => {
     const handleSendEmail = (email, userName) => {
         try {
             // Konu ve içerik hazırla
-            const subject = encodeURIComponent('Bilbakalım Destek');
-            const body = encodeURIComponent(`Merhaba ${userName || 'Değerli Kullanıcımız'},\n\n\n\nİyi günler dileriz.\nBilbakalim Ekibi`);
+            const subject = 'Bilbakalım Destek';
+            const body = `Merhaba ${userName || 'Değerli Kullanıcımız'},\n\n\n\nİyi günler dileriz.\nBilbakalım Destek Ekibi`;
             
-            // Önce standart mailto protokolünü dene (işletim sistemi varsayılan mail uygulamasını açar)
-            const mailtoUrl = `mailto:${email}?subject=${subject}&body=${body}`;
+            // Windows ve macOS uyumlu mailto URL'i
+            const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
             
-            // Yeni sekme/pencerede aç
-            const mailWindow = window.open(mailtoUrl, '_blank');
+            // İşletim sistemi kontrolü
+            const isWindows = navigator.userAgent.indexOf('Windows') !== -1;
             
-            // Eğer popup engellenmişse, kullanıcıyı yönlendir
-            if (!mailWindow || mailWindow.closed || typeof mailWindow.closed == 'undefined') {
-                // Popup engellenirse, aynı pencerede aç
+            if (isWindows) {
+                // Windows için doğrudan window.location kullan
                 window.location.href = mailtoUrl;
+            } else {
+                // macOS ve diğer sistemler için window.open kullan
+                const mailWindow = window.open(mailtoUrl, '_blank');
+                
+                // Eğer popup engellenmişse, kullanıcıyı yönlendir
+                if (!mailWindow || mailWindow.closed || typeof mailWindow.closed == 'undefined') {
+                    window.location.href = mailtoUrl;
+                }
             }
             
             toast.success(`${email} adresine mail uygulamanız açılıyor...`, {
@@ -598,7 +605,7 @@ const UsersPage = () => {
             
             navigator.clipboard.writeText(mailInfo)
                 .then(() => {
-                    toast.success('Mail bilgileri panoya kopyalandı! Thunderbird\'de manuel olarak yapıştırabilirsiniz.', {
+                    toast.success('Mail bilgileri panoya kopyalandı! Mail uygulamanızda manuel olarak yapıştırabilirsiniz.', {
                         duration: 5000,
                         icon: '📋'
                     });
