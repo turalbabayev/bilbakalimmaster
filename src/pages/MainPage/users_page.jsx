@@ -3,7 +3,7 @@ import Layout from '../../components/layout';
 import { db } from '../../firebase';
 import { collection, getDocs, doc, updateDoc, getDoc, query, where, orderBy, deleteDoc } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
-import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt, FaChartPie, FaChartBar, FaSearch, FaSort, FaSortAmountDown, FaSortAmountUp, FaFilter, FaMobile, FaExchangeAlt, FaEdit, FaEnvelope, FaChevronDown, FaUserTie, FaUserShield, FaCog, FaUserCog, FaUserClock, FaPaperPlane } from 'react-icons/fa';
+import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt, FaChartPie, FaChartBar, FaSearch, FaSort, FaSortAmountDown, FaSortAmountUp, FaFilter, FaMobile, FaExchangeAlt, FaEdit, FaEnvelope, FaChevronDown, FaUserTie, FaUserShield, FaCog, FaUserCog, FaUserClock, FaPaperPlane, FaUserPlus, FaUserTimes, FaTimes } from 'react-icons/fa';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Menu, Transition, Dialog } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -494,20 +494,27 @@ const UsersPage = () => {
             });
     };
 
-    const handleDownloadManagerEmails = (onlyPremium = false) => {
+    const handleDownloadManagerEmails = (filterType = 'all') => {
         // Filtreleme seçeneğine göre Yönetmenleri al
-        const filteredEmails = users.filter(user => {
-            if (onlyPremium) {
-                return user.expertise === 'Yönetmen' && user.isPremium;
-            }
-            return user.expertise === 'Yönetmen';
-        });
+        let filteredEmails;
+        switch(filterType) {
+            case 'premium':
+                filteredEmails = users.filter(user => user.expertise === 'Yönetmen' && user.isPremium);
+                break;
+            case 'free':
+                filteredEmails = users.filter(user => user.expertise === 'Yönetmen' && !user.isPremium);
+                break;
+            default:
+                filteredEmails = users.filter(user => user.expertise === 'Yönetmen');
+        }
+        
         const emails = filteredEmails.map(user => user.email).join(", ");
 
         // Mailleri panoya kopyala
         navigator.clipboard.writeText(emails)
             .then(() => {
-                toast.success(`${filteredEmails.length} adet Yönetmen mail adresi panoya kopyalandı!`);
+                const typeText = filterType === 'premium' ? ' Premium' : filterType === 'free' ? ' Ücretsiz' : '';
+                toast.success(`${filteredEmails.length} adet${typeText} Yönetmen mail adresi panoya kopyalandı!`);
             })
             .catch(() => {
                 toast.error("Mail adresleri kopyalanırken bir hata oluştu!");
@@ -515,20 +522,27 @@ const UsersPage = () => {
         setIsManagerModalOpen(false);
     };
 
-    const handleDownloadAssistantManagerEmails = (onlyPremium = false) => {
+    const handleDownloadAssistantManagerEmails = (filterType = 'all') => {
         // Filtreleme seçeneğine göre Yönetmen Yardımcılarını al
-        const filteredEmails = users.filter(user => {
-            if (onlyPremium) {
-                return user.expertise === 'Yönetmen Yardımcısı' && user.isPremium;
-            }
-            return user.expertise === 'Yönetmen Yardımcısı';
-        });
+        let filteredEmails;
+        switch(filterType) {
+            case 'premium':
+                filteredEmails = users.filter(user => user.expertise === 'Yönetmen Yardımcısı' && user.isPremium);
+                break;
+            case 'free':
+                filteredEmails = users.filter(user => user.expertise === 'Yönetmen Yardımcısı' && !user.isPremium);
+                break;
+            default:
+                filteredEmails = users.filter(user => user.expertise === 'Yönetmen Yardımcısı');
+        }
+        
         const emails = filteredEmails.map(user => user.email).join(", ");
 
         // Mailleri panoya kopyala
         navigator.clipboard.writeText(emails)
             .then(() => {
-                toast.success(`${filteredEmails.length} adet Yönetmen Yardımcısı mail adresi panoya kopyalandı!`);
+                const typeText = filterType === 'premium' ? ' Premium' : filterType === 'free' ? ' Ücretsiz' : '';
+                toast.success(`${filteredEmails.length} adet${typeText} Yönetmen Yardımcısı mail adresi panoya kopyalandı!`);
             })
             .catch(() => {
                 toast.error("Mail adresleri kopyalanırken bir hata oluştu!");
@@ -536,20 +550,27 @@ const UsersPage = () => {
         setIsAssistantManagerModalOpen(false);
     };
 
-    const handleDownloadServiceOfficerEmails = (onlyPremium = false) => {
+    const handleDownloadServiceOfficerEmails = (filterType = 'all') => {
         // Filtreleme seçeneğine göre Servis Yetkililerini al
-        const filteredEmails = users.filter(user => {
-            if (onlyPremium) {
-                return user.expertise === 'Servis Yetkilisi' && user.isPremium;
-            }
-            return user.expertise === 'Servis Yetkilisi';
-        });
+        let filteredEmails;
+        switch(filterType) {
+            case 'premium':
+                filteredEmails = users.filter(user => user.expertise === 'Servis Yetkilisi' && user.isPremium);
+                break;
+            case 'free':
+                filteredEmails = users.filter(user => user.expertise === 'Servis Yetkilisi' && !user.isPremium);
+                break;
+            default:
+                filteredEmails = users.filter(user => user.expertise === 'Servis Yetkilisi');
+        }
+        
         const emails = filteredEmails.map(user => user.email).join(", ");
 
         // Mailleri panoya kopyala
         navigator.clipboard.writeText(emails)
             .then(() => {
-                toast.success(`${filteredEmails.length} adet Servis Yetkilisi mail adresi panoya kopyalandı!`);
+                const typeText = filterType === 'premium' ? ' Premium' : filterType === 'free' ? ' Ücretsiz' : '';
+                toast.success(`${filteredEmails.length} adet${typeText} Servis Yetkilisi mail adresi panoya kopyalandı!`);
             })
             .catch(() => {
                 toast.error("Mail adresleri kopyalanırken bir hata oluştu!");
@@ -557,20 +578,27 @@ const UsersPage = () => {
         setIsServiceOfficerModalOpen(false);
     };
 
-    const handleDownloadServiceStaffEmails = (onlyPremium = false) => {
+    const handleDownloadServiceStaffEmails = (filterType = 'all') => {
         // Filtreleme seçeneğine göre Servis Görevlilerini al
-        const filteredEmails = users.filter(user => {
-            if (onlyPremium) {
-                return user.expertise === 'Servis Görevlisi' && user.isPremium;
-            }
-            return user.expertise === 'Servis Görevlisi';
-        });
+        let filteredEmails;
+        switch(filterType) {
+            case 'premium':
+                filteredEmails = users.filter(user => user.expertise === 'Servis Görevlisi' && user.isPremium);
+                break;
+            case 'free':
+                filteredEmails = users.filter(user => user.expertise === 'Servis Görevlisi' && !user.isPremium);
+                break;
+            default:
+                filteredEmails = users.filter(user => user.expertise === 'Servis Görevlisi');
+        }
+        
         const emails = filteredEmails.map(user => user.email).join(", ");
 
         // Mailleri panoya kopyala
         navigator.clipboard.writeText(emails)
             .then(() => {
-                toast.success(`${filteredEmails.length} adet Servis Görevlisi mail adresi panoya kopyalandı!`);
+                const typeText = filterType === 'premium' ? ' Premium' : filterType === 'free' ? ' Ücretsiz' : '';
+                toast.success(`${filteredEmails.length} adet${typeText} Servis Görevlisi mail adresi panoya kopyalandı!`);
             })
             .catch(() => {
                 toast.error("Mail adresleri kopyalanırken bir hata oluştu!");
@@ -578,20 +606,27 @@ const UsersPage = () => {
         setIsServiceStaffModalOpen(false);
     };
 
-    const handleDownloadServiceAssistantEmails = (onlyPremium = false) => {
+    const handleDownloadServiceAssistantEmails = (filterType = 'all') => {
         // Filtreleme seçeneğine göre Servis Asistanlarını al
-        const filteredEmails = users.filter(user => {
-            if (onlyPremium) {
-                return user.expertise === 'Servis Asistanı' && user.isPremium;
-            }
-            return user.expertise === 'Servis Asistanı';
-        });
+        let filteredEmails;
+        switch(filterType) {
+            case 'premium':
+                filteredEmails = users.filter(user => user.expertise === 'Servis Asistanı' && user.isPremium);
+                break;
+            case 'free':
+                filteredEmails = users.filter(user => user.expertise === 'Servis Asistanı' && !user.isPremium);
+                break;
+            default:
+                filteredEmails = users.filter(user => user.expertise === 'Servis Asistanı');
+        }
+        
         const emails = filteredEmails.map(user => user.email).join(", ");
 
         // Mailleri panoya kopyala
         navigator.clipboard.writeText(emails)
             .then(() => {
-                toast.success(`${filteredEmails.length} adet Servis Asistanı mail adresi panoya kopyalandı!`);
+                const typeText = filterType === 'premium' ? ' Premium' : filterType === 'free' ? ' Ücretsiz' : '';
+                toast.success(`${filteredEmails.length} adet${typeText} Servis Asistanı mail adresi panoya kopyalandı!`);
             })
             .catch(() => {
                 toast.error("Mail adresleri kopyalanırken bir hata oluştu!");
@@ -1725,7 +1760,7 @@ const UsersPage = () => {
                                             <h4 className="text-sm font-medium text-gray-900 mb-2">Hangi Yönetmenlerin mail adreslerini kopyalamak istersiniz?</h4>
                                             <div className="space-y-3">
                                                 <button
-                                                    onClick={() => handleDownloadManagerEmails(false)}
+                                                    onClick={() => handleDownloadManagerEmails('all')}
                                                     className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                                                 >
                                                     <div className="flex items-center">
@@ -1741,7 +1776,7 @@ const UsersPage = () => {
                                                 </button>
 
                                                 <button
-                                                    onClick={() => handleDownloadManagerEmails(true)}
+                                                    onClick={() => handleDownloadManagerEmails('premium')}
                                                     className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                                                 >
                                                     <div className="flex items-center">
@@ -1753,6 +1788,22 @@ const UsersPage = () => {
                                                     </div>
                                                     <span className="text-sm text-gray-500">
                                                         {users.filter(user => user.expertise === 'Yönetmen' && user.isPremium).length} kullanıcı
+                                                    </span>
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleDownloadManagerEmails('free')}
+                                                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <FaUserAlt className="text-gray-600 mr-3" />
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-medium text-gray-900">Ücretsiz Yönetmenler</p>
+                                                            <p className="text-xs text-gray-500">Sadece ücretsiz üye olan Yönetmenler</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm text-gray-500">
+                                                        {users.filter(user => user.expertise === 'Yönetmen' && !user.isPremium).length} kullanıcı
                                                     </span>
                                                 </button>
                                             </div>
@@ -1811,7 +1862,7 @@ const UsersPage = () => {
                                             <h4 className="text-sm font-medium text-gray-900 mb-2">Hangi Yönetmen Yardımcılarının mail adreslerini kopyalamak istersiniz?</h4>
                                             <div className="space-y-3">
                                                 <button
-                                                    onClick={() => handleDownloadAssistantManagerEmails(false)}
+                                                    onClick={() => handleDownloadAssistantManagerEmails('all')}
                                                     className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                                                 >
                                                     <div className="flex items-center">
@@ -1827,7 +1878,7 @@ const UsersPage = () => {
                                                 </button>
 
                                                 <button
-                                                    onClick={() => handleDownloadAssistantManagerEmails(true)}
+                                                    onClick={() => handleDownloadAssistantManagerEmails('premium')}
                                                     className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                                                 >
                                                     <div className="flex items-center">
@@ -1839,6 +1890,22 @@ const UsersPage = () => {
                                                     </div>
                                                     <span className="text-sm text-gray-500">
                                                         {users.filter(user => user.expertise === 'Yönetmen Yardımcısı' && user.isPremium).length} kullanıcı
+                                                    </span>
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleDownloadAssistantManagerEmails('free')}
+                                                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <FaUserAlt className="text-gray-600 mr-3" />
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-medium text-gray-900">Ücretsiz Yönetmen Yardımcıları</p>
+                                                            <p className="text-xs text-gray-500">Sadece ücretsiz üye olan Yönetmen Yardımcıları</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm text-gray-500">
+                                                        {users.filter(user => user.expertise === 'Yönetmen Yardımcısı' && !user.isPremium).length} kullanıcı
                                                     </span>
                                                 </button>
                                             </div>
@@ -1897,7 +1964,7 @@ const UsersPage = () => {
                                             <h4 className="text-sm font-medium text-gray-900 mb-2">Hangi Servis Yetkililerinin mail adreslerini kopyalamak istersiniz?</h4>
                                             <div className="space-y-3">
                                                 <button
-                                                    onClick={() => handleDownloadServiceOfficerEmails(false)}
+                                                    onClick={() => handleDownloadServiceOfficerEmails('all')}
                                                     className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                                                 >
                                                     <div className="flex items-center">
@@ -1913,7 +1980,7 @@ const UsersPage = () => {
                                                 </button>
 
                                                 <button
-                                                    onClick={() => handleDownloadServiceOfficerEmails(true)}
+                                                    onClick={() => handleDownloadServiceOfficerEmails('premium')}
                                                     className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                                                 >
                                                     <div className="flex items-center">
@@ -1925,6 +1992,22 @@ const UsersPage = () => {
                                                     </div>
                                                     <span className="text-sm text-gray-500">
                                                         {users.filter(user => user.expertise === 'Servis Yetkilisi' && user.isPremium).length} kullanıcı
+                                                    </span>
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleDownloadServiceOfficerEmails('free')}
+                                                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <FaUserAlt className="text-gray-600 mr-3" />
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-medium text-gray-900">Ücretsiz Servis Yetkilileri</p>
+                                                            <p className="text-xs text-gray-500">Sadece ücretsiz üye olan Servis Yetkilileri</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm text-gray-500">
+                                                        {users.filter(user => user.expertise === 'Servis Yetkilisi' && !user.isPremium).length} kullanıcı
                                                     </span>
                                                 </button>
                                             </div>
@@ -1983,7 +2066,7 @@ const UsersPage = () => {
                                             <h4 className="text-sm font-medium text-gray-900 mb-2">Hangi Servis Görevlilerinin mail adreslerini kopyalamak istersiniz?</h4>
                                             <div className="space-y-3">
                                                 <button
-                                                    onClick={() => handleDownloadServiceStaffEmails(false)}
+                                                    onClick={() => handleDownloadServiceStaffEmails('all')}
                                                     className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                                                 >
                                                     <div className="flex items-center">
@@ -1999,7 +2082,7 @@ const UsersPage = () => {
                                                 </button>
 
                                                 <button
-                                                    onClick={() => handleDownloadServiceStaffEmails(true)}
+                                                    onClick={() => handleDownloadServiceStaffEmails('premium')}
                                                     className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                                                 >
                                                     <div className="flex items-center">
@@ -2011,6 +2094,22 @@ const UsersPage = () => {
                                                     </div>
                                                     <span className="text-sm text-gray-500">
                                                         {users.filter(user => user.expertise === 'Servis Görevlisi' && user.isPremium).length} kullanıcı
+                                                    </span>
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleDownloadServiceStaffEmails('free')}
+                                                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <FaUserAlt className="text-gray-600 mr-3" />
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-medium text-gray-900">Ücretsiz Servis Görevlileri</p>
+                                                            <p className="text-xs text-gray-500">Sadece ücretsiz üye olan Servis Görevlileri</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm text-gray-500">
+                                                        {users.filter(user => user.expertise === 'Servis Görevlisi' && !user.isPremium).length} kullanıcı
                                                     </span>
                                                 </button>
                                             </div>
@@ -2069,7 +2168,7 @@ const UsersPage = () => {
                                             <h4 className="text-sm font-medium text-gray-900 mb-2">Hangi Servis Asistanlarının mail adreslerini kopyalamak istersiniz?</h4>
                                             <div className="space-y-3">
                                                 <button
-                                                    onClick={() => handleDownloadServiceAssistantEmails(false)}
+                                                    onClick={() => handleDownloadServiceAssistantEmails('all')}
                                                     className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                                                 >
                                                     <div className="flex items-center">
@@ -2085,7 +2184,7 @@ const UsersPage = () => {
                                                 </button>
 
                                                 <button
-                                                    onClick={() => handleDownloadServiceAssistantEmails(true)}
+                                                    onClick={() => handleDownloadServiceAssistantEmails('premium')}
                                                     className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                                                 >
                                                     <div className="flex items-center">
@@ -2097,6 +2196,22 @@ const UsersPage = () => {
                                                     </div>
                                                     <span className="text-sm text-gray-500">
                                                         {users.filter(user => user.expertise === 'Servis Asistanı' && user.isPremium).length} kullanıcı
+                                                    </span>
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleDownloadServiceAssistantEmails('free')}
+                                                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <FaUserAlt className="text-gray-600 mr-3" />
+                                                        <div className="text-left">
+                                                            <p className="text-sm font-medium text-gray-900">Ücretsiz Servis Asistanları</p>
+                                                            <p className="text-xs text-gray-500">Sadece ücretsiz üye olan Servis Asistanları</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm text-gray-500">
+                                                        {users.filter(user => user.expertise === 'Servis Asistanı' && !user.isPremium).length} kullanıcı
                                                     </span>
                                                 </button>
                                             </div>
