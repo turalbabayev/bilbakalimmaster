@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast';
 
 const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) => {
     const [loading, setLoading] = useState(false);
+    const [jsonLoading, setJsonLoading] = useState(false);
     const [sorular, setSorular] = useState([]);
     const [selectedSorular, setSelectedSorular] = useState({});
     const [hepsiSecili, setHepsiSecili] = useState(false);
@@ -268,6 +269,80 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
         }
     };
 
+    const createJson = async () => {
+        if (jsonLoading) {
+            console.log("JSON indirme işlemi zaten devam ediyor...");
+            return;
+        }
+
+        try {
+            setJsonLoading(true);
+            console.log("JSON oluşturma başladı");
+
+            // Seçili soruları belirle
+            const seciliIDs = Object.entries(selectedSorular)
+                .filter(([_, value]) => value)
+                .map(([key]) => key);
+
+            let indirilecekSorular = [];
+            
+            if (indirmeMiktari === "secili") {
+                indirilecekSorular = sorular.filter(soru => seciliIDs.includes(soru.id));
+            } else {
+                const miktar = parseInt(indirmeMiktari);
+                indirilecekSorular = sorular.slice(0, miktar);
+            }
+
+            if (indirilecekSorular.length === 0) {
+                toast.warning("Lütfen indirilecek soruları seçin.");
+                setJsonLoading(false);
+                return;
+            }
+
+            console.log("JSON için indirilecek soru sayısı:", indirilecekSorular.length);
+
+            // JSON formatında soruları hazırla (toplu yükleme formatıyla uyumlu)
+            const jsonSorular = indirilecekSorular.map(soru => {
+                // Options'ı dictionary formatında hazırla
+                const options = {};
+                if (soru.cevaplar && Array.isArray(soru.cevaplar)) {
+                    const harfler = ['A', 'B', 'C', 'D', 'E'];
+                    soru.cevaplar.forEach((cevap, index) => {
+                        if (index < 5 && cevap) { // Maksimum 5 şık
+                            options[harfler[index]] = cevap;
+                        }
+                    });
+                }
+
+                return {
+                    question: soru.soruMetni || "",
+                    options: options,
+                    answer: soru.dogruCevap || "A",
+                    explanation: soru.aciklama || ""
+                };
+            });
+
+            // JSON dosyasını oluştur ve indir
+            const jsonContent = JSON.stringify(jsonSorular, null, 2);
+            const blob = new Blob([jsonContent], { type: 'application/json' });
+            
+            // Dosya adını oluştur
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            const fileName = `sorular_${timestamp}.json`;
+            
+            saveAs(blob, fileName);
+            
+            toast.success(`${indirilecekSorular.length} soru JSON formatında indirildi!`);
+            console.log("JSON indirme tamamlandı");
+            
+        } catch (error) {
+            console.error("JSON oluşturma hatası:", error);
+            toast.error("JSON oluşturulurken bir hata oluştu!");
+        } finally {
+            setJsonLoading(false);
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -428,22 +503,65 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                     <button
                         onClick={onClose}
                         className="px-6 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                        disabled={loading}
+                        disabled={loading || jsonLoading}
                     >
                         İptal
                     </button>
                     <button
                         onClick={() => {
-                            console.log("İndir butonuna tıklandı");
-                            createDocx().catch(error => {
-                                console.error("İndirme işlemi başarısız:", error);
-                                toast.error("İndirme işlemi başarısız oldu!");
+                            console.log("JSON İndir butonuna tıklandı");
+                            createJson().catch(error => {
+                                console.error("JSON indirme işlemi başarısız:", error);
+                                toast.error("JSON indirme işlemi başarısız oldu!");
                             });
                         }}
-                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={loading || (indirmeMiktari === "secili" && seciliSoruSayisi() === 0)}
+                        className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                        disabled={jsonLoading || loading || (indirmeMiktari === "secili" && seciliSoruSayisi() === 0)}
                     >
-                        {loading ? "İndiriliyor..." : "İndir"}
+                        {jsonLoading ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span>JSON İndiriliyor...</span>
+                            </>
+                        ) : (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                                <span>JSON İndir</span>
+                            </>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => {
+                            console.log("DOCX İndir butonuna tıklandı");
+                            createDocx().catch(error => {
+                                console.error("DOCX indirme işlemi başarısız:", error);
+                                toast.error("DOCX indirme işlemi başarısız oldu!");
+                            });
+                        }}
+                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                        disabled={loading || jsonLoading || (indirmeMiktari === "secili" && seciliSoruSayisi() === 0)}
+                    >
+                        {loading ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span>DOCX İndiriliyor...</span>
+                            </>
+                        ) : (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                                <span>DOCX İndir</span>
+                            </>
+                        )}
                     </button>
                 </div>
             </div>
