@@ -16,6 +16,9 @@ import BulkColorMindCards from "../../components/BulkColorMindCards";
 import AddMotivationNote from "../../components/AddMotivationNote";
 import MotivationNotesList from "../../components/MotivationNotesList";
 
+// API Base URL tanımı
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001';
+
 function NotesPage() {
     const [cards, setCards] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -138,39 +141,52 @@ function NotesPage() {
     };
 
     const handleBulkDelete = async () => {
-        if (!selectedKonuForDelete) {
-            toast.error("Lütfen bir konu seçin!!!");
-            return;
-        }
-
-        if (!window.confirm(`${topics.find(t => t.id === selectedKonuForDelete)?.baslik} konusundaki TÜM kartlar silinecek. Emin misiniz?`)) {
-            return;
-        }
-
+        if (!selectedKonuForDelete) return;
+        
         setIsDeletingAll(true);
         try {
+            // Firebase'den konudaki tüm kartları sil
             const konuRef = doc(db, "miniCards-konular", selectedKonuForDelete);
             const cardsRef = collection(konuRef, "cards");
-            const cardsQuery = query(cardsRef);
-            const snapshot = await getDocs(cardsQuery);
-
-            // Batch işlemi başlat
+            const snapshot = await getDocs(cardsRef);
+            
+            // Batch işlemi ile tüm kartları sil
             const batch = writeBatch(db);
             snapshot.docs.forEach((doc) => {
                 batch.delete(doc.ref);
             });
-
-            // Batch işlemini uygula
+            
             await batch.commit();
             
-            toast.success("Tüm kartlar başarıyla silindi!");
+            toast.success('Seçilen konudaki tüm kartlar başarıyla silindi!');
             setIsDeleteModalOpen(false);
-            setSelectedKonuForDelete("");
+            setSelectedKonuForDelete('');
+            refreshCards();
         } catch (error) {
-            console.error("Kartlar silinirken hata:", error);
-            toast.error("Kartlar silinirken bir hata oluştu!");
+            console.error('Toplu silme hatası:', error);
+            toast.error('Kartlar silinirken bir hata oluştu');
         } finally {
             setIsDeletingAll(false);
+        }
+    };
+
+    // Konu silme fonksiyonu
+    const handleTopicDelete = async (topicId, topicTitle) => {
+        if (!window.confirm(`"${topicTitle}" konusunu silmek istediğinizden emin misiniz? Bu konu altındaki tüm kartlar da silinecektir.`)) {
+            return;
+        }
+
+        try {
+            // Firebase'den doğrudan konu silme
+            const konuRef = doc(db, "miniCards-konular", topicId);
+            await deleteDoc(konuRef);
+            
+            toast.success('Konu başarıyla silindi!');
+            // Kartları yeniden yükle
+            refreshCards();
+        } catch (error) {
+            console.error('Konu silme hatası:', error);
+            toast.error('Konu silinirken bir hata oluştu');
         }
     };
 
@@ -632,27 +648,45 @@ function NotesPage() {
                                 {topics.map((topic) => {
                                     const cardCount = cards.filter(card => card.konuId === topic.id).length;
                                     return (
-                                        <button
+                                        <div
                                             key={topic.id}
-                                            onClick={() => handleKonuSelect(topic.id)}
-                                            className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 text-left"
+                                            className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 relative group"
                                         >
-                                            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                                                {topic.baslik}
-                                            </h3>
-                                            {cardCount > 0 ? (
-                                                <p className="text-gray-600 dark:text-gray-400">
-                                                    {cardCount} adet kart
-                                                </p>
-                                            ) : (
-                                                <div className="flex items-center text-gray-500 dark:text-gray-400">
-                                                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                                    </svg>
-                                                    <span>Henüz kart eklenmemiş</span>
-                                                </div>
-                                            )}
-                                        </button>
+                                            <button
+                                                onClick={() => handleKonuSelect(topic.id)}
+                                                className="w-full p-6 text-left rounded-xl"
+                                            >
+                                                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                                                    {topic.baslik}
+                                                </h3>
+                                                {cardCount > 0 ? (
+                                                    <p className="text-gray-600 dark:text-gray-400">
+                                                        {cardCount} adet kart
+                                                    </p>
+                                                ) : (
+                                                    <div className="flex items-center text-gray-500 dark:text-gray-400">
+                                                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                        </svg>
+                                                        <span>Henüz kart eklenmemiş</span>
+                                                    </div>
+                                                )}
+                                            </button>
+                                            
+                                            {/* Konu Silme Butonu */}
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleTopicDelete(topic.id, topic.baslik);
+                                                }}
+                                                className="absolute top-3 right-3 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
+                                                title="Konuyu Sil"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </div>
                                     );
                                 })}
                             </div>
