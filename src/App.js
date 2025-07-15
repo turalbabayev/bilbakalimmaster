@@ -17,6 +17,8 @@ import DenemeSinavlariPage from './pages/MainPage/deneme-sinavlari';
 import CreateExamPage from './pages/MainPage/create-exam';
 import QuestionBankPage from './pages/MainPage/question-bank';
 import ExamListPage from './pages/MainPage/exam-list';
+import ExamDetailPage from './pages/MainPage/exam-detail';
+import ExamEditPage from './pages/MainPage/exam-edit';
 import ExamResultsPage from './pages/MainPage/exam-results';
 import ExamStatsPage from './pages/MainPage/exam-stats';
 import ErrorLogsPage from './pages/MainPage/error_logs_page';
@@ -42,8 +44,10 @@ function App() {
                     <Route path="/deneme-sinavlari/olustur" element={<ProtectedRouter><CreateExamPage /></ProtectedRouter>} />
                     <Route path="/deneme-sinavlari/soru-bankasi" element={<ProtectedRouter><QuestionBankPage /></ProtectedRouter>} />
                     <Route path="/deneme-sinavlari/liste" element={<ProtectedRouter><ExamListPage /></ProtectedRouter>} />
+                    <Route path="/deneme-sinavlari/detay/:examId" element={<ProtectedRouter><ExamDetailPage /></ProtectedRouter>} />
+                    <Route path="/deneme-sinavlari/duzenle/:examId" element={<ProtectedRouter><ExamEditPage /></ProtectedRouter>} />
                     <Route path="/deneme-sinavlari/sonuclar" element={<ProtectedRouter><ExamResultsPage /></ProtectedRouter>} />
-                    <Route path="/deneme-sinavlari/istatistikler" element={<ProtectedRouter><ExamStatsPage /></ProtectedRouter>} />
+                    <Route path="/deneme-sinavlari/istatistik/:examId" element={<ProtectedRouter><ExamStatsPage /></ProtectedRouter>} />
                     <Route path="/error-logs" element={<ProtectedRouter><ErrorLogsPage /></ProtectedRouter>} />
                 </Routes>
             </Router>

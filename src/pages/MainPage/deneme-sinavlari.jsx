@@ -3,7 +3,6 @@ import Layout from '../../components/layout';
 import { 
     FaBookReader, 
     FaPlus, 
-    FaDatabase, 
     FaListAlt, 
     FaChartBar, 
     FaClipboardCheck 
@@ -18,14 +17,6 @@ const DenemeSinavlariPage = () => {
             description: 'Yeni deneme sınavları oluşturun ve düzenleyin',
             color: 'bg-blue-500',
             link: '/deneme-sinavlari/olustur'
-        },
-        {
-            id: 'questions',
-            title: 'Soru Bankası Yönetimi',
-            icon: FaDatabase,
-            description: 'Soru havuzunu yönetin ve kategorilendirin',
-            color: 'bg-green-500',
-            link: '/deneme-sinavlari/soru-bankasi'
         },
         {
             id: 'exams',
@@ -47,9 +38,9 @@ const DenemeSinavlariPage = () => {
             id: 'stats',
             title: 'İstatistikler',
             icon: FaChartBar,
-            description: 'Detaylı analiz ve istatistikleri görüntüleyin',
+            description: 'Sınav listesinden istediğiniz sınavın istatistiklerini görüntüleyin',
             color: 'bg-red-500',
-            link: '/deneme-sinavlari/istatistikler'
+            link: '/deneme-sinavlari/liste'
         }
     ];
 
