@@ -22,6 +22,7 @@ import ExamEditPage from './pages/MainPage/exam-edit';
 import ExamResultsPage from './pages/MainPage/exam-results';
 import ExamStatsPage from './pages/MainPage/exam-stats';
 import ErrorLogsPage from './pages/MainPage/error_logs_page';
+import NotificationsPage from './pages/MainPage/notifications_page';
 
 
 function App() {
@@ -38,6 +39,7 @@ function App() {
                     <Route path='/announcements' element={<ProtectedRouter><AnnouncementPage /></ProtectedRouter>} />
                     <Route path='/games' element={<ProtectedRouter><GamesPage /></ProtectedRouter>} />
                     <Route path='/notes' element={<ProtectedRouter><NotesPage /></ProtectedRouter>} />
+                    <Route path='/bildirimler' element={<ProtectedRouter><NotificationsPage /></ProtectedRouter>} />
                     <Route path='/users' element={<ProtectedRouter><UsersPage /></ProtectedRouter>} />
                     <Route path='/delete-account' element={<DeleteAccountPage />} />
                     <Route path='/deneme-sinavlari' element={<ProtectedRouter><DenemeSinavlariPage /></ProtectedRouter>} />

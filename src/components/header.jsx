@@ -27,6 +27,7 @@ const Header = () => {
         { path: "/games", label: "Oyunlar" },
         { path: "/notes", label: "Notlar" },
         { path: "/deneme-sinavlari", label: "Deneme Sınavları" },
+        { path: "/bildirimler", label: "Bildirimler", icon: <FaBell className="inline-block mr-1" /> },
         { path: "/users", label: "Kullanıcılar", icon: <FaUsers className="inline-block mr-1" /> },
         { path: "/error-logs", label: "Hata Kayıtları", icon: <FaExclamationTriangle className="inline-block mr-1" /> }
     ];
