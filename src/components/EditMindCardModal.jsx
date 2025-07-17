@@ -228,6 +228,9 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                             'bold italic underline forecolor | alignleft aligncenter ' +
                                             'alignright alignjustify | bullist numlist outdent indent | ' +
                                             'removeformat | image',
+                                        formats: {
+                                            underline: { inline: 'u' }
+                                        },
                                         content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
                                         images_upload_handler: handleImageUpload,
                                         automatic_uploads: true,
