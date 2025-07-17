@@ -117,8 +117,12 @@ const NotificationsPage = () => {
             // Bildirim verilerini OneSignal formatına çevir
             const formattedData = oneSignalService.formatNotificationData(notification);
             
+            console.log('Gönderilecek bildirim verisi:', formattedData);
+            
             // OneSignal API çağrısı
             const result = await oneSignalService.sendNotification(formattedData);
+            
+            console.log('OneSignal API sonucu:', result);
             
             if (result.id) {
                 const newNotification = {
@@ -146,11 +150,44 @@ const NotificationsPage = () => {
 
                 toast.success(`Bildirim başarıyla gönderildi! ${result.recipients || 'Bilinmeyen sayıda'} alıcıya ulaştı.`);
             } else {
-                throw new Error("Bildirim gönderilemedi");
+                console.error('OneSignal API hatası:', result);
+                
+                let errorMessage = "Bildirim gönderilemedi";
+                
+                if (result.error) {
+                    errorMessage = result.error;
+                }
+                
+                if (result.details) {
+                    console.error('Hata detayları:', result.details);
+                    
+                    if (result.details.errors) {
+                        const errors = result.details.errors;
+                        if (errors.included_segments) {
+                            errorMessage = `Segment hatası: ${errors.included_segments.join(', ')}`;
+                        } else if (errors.contents) {
+                            errorMessage = `Mesaj hatası: ${errors.contents.join(', ')}`;
+                        } else if (errors.headings) {
+                            errorMessage = `Başlık hatası: ${errors.headings.join(', ')}`;
+                        } else {
+                            errorMessage = `API Hatası: ${JSON.stringify(errors)}`;
+                        }
+                    }
+                }
+                
+                throw new Error(errorMessage);
             }
         } catch (error) {
             console.error("Bildirim gönderme hatası:", error);
-            toast.error(`Bildirim gönderilemedi: ${error.message}`);
+            
+            let errorMessage = error.message || "Bildirim gönderilemedi";
+            
+            // Ağ hatası kontrolü
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                errorMessage = "Ağ bağlantısı hatası. Lütfen internet bağlantınızı kontrol edin.";
+            }
+            
+            toast.error(errorMessage);
         } finally {
             setIsLoading(false);
         }
