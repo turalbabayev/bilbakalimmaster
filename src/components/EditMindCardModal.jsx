@@ -225,7 +225,7 @@ const EditMindCardModal = ({ isOpen, onClose, card, konuId, onSuccess }) => {
                                             'help', 'wordcount'
                                         ],
                                         toolbar: 'undo redo | blocks | ' +
-                                            'bold italic forecolor | alignleft aligncenter ' +
+                                            'bold italic underline forecolor | alignleft aligncenter ' +
                                             'alignright alignjustify | bullist numlist outdent indent | ' +
                                             'removeformat | image',
                                         content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
