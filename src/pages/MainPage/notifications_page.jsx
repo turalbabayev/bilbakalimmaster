@@ -1,108 +1,70 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Layout from "../../components/layout";
 import { toast } from "react-hot-toast";
-import { FaBell, FaUsers, FaPaperPlane, FaImage, FaClock, FaCheck, FaExclamationTriangle } from "react-icons/fa";
-import oneSignalService from "../../services/oneSignalService";
+import { FaBell, FaSave, FaImage, FaClock, FaExternalLinkAlt, FaTrash, FaEdit, FaSmile, FaUpload } from "react-icons/fa";
+import { db } from "../../firebase";
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import EmojiPicker from 'emoji-picker-react';
 
 const NotificationsPage = () => {
     const [notification, setNotification] = useState({
         title: "",
+        subtitle: "",
         message: "",
         imageUrl: "",
         redirectUrl: "",
-        targetAudience: "all", // all, segments, players
-        segments: [],
-        playerIds: [],
-        scheduleType: "now", // now, later
-        scheduleTime: ""
+        sentTime: "",
+        status: "sent" // sent, scheduled, draft
     });
 
     const [isLoading, setIsLoading] = useState(false);
-    const [sentNotifications, setSentNotifications] = useState([]);
-    const [segments, setSegments] = useState([]);
-    const [appStats, setAppStats] = useState(null);
-    const [loadingStats, setLoadingStats] = useState(true);
+    const [savedNotifications, setSavedNotifications] = useState([]);
+    const [editingId, setEditingId] = useState(null);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(null); // 'title' veya 'message'
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const fileInputRef = useRef(null);
 
-    // Component mount olduğunda verileri yükle
-    useEffect(() => {
-        loadInitialData();
-    }, []);
-
-    const loadInitialData = async () => {
-        await Promise.all([
-            loadSegments(),
-            loadAppStats(),
-            loadNotificationHistory()
-        ]);
-        setLoadingStats(false);
-    };
-
-    const loadSegments = async () => {
-        try {
-            const response = await oneSignalService.getSegments();
-            setSegments(response.segments || []);
-        } catch (error) {
-            console.error('Segments yüklenemedi:', error);
-        }
-    };
-
-    const loadAppStats = async () => {
-        try {
-            const response = await oneSignalService.getAppStats();
-            console.log('App Stats Response:', response);
-            setAppStats(response);
-        } catch (error) {
-            console.error('App stats yüklenemedi:', error);
-            toast.error('Uygulama istatistikleri yüklenemedi');
-        }
-    };
-
-    const loadNotificationHistory = async () => {
-        try {
-            const response = await oneSignalService.getNotificationHistory();
-            console.log('Notification History Response:', response);
-            setSentNotifications(response.notifications || []);
-        } catch (error) {
-            console.error('Bildirim geçmişi yüklenemedi:', error);
-        }
-    };
-
-    // Test fonksiyonu - OneSignal durumunu kontrol et
-    const testOneSignalStatus = async () => {
-        console.log('=== OneSignal Status Test ===');
-        
-        try {
-            // App Stats
-            const appStats = await oneSignalService.getAppStats();
-            console.log('App Stats:', appStats);
-            
-            // Segments
-            const segments = await oneSignalService.getSegments();
-            console.log('Segments:', segments);
-            
-            // Players
-            const players = await oneSignalService.getPlayers();
-            console.log('Players:', players);
-            
-            toast.success('OneSignal durumu console\'da kontrol edildi');
-        } catch (error) {
-            console.error('OneSignal test hatası:', error);
-            toast.error('OneSignal test hatası: ' + error.message);
-        }
-    };
-
-    const loadSamplePlayerIds = async () => {
-        try {
-            const samplePlayers = await oneSignalService.getSamplePlayerIds();
-            const playerIds = samplePlayers.map(player => player.id).filter(id => id);
+    const handleEmojiClick = (emojiData) => {
+        if (showEmojiPicker === 'title') {
             setNotification(prev => ({
                 ...prev,
-                playerIds: playerIds
+                title: prev.title + emojiData.emoji
             }));
-            toast.success(`Örnek Player ID'leri yüklendi. (${playerIds.length} adet)`);
+        } else if (showEmojiPicker === 'subtitle') {
+            setNotification(prev => ({
+                ...prev,
+                subtitle: prev.subtitle + emojiData.emoji
+            }));
+        } else if (showEmojiPicker === 'message') {
+            setNotification(prev => ({
+                ...prev,
+                message: prev.message + emojiData.emoji
+            }));
+        }
+        setShowEmojiPicker(null);
+    };
+
+    // Component mount olduğunda kayıtlı bildirimleri yükle
+    useEffect(() => {
+        loadSavedNotifications();
+    }, []);
+
+    const loadSavedNotifications = async () => {
+        try {
+            const notificationsRef = collection(db, "notifications");
+            const q = query(notificationsRef, orderBy("createdAt", "desc"));
+            const snapshot = await getDocs(q);
+            
+            const notifications = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            setSavedNotifications(notifications);
         } catch (error) {
-            console.error('Örnek Player ID yüklenemedi:', error);
-            toast.error('Örnek Player ID yüklenemedi.');
+            console.error('Bildirimler yüklenirken hata:', error);
+            toast.error('Bildirimler yüklenirken hata oluştu');
         }
     };
 
@@ -114,195 +76,266 @@ const NotificationsPage = () => {
         }));
     };
 
-    const handleSegmentChange = (segmentId) => {
-        setNotification(prev => ({
-            ...prev,
-            segments: prev.segments.includes(segmentId)
-                ? prev.segments.filter(id => id !== segmentId)
-                : [...prev.segments, segmentId]
-        }));
-    };
-
-    const handleSendNotification = async () => {
+    const handleSaveNotification = async () => {
         if (!notification.title.trim() || !notification.message.trim()) {
-            toast.error("Başlık ve mesaj alanları zorunludur!");
-            return;
-        }
-
-        if (notification.title.length > 50) {
-            toast.error("Başlık 50 karakterden fazla olamaz!");
-            return;
-        }
-
-        if (notification.message.length > 200) {
-            toast.error("Mesaj 200 karakterden fazla olamaz!");
+            toast.error('Başlık ve mesaj alanları zorunludur');
             return;
         }
 
         setIsLoading(true);
         try {
-            // Bildirim verilerini OneSignal formatına çevir
-            const formattedData = oneSignalService.formatNotificationData(notification);
-            
-            console.log('Gönderilecek bildirim verisi:', formattedData);
-            
-            // OneSignal API çağrısı
-            const result = await oneSignalService.sendNotification(formattedData);
-            
-            console.log('OneSignal API sonucu:', result);
-            
-            if (result.id) {
-                const newNotification = {
-                    id: result.id,
-                    ...notification,
-                    sentAt: new Date().toISOString(),
-                    status: "sent",
-                    recipients: result.recipients || "Bilinmiyor"
-                };
-
-                setSentNotifications(prev => [newNotification, ...prev]);
-                
-                // Form'u temizle
-                setNotification({
-                    title: "",
-                    message: "",
-                    imageUrl: "",
-                    redirectUrl: "",
-                    targetAudience: "all",
-                    segments: [],
-                    playerIds: [],
-                    scheduleType: "now",
-                    scheduleTime: ""
-                });
-
-                toast.success(`Bildirim başarıyla gönderildi! ${result.recipients || 'Bilinmeyen sayıda'} alıcıya ulaştı.`);
+            // Gönderim zamanını belirle
+            let finalSentTime;
+            if (notification.status === "sent") {
+                // Şimdi gönder seçilmişse o anki tarihi kullan
+                finalSentTime = new Date().toISOString();
+            } else if (notification.status === "scheduled") {
+                // Zamanla seçilmişse belirlenen tarihi kullan
+                finalSentTime = notification.sentTime || new Date().toISOString();
             } else {
-                console.error('OneSignal API hatası:', result);
-                
-                let errorMessage = "Bildirim gönderilemedi";
-                
-                if (result.error) {
-                    errorMessage = result.error;
-                }
-                
-                if (result.details) {
-                    console.error('Hata detayları:', result.details);
-                    
-                    if (result.details.errors) {
-                        const errors = result.details.errors;
-                        if (errors.included_segments) {
-                            errorMessage = `Segment hatası: ${errors.included_segments.join(', ')}`;
-                        } else if (errors.contents) {
-                            errorMessage = `Mesaj hatası: ${errors.contents.join(', ')}`;
-                        } else if (errors.headings) {
-                            errorMessage = `Başlık hatası: ${errors.headings.join(', ')}`;
-                        } else {
-                            errorMessage = `API Hatası: ${JSON.stringify(errors)}`;
-                        }
-                    }
-                }
-                
-                throw new Error(errorMessage);
+                // Diğer durumlar için o anki tarihi kullan
+                finalSentTime = new Date().toISOString();
             }
+
+            const notificationData = {
+                ...notification,
+                sentTime: finalSentTime,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            };
+
+            if (editingId) {
+                // Güncelleme
+                const notificationRef = doc(db, "notifications", editingId);
+                await updateDoc(notificationRef, {
+                    ...notificationData,
+                    updatedAt: serverTimestamp()
+                });
+                toast.success('Bildirim başarıyla güncellendi!');
+                setEditingId(null);
+            } else {
+                // Yeni kayıt
+                await addDoc(collection(db, "notifications"), notificationData);
+                toast.success('Bildirim başarıyla kaydedildi!');
+            }
+
+            // Formu temizle
+            setNotification({
+                title: "",
+                subtitle: "",
+                message: "",
+                imageUrl: "",
+                redirectUrl: "",
+                sentTime: "",
+                status: "sent"
+            });
+
+            // Listeyi yenile
+            loadSavedNotifications();
         } catch (error) {
-            console.error("Bildirim gönderme hatası:", error);
-            
-            let errorMessage = error.message || "Bildirim gönderilemedi";
-            
-            // Ağ hatası kontrolü
-            if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                errorMessage = "Ağ bağlantısı hatası. Lütfen internet bağlantınızı kontrol edin.";
-            }
-            
-            toast.error(errorMessage);
+            console.error('Bildirim kaydedilirken hata:', error);
+            toast.error('Bildirim kaydedilirken hata oluştu');
         } finally {
             setIsLoading(false);
         }
     };
 
-    if (loadingStats) {
-        return (
-            <Layout>
-                <div className="container mx-auto px-4 py-6">
-                    <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                        <p className="mt-4 text-gray-600 dark:text-gray-400">OneSignal bağlantısı kontrol ediliyor...</p>
-                    </div>
-                </div>
-            </Layout>
-        );
-    }
+    const handleEdit = (notif) => {
+        setNotification({
+            title: notif.title,
+            subtitle: notif.subtitle || "",
+            message: notif.message,
+            imageUrl: notif.imageUrl || "",
+            redirectUrl: notif.redirectUrl || "",
+            sentTime: notif.sentTime,
+            status: notif.status
+        });
+        setEditingId(notif.id);
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm('Bu bildirimi silmek istediğinizden emin misiniz?')) {
+            return;
+        }
+
+        try {
+            await deleteDoc(doc(db, "notifications", id));
+            toast.success('Bildirim silindi');
+            loadSavedNotifications();
+        } catch (error) {
+            console.error('Bildirim silinirken hata:', error);
+            toast.error('Bildirim silinirken hata oluştu');
+        }
+    };
+
+    const cancelEdit = () => {
+        setEditingId(null);
+        setNotification({
+            title: "",
+            subtitle: "",
+            message: "",
+            imageUrl: "",
+            redirectUrl: "",
+            sentTime: "",
+            status: "sent"
+        });
+    };
+
+    const handleImageUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Dosya boyutu kontrolü (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('Dosya boyutu 5MB\'dan küçük olmalıdır');
+            return;
+        }
+
+        // Dosya türü kontrolü
+        if (!file.type.startsWith('image/')) {
+            toast.error('Sadece resim dosyaları yüklenebilir');
+            return;
+        }
+
+        setUploadingImage(true);
+        try {
+            const storage = getStorage();
+            const fileName = `notifications/${Date.now()}_${file.name}`;
+            const imageRef = storageRef(storage, fileName);
+            
+            // Dosyayı yükle
+            await uploadBytes(imageRef, file);
+            
+            // Download URL'ini al
+            const downloadURL = await getDownloadURL(imageRef);
+            
+            // State'i güncelle
+            setNotification(prev => ({
+                ...prev,
+                imageUrl: downloadURL
+            }));
+            
+            toast.success('Resim başarıyla yüklendi!');
+        } catch (error) {
+            console.error('Resim yükleme hatası:', error);
+            toast.error('Resim yüklenirken hata oluştu');
+        } finally {
+            setUploadingImage(false);
+            // Input'u temizle
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
 
     return (
         <Layout>
             <div className="container mx-auto px-4 py-6">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                <div className="text-center mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4 flex items-center justify-center gap-3">
                         <FaBell className="text-blue-600" />
-                        Bildirimler
+                        Bildirim Yönetimi
                     </h1>
-                    <p className="text-gray-600 dark:text-gray-400 mt-2">
-                        OneSignal üzerinden kullanıcılara bildirim gönderin
+                    <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                        OneSignal Dashboard'dan bildirim gönderdikten sonra, aynı bildirim bilgilerini burada kaydedin
                     </p>
-                    {appStats && (
-                        <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                            <div className="flex items-center gap-4 text-sm">
-                                <span className="text-blue-600 dark:text-blue-400">
-                                    📱 Toplam Cihaz: {appStats.players || 0}
-                                </span>
-                                <span className="text-blue-600 dark:text-blue-400">
-                                    📊 Uygulama: {appStats.name || 'BilBakalım'}
-                                </span>
+                    <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                            <FaExternalLinkAlt className="text-yellow-600 mt-1" />
+                            <div className="text-left">
+                                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                                    Kullanım Talimatları:
+                                </p>
+                                <ol className="text-sm text-yellow-700 dark:text-yellow-300 mt-2 space-y-1">
+                                    <li>1. OneSignal Dashboard'a gidin</li>
+                                    <li>2. Bildiriminizi oluşturun ve gönderin</li>
+                                    <li>3. Gönderdiğiniz bildirim bilgilerini aşağıdaki forma girin</li>
+                                    <li>4. "Bildirim Kaydet" butonuna basın</li>
+                                </ol>
                             </div>
                         </div>
-                    )}
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                     {/* Bildirim Gönderme Formu */}
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
                         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                            <FaPaperPlane className="text-green-600" />
-                            Yeni Bildirim Gönder
+                            <FaSave className="text-green-600" />
+                            Yeni Bildirim Kaydet
                         </h2>
 
                         <div className="space-y-6">
                             {/* Başlık */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    Başlık *
+                                    Bildirim Başlığı
                                 </label>
-                                <input
-                                    type="text"
-                                    name="title"
-                                    value={notification.title}
-                                    onChange={handleInputChange}
-                                    maxLength={50}
-                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                                    placeholder="Bildirim başlığı..."
-                                />
-                                <p className="text-xs text-gray-500 mt-1">
-                                    {notification.title.length}/50 karakter
-                                </p>
+                                <div className="flex items-center">
+                                    <input
+                                        type="text"
+                                        name="title"
+                                        value={notification.title}
+                                        onChange={handleInputChange}
+                                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                        placeholder="Bildirim başlığını girin..."
+                                    />
+                                    <button
+                                        onClick={() => setShowEmojiPicker('title')}
+                                        className="ml-2 p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
+                                        title="Emoji Ekle"
+                                    >
+                                        <FaSmile />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Alt Başlık */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Bildirim Alt Başlığı (Opsiyonel)
+                                </label>
+                                <div className="flex items-center">
+                                    <input
+                                        type="text"
+                                        name="subtitle"
+                                        value={notification.subtitle}
+                                        onChange={handleInputChange}
+                                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                        placeholder="Bildirim alt başlığını girin..."
+                                    />
+                                    <button
+                                        onClick={() => setShowEmojiPicker('subtitle')}
+                                        className="ml-2 p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
+                                        title="Emoji Ekle"
+                                    >
+                                        <FaSmile />
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Mesaj */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    Mesaj *
+                                    Bildirim Mesajı
                                 </label>
-                                <textarea
-                                    name="message"
-                                    value={notification.message}
-                                    onChange={handleInputChange}
-                                    maxLength={200}
-                                    rows={4}
-                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                                    placeholder="Bildirim mesajı..."
-                                />
-                                <p className="text-xs text-gray-500 mt-1">
-                                    {notification.message.length}/200 karakter
-                                </p>
+                                <div className="flex items-center">
+                                    <textarea
+                                        name="message"
+                                        value={notification.message}
+                                        onChange={handleInputChange}
+                                        rows={4}
+                                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                        placeholder="Bildirim mesajını girin..."
+                                    />
+                                    <button
+                                        onClick={() => setShowEmojiPicker('message')}
+                                        className="ml-2 p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
+                                        title="Emoji Ekle"
+                                    >
+                                        <FaSmile />
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Resim URL */}
@@ -311,14 +344,53 @@ const NotificationsPage = () => {
                                     <FaImage className="inline mr-1" />
                                     Resim URL (Opsiyonel)
                                 </label>
-                                <input
-                                    type="url"
-                                    name="imageUrl"
-                                    value={notification.imageUrl}
-                                    onChange={handleInputChange}
-                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                                    placeholder="https://example.com/image.jpg"
-                                />
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="url"
+                                        name="imageUrl"
+                                        value={notification.imageUrl}
+                                        onChange={handleInputChange}
+                                        className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                        placeholder="https://example.com/image.jpg"
+                                    />
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={handleImageUpload}
+                                        accept="image/*"
+                                        className="hidden"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={uploadingImage}
+                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition-colors flex items-center gap-2"
+                                    >
+                                        {uploadingImage ? (
+                                            <>
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                Yükleniyor...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <FaUpload />
+                                                Resim Yükle
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                                {notification.imageUrl && (
+                                    <div className="mt-2">
+                                        <img 
+                                            src={notification.imageUrl} 
+                                            alt="Bildirim resmi" 
+                                            className="w-32 h-32 object-cover rounded-lg border border-gray-300 dark:border-gray-600"
+                                            onError={(e) => {
+                                                e.target.style.display = 'none';
+                                            }}
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Yönlendirme URL */}
@@ -336,103 +408,6 @@ const NotificationsPage = () => {
                                 />
                             </div>
 
-                            {/* Hedef Kitle */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    <FaUsers className="inline mr-1" />
-                                    Hedef Kitle
-                                </label>
-                                <div className="space-y-3">
-                                    <label className="flex items-center">
-                                        <input
-                                            type="radio"
-                                            name="targetAudience"
-                                            value="all"
-                                            checked={notification.targetAudience === "all"}
-                                            onChange={handleInputChange}
-                                            className="mr-2"
-                                        />
-                                        Tüm Kullanıcılar
-                                    </label>
-                                    
-                                    <label className="flex items-center">
-                                        <input
-                                            type="radio"
-                                            name="targetAudience"
-                                            value="segments"
-                                            checked={notification.targetAudience === "segments"}
-                                            onChange={handleInputChange}
-                                            className="mr-2"
-                                        />
-                                        Belirli Segmentler
-                                    </label>
-                                    
-                                    <label className="flex items-center">
-                                        <input
-                                            type="radio"
-                                            name="targetAudience"
-                                            value="players"
-                                            checked={notification.targetAudience === "players"}
-                                            onChange={handleInputChange}
-                                            className="mr-2"
-                                        />
-                                        Belirli Kullanıcılar (Player ID)
-                                    </label>
-                                </div>
-                            </div>
-
-                            {/* Segment Seçimi */}
-                            {notification.targetAudience === "segments" && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Segmentler
-                                    </label>
-                                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                                        {segments.map((segment) => (
-                                            <label key={segment.id} className="flex items-center">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={notification.segments.includes(segment.id)}
-                                                    onChange={() => handleSegmentChange(segment.id)}
-                                                    className="mr-2"
-                                                />
-                                                <span className="text-sm">
-                                                    {segment.name} ({segment.session_count || 0} kullanıcı)
-                                                </span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Player ID Girişi */}
-                            {notification.targetAudience === "players" && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Player ID'leri
-                                    </label>
-                                    <div className="space-y-2">
-                                        <textarea
-                                            value={notification.playerIds.join('\n')}
-                                            onChange={(e) => setNotification(prev => ({
-                                                ...prev,
-                                                playerIds: e.target.value.split('\n').filter(id => id.trim())
-                                            }))}
-                                            rows={4}
-                                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                                            placeholder="Her satıra bir Player ID girin..."
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={loadSamplePlayerIds}
-                                            className="text-sm text-blue-600 hover:text-blue-800"
-                                        >
-                                            Örnek Player ID'leri yükle
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
                             {/* Zamanlama */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -443,9 +418,9 @@ const NotificationsPage = () => {
                                     <label className="flex items-center">
                                         <input
                                             type="radio"
-                                            name="scheduleType"
-                                            value="now"
-                                            checked={notification.scheduleType === "now"}
+                                            name="status"
+                                            value="sent"
+                                            checked={notification.status === "sent"}
                                             onChange={handleInputChange}
                                             className="mr-2"
                                         />
@@ -455,9 +430,9 @@ const NotificationsPage = () => {
                                     <label className="flex items-center">
                                         <input
                                             type="radio"
-                                            name="scheduleType"
-                                            value="later"
-                                            checked={notification.scheduleType === "later"}
+                                            name="status"
+                                            value="scheduled"
+                                            checked={notification.status === "scheduled"}
                                             onChange={handleInputChange}
                                             className="mr-2"
                                         />
@@ -467,48 +442,50 @@ const NotificationsPage = () => {
                             </div>
 
                             {/* Zamanlama Detayları */}
-                            {notification.scheduleType === "later" && (
+                            {notification.status === "scheduled" && (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                         Gönderim Tarihi ve Saati
                                     </label>
                                     <input
                                         type="datetime-local"
-                                        name="scheduleTime"
-                                        value={notification.scheduleTime}
+                                        name="sentTime"
+                                        value={notification.sentTime}
                                         onChange={handleInputChange}
                                         className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                                     />
                                 </div>
                             )}
 
-                            {/* Gönder Butonu */}
+                            {/* Kaydet Butonu */}
                             <button
-                                onClick={handleSendNotification}
+                                onClick={handleSaveNotification}
                                 disabled={isLoading || !notification.title.trim() || !notification.message.trim()}
                                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
                             >
                                 {isLoading ? (
                                     <>
                                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                        Gönderiliyor...
+                                        Kaydediliyor...
                                     </>
                                 ) : (
                                     <>
-                                        <FaPaperPlane />
-                                        Bildirim Gönder
+                                        <FaSave />
+                                        Bildirim Kaydet
                                     </>
                                 )}
                             </button>
 
-                            {/* Test Butonu */}
-                            <button
-                                onClick={testOneSignalStatus}
-                                className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 mt-2"
-                            >
-                                <FaCheck />
-                                OneSignal Durumunu Test Et
-                            </button>
+                            {/* İptal Butonu */}
+                            {editingId && (
+                                <button
+                                    onClick={cancelEdit}
+                                    className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <FaExternalLinkAlt />
+                                    İptal
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -520,34 +497,32 @@ const NotificationsPage = () => {
                         </h2>
 
                         <div className="space-y-4 max-h-96 overflow-y-auto">
-                            {sentNotifications.length === 0 ? (
+                            {savedNotifications.length === 0 ? (
                                 <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                                    Henüz bildirim gönderilmedi.
+                                    Henüz bildirim kaydedilmedi.
                                 </p>
                             ) : (
-                                sentNotifications.map((notif, index) => (
-                                    <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex-1">
-                                                <h3 className="font-medium text-gray-900 dark:text-white">
-                                                    {notif.headings?.en || notif.title}
-                                                </h3>
-                                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                                    {notif.contents?.en || notif.message}
-                                                </p>
-                                                <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                                                    <span>
-                                                        {new Date(notif.send_after || notif.sentAt).toLocaleString('tr-TR')}
-                                                    </span>
-                                                    <span>
-                                                        {notif.successful || notif.recipients} alıcı
-                                                    </span>
-                                                </div>
+                                savedNotifications.map((notif, index) => (
+                                    <div key={notif.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-between">
+                                        <div className="flex-1">
+                                            <h3 className="font-medium text-gray-900 dark:text-white">
+                                                {notif.title}
+                                            </h3>
+                                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                                {notif.subtitle && <span>{notif.subtitle} - </span>} {notif.message}
+                                            </p>
+                                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                                <span>
+                                                    {new Date(notif.sentTime || notif.createdAt).toLocaleString('tr-TR')}
+                                                </span>
+                                                <span>
+                                                    {notif.status === 'sent' ? 'Gönderildi' : notif.status === 'scheduled' ? 'Zamanlandı' : 'Taslak'}
+                                                </span>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <FaCheck className="text-green-500 text-sm" />
-                                                <span className="text-xs text-green-600">Gönderildi</span>
-                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <FaEdit className="text-blue-500 text-sm cursor-pointer" onClick={() => handleEdit(notif)} />
+                                            <FaTrash className="text-red-500 text-sm cursor-pointer" onClick={() => handleDelete(notif.id)} />
                                         </div>
                                     </div>
                                 ))
@@ -556,6 +531,41 @@ const NotificationsPage = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Emoji Picker */}
+            {showEmojiPicker && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div 
+                        className="fixed inset-0 bg-black bg-opacity-50"
+                        onClick={() => setShowEmojiPicker(null)}
+                    ></div>
+                    <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+                        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                Emoji Seçin
+                            </h3>
+                            <button
+                                onClick={() => setShowEmojiPicker(null)}
+                                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xl"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <EmojiPicker
+                            onEmojiClick={handleEmojiClick}
+                            theme="auto"
+                            width={350}
+                            height={400}
+                            searchDisabled={false}
+                            emojiSize={24}
+                            emojiTooltip={true}
+                            previewConfig={{ showPreview: false }}
+                            skinTonePickerLocation="SEARCH"
+                            customEmojis={[]}
+                        />
+                    </div>
+                </div>
+            )}
         </Layout>
     );
 };
