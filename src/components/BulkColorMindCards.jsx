@@ -10,6 +10,7 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
     const [startRange, setStartRange] = useState(1);
     const [endRange, setEndRange] = useState(10);
     const [selectedHeading, setSelectedHeading] = useState('p'); // Varsayılan olarak paragraf
+    const [isBold, setIsBold] = useState(false); // Bold seçeneği
 
     // Seçili kartların rengini kontrol et
     useEffect(() => {
@@ -87,19 +88,43 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
                 const updateData = {};
                 
                 if (selectedTarget === 'content') {
-                    // HTML içeriğindeki paragrafları seçilen başlık etiketiyle değiştir
-                    const contentWithHeading = card.content.replace(
-                        /<p[^>]*>(.*?)<\/p>/g,
-                        `<${selectedHeading}>$1</${selectedHeading}>`
+                    // HTML içeriğindeki tüm heading ve p tag'lerini seçilen başlık etiketiyle değiştir
+                    let contentWithHeading = card.content.replace(
+                        /<(p|h[1-6])[^>]*>(.*?)<\/(p|h[1-6])>/g,
+                        `<${selectedHeading}>$2</${selectedHeading}>`
                     );
+                    
+                    // Bold işlemi
+                    if (isBold) {
+                        // Mevcut bold etiketlerini kaldır ve yeniden ekle
+                        contentWithHeading = contentWithHeading.replace(/<\/?strong>/g, '');
+                        contentWithHeading = contentWithHeading.replace(/<\/?b>/g, '');
+                        contentWithHeading = contentWithHeading.replace(
+                            new RegExp(`<${selectedHeading}[^>]*>(.*?)</${selectedHeading}>`, 'g'),
+                            `<${selectedHeading}><strong>$1</strong></${selectedHeading}>`
+                        );
+                    }
+                    
                     updateData.contentColor = selectedColor;
                     updateData.content = contentWithHeading;
                 } else {
                     // Başlık için de aynı işlemi yap
-                    const titleWithHeading = card.altKonu.replace(
-                        /<p[^>]*>(.*?)<\/p>/g,
-                        `<${selectedHeading}>$1</${selectedHeading}>`
+                    let titleWithHeading = card.altKonu.replace(
+                        /<(p|h[1-6])[^>]*>(.*?)<\/(p|h[1-6])>/g,
+                        `<${selectedHeading}>$2</${selectedHeading}>`
                     );
+                    
+                    // Bold işlemi
+                    if (isBold) {
+                        // Mevcut bold etiketlerini kaldır ve yeniden ekle
+                        titleWithHeading = titleWithHeading.replace(/<\/?strong>/g, '');
+                        titleWithHeading = titleWithHeading.replace(/<\/?b>/g, '');
+                        titleWithHeading = titleWithHeading.replace(
+                            new RegExp(`<${selectedHeading}[^>]*>(.*?)</${selectedHeading}>`, 'g'),
+                            `<${selectedHeading}><strong>$1</strong></${selectedHeading}>`
+                        );
+                    }
+                    
                     updateData.titleColor = selectedColor;
                     updateData.altKonu = titleWithHeading;
                 }
@@ -110,7 +135,13 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
             });
 
             await batch.commit();
-            toast.success(`Seçili kartların ${selectedTarget === 'content' ? 'içerik' : 'başlık'} rengi ve boyutu güncellendi!`);
+            const operations = [];
+            if (selectedColor !== '#000000') operations.push('rengi');
+            if (selectedHeading !== 'p') operations.push('boyutu');
+            if (isBold) operations.push('kalınlığı');
+            
+            const operationText = operations.length > 0 ? operations.join(', ') : 'özellikleri';
+            toast.success(`Seçili kartların ${selectedTarget === 'content' ? 'içerik' : 'başlık'} ${operationText} güncellendi!`);
             onSuccess?.();
             onClose();
         } catch (error) {
@@ -184,6 +215,19 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
                                     <option value="h5">Daha Küçük (H5)</option>
                                     <option value="h6">En Küçük (H6)</option>
                                 </select>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                                <button
+                                    onClick={() => setIsBold(!isBold)}
+                                    className={`px-4 py-2 rounded-lg font-bold ${
+                                        isBold
+                                            ? 'bg-green-600 text-white'
+                                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                                    }`}
+                                >
+                                    <strong>B</strong> Kalın Yap
+                                </button>
                             </div>
                         </div>
 
