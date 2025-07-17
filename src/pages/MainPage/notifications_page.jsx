@@ -48,19 +48,46 @@ const NotificationsPage = () => {
 
     const loadAppStats = async () => {
         try {
-            const stats = await oneSignalService.getAppStats();
-            setAppStats(stats);
+            const response = await oneSignalService.getAppStats();
+            console.log('App Stats Response:', response);
+            setAppStats(response);
         } catch (error) {
             console.error('App stats yüklenemedi:', error);
+            toast.error('Uygulama istatistikleri yüklenemedi');
         }
     };
 
     const loadNotificationHistory = async () => {
         try {
-            const history = await oneSignalService.getNotificationHistory();
-            setSentNotifications(history.notifications || []);
+            const response = await oneSignalService.getNotificationHistory();
+            console.log('Notification History Response:', response);
+            setSentNotifications(response.notifications || []);
         } catch (error) {
             console.error('Bildirim geçmişi yüklenemedi:', error);
+        }
+    };
+
+    // Test fonksiyonu - OneSignal durumunu kontrol et
+    const testOneSignalStatus = async () => {
+        console.log('=== OneSignal Status Test ===');
+        
+        try {
+            // App Stats
+            const appStats = await oneSignalService.getAppStats();
+            console.log('App Stats:', appStats);
+            
+            // Segments
+            const segments = await oneSignalService.getSegments();
+            console.log('Segments:', segments);
+            
+            // Players
+            const players = await oneSignalService.getPlayers();
+            console.log('Players:', players);
+            
+            toast.success('OneSignal durumu console\'da kontrol edildi');
+        } catch (error) {
+            console.error('OneSignal test hatası:', error);
+            toast.error('OneSignal test hatası: ' + error.message);
         }
     };
 
@@ -472,6 +499,15 @@ const NotificationsPage = () => {
                                         Bildirim Gönder
                                     </>
                                 )}
+                            </button>
+
+                            {/* Test Butonu */}
+                            <button
+                                onClick={testOneSignalStatus}
+                                className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 mt-2"
+                            >
+                                <FaCheck />
+                                OneSignal Durumunu Test Et
                             </button>
                         </div>
                     </div>

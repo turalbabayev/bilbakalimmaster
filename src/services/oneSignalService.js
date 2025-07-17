@@ -1,10 +1,8 @@
 // OneSignal Service - Vercel API Routes ile
 class OneSignalService {
   constructor() {
-    // Production'da domain'inizi, development'ta localhost kullanın
-    this.baseURL = process.env.NODE_ENV === 'production' 
-      ? '' // Vercel'de aynı domain
-      : 'http://localhost:3000'; // Development'ta
+    // Her durumda current domain'i kullan
+    this.baseURL = '';
   }
 
   async sendNotification(notificationData) {
@@ -109,6 +107,29 @@ class OneSignalService {
       return await response.json();
     } catch (error) {
       console.error('Bildirim geçmişi alma hatası:', error);
+      throw error;
+    }
+  }
+
+  async getPlayers(limit = 10, offset = 0) {
+    try {
+      const response = await fetch(
+        `${this.baseURL}/api/onesignal/players?limit=${limit}&offset=${offset}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Player listesi alma hatası:', error);
       throw error;
     }
   }
