@@ -14,9 +14,9 @@ export default async function handler(req, res) {
   }
 
   const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID;
-  const ONESIGNAL_USER_AUTH_KEY = process.env.ONESIGNAL_USER_AUTH_KEY;
+  const ONESIGNAL_REST_API_KEY = process.env.ONESIGNAL_REST_API_KEY;
 
-  if (!ONESIGNAL_APP_ID || !ONESIGNAL_USER_AUTH_KEY) {
+  if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
     return res.status(500).json({ error: 'OneSignal yapılandırması eksik' });
   }
 
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       `https://onesignal.com/api/v1/apps/${ONESIGNAL_APP_ID}/segments`,
       {
         headers: {
-          'Authorization': `Basic ${ONESIGNAL_USER_AUTH_KEY}`
+          'Authorization': `Key ${ONESIGNAL_REST_API_KEY}`
         }
       }
     );

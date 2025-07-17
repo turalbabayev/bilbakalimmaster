@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       `https://onesignal.com/api/v1/apps/${ONESIGNAL_APP_ID}`,
       {
         headers: {
-          'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`
+          'Authorization': `Key ${ONESIGNAL_REST_API_KEY}`
         }
       }
     );

@@ -26,7 +26,7 @@ export default async function handler(req, res) {
       `https://onesignal.com/api/v1/players?app_id=${ONESIGNAL_APP_ID}&limit=${limit}&offset=${offset}`,
       {
         headers: {
-          'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`
+          'Authorization': `Key ${ONESIGNAL_REST_API_KEY}`
         }
       }
     );
