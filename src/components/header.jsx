@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
-import { FaBell, FaUsers, FaExclamationTriangle, FaChartBar, FaTools, FaChevronDown, FaFilePdf } from 'react-icons/fa';
+import { FaBell, FaUsers, FaExclamationTriangle, FaChartBar, FaTools, FaChevronDown, FaFilePdf, FaVideo } from 'react-icons/fa';
 
 const Header = () => {
     const navigate = useNavigate();
@@ -35,6 +35,7 @@ const Header = () => {
     const toolsMenuItems = [
         { path: "/konu-istatistikler", label: "Konu İstatistikleri", icon: <FaChartBar className="inline-block mr-1" /> },
         { path: "/pdf-bank", label: "PDF Bankası", icon: <FaFilePdf className="inline-block mr-1" /> },
+        { path: "/toplanti-arsivi", label: "Toplantı Arşivi", icon: <FaVideo className="inline-block mr-1" /> },
         { path: "/error-logs", label: "Hata Kayıtları", icon: <FaExclamationTriangle className="inline-block mr-1" /> }
     ];
 
@@ -96,7 +97,7 @@ const Header = () => {
                                 <button
                                     onClick={() => setIsToolsDropdownOpen(!isToolsDropdownOpen)}
                                     className={`px-4 py-5 text-sm font-medium transition-colors duration-200 flex items-center ${
-                                        isActive('/konu-istatistikler') || isActive('/pdf-bank') || isActive('/error-logs')
+                                        isActive('/konu-istatistikler') || isActive('/pdf-bank') || isActive('/toplanti-arsivi') || isActive('/error-logs')
                                         ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/50'
                                         : 'text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/50'
                                     }`}

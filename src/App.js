@@ -25,6 +25,7 @@ import ErrorLogsPage from './pages/MainPage/error_logs_page';
 import NotificationsPage from './pages/MainPage/notifications_page';
 import KonuStatsPage from './pages/MainPage/konu_stats_page';
 import PDFBankPage from './pages/MainPage/pdf_bank_page';
+import MeetingArchivePage from './pages/MainPage/meeting_archive_page';
 
 function App() {
     return (
@@ -54,6 +55,7 @@ function App() {
                     <Route path="/error-logs" element={<ProtectedRouter><ErrorLogsPage /></ProtectedRouter>} />
                     <Route path='/konu-istatistikler' element={<ProtectedRouter><KonuStatsPage /></ProtectedRouter>} />
                     <Route path='/pdf-bank' element={<ProtectedRouter><PDFBankPage /></ProtectedRouter>} />
+                    <Route path='/toplanti-arsivi' element={<ProtectedRouter><MeetingArchivePage /></ProtectedRouter>} />
                 </Routes>
             </Router>
         </AuthProvider>
