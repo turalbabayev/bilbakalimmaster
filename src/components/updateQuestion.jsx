@@ -6,6 +6,7 @@ import { Editor } from '@tinymce/tinymce-react';
 import { toast } from 'react-hot-toast';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import konuStatsService from "../services/konuStatsService";
 
 const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateComplete }) => {
     const [soru, setSoru] = useState(null);
@@ -283,6 +284,15 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
 
             await updateDoc(soruRef, updatedSoru);
             console.log("Soru başarıyla güncellendi");
+            
+            // Konu istatistiklerini otomatik güncelle
+            try {
+                await konuStatsService.updateKonuStatsOnSoruChange(konuId);
+                console.log("Konu istatistikleri otomatik güncellendi");
+            } catch (statsError) {
+                console.error("Konu istatistikleri güncellenirken hata:", statsError);
+                // İstatistik hatası ana işlemi etkilemesin
+            }
             
             toast.success("Soru başarıyla güncellendi!");
             

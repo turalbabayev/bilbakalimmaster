@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { db } from "../firebase";
 import { doc, deleteDoc, collection, getDocs, updateDoc, query, orderBy } from "firebase/firestore";
 import { toast } from 'react-hot-toast';
+import konuStatsService from "../services/konuStatsService";
 
 const DeleteQuestion = ({ soruRef, onDelete }) => {
     const [isDeleting, setIsDeleting] = useState(false);
@@ -61,6 +62,15 @@ const DeleteQuestion = ({ soruRef, onDelete }) => {
             // Tüm güncelleme işlemlerini bekle
             await Promise.all(updatePromises);
             console.log("Soru numaraları güncellendi");
+
+            // Konu istatistiklerini otomatik güncelle
+            try {
+                await konuStatsService.updateKonuStatsOnSoruChange(konuId);
+                console.log("Konu istatistikleri otomatik güncellendi");
+            } catch (statsError) {
+                console.error("Konu istatistikleri güncellenirken hata:", statsError);
+                // İstatistik hatası ana işlemi etkilemesin
+            }
 
             toast.success("Soru başarıyla silindi ve numaralar yeniden düzenlendi.");
             onDelete();

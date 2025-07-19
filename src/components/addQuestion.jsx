@@ -6,6 +6,7 @@ import { Editor } from '@tinymce/tinymce-react';
 import { toast } from 'react-hot-toast';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import konuStatsService from "../services/konuStatsService";
 
 const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [selectedAltKonu, setSelectedAltKonu] = useState("");
@@ -123,6 +124,15 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
 
             // Soruyu Firestore'a ekle
             await addDoc(sorularCollectionRef, newQuestion);
+            
+            // Konu istatistiklerini otomatik güncelle
+            try {
+                await konuStatsService.updateKonuStatsOnSoruChange(currentKonuId);
+                console.log("Konu istatistikleri otomatik güncellendi");
+            } catch (statsError) {
+                console.error("Konu istatistikleri güncellenirken hata:", statsError);
+                // İstatistik hatası ana işlemi etkilemesin
+            }
             
             toast.success("Soru başarıyla eklendi!");
             

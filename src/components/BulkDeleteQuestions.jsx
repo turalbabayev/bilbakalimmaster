@@ -2,58 +2,42 @@ import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
 import { collection, getDocs, deleteDoc, doc, query, orderBy, updateDoc } from "firebase/firestore";
 import { toast } from 'react-hot-toast';
+import konuStatsService from "../services/konuStatsService";
 
 const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) => {
-    const [loading, setLoading] = useState(false);
     const [sorular, setSorular] = useState([]);
     const [selectedSorular, setSelectedSorular] = useState({});
-    const [hepsiSecili, setHepsiSecili] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        const fetchSorular = async () => {
-            if (!isOpen) return;
-            
-            console.log('Fetching questions with params:', { konuId, altKonuId, altDalId });
-            setLoading(true);
-            try {
-                let soruRef;
-                if (altDalId) {
-                    soruRef = collection(db, 'konular', konuId, 'altkonular', altKonuId, 'altdallar', altDalId, 'sorular');
-                    console.log('Using altdal path:', altDalId);
-                } else {
-                    soruRef = collection(db, 'konular', konuId, 'altkonular', altKonuId, 'sorular');
-                    console.log('Using altkonu path');
-                }
-
-                const q = query(soruRef, orderBy('soruNumarasi', 'asc'));
-                const querySnapshot = await getDocs(q);
-                
-                console.log('Found questions:', querySnapshot.size);
-                
-                const soruListesi = querySnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-
-                console.log('Processed questions:', soruListesi.length);
-                setSorular(soruListesi);
-                setSelectedSorular({});
-                setHepsiSecili(false);
-            } catch (error) {
-                console.error('Sorular yüklenirken hata oluştu:', error);
-                toast.error('Sorular yüklenirken bir hata oluştu');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        if (konuId && altKonuId && isOpen) {
-            console.log('Starting fetch with:', { konuId, altKonuId, isOpen });
+        if (isOpen) {
             fetchSorular();
-        } else {
-            console.log('Fetch conditions not met:', { konuId, altKonuId, isOpen });
         }
-    }, [konuId, altKonuId, altDalId, isOpen]);
+    }, [isOpen, konuId, altKonuId, altDalId]);
+
+    const fetchSorular = async () => {
+        try {
+            // Alt dal ID'si yoksa, doğrudan alt konu altındaki sorulara bakalım
+            const soruBasePath = altDalId 
+                ? ["konular", konuId, "altkonular", altKonuId, "altdallar", altDalId, "sorular"]
+                : ["konular", konuId, "altkonular", altKonuId, "sorular"];
+                
+            const soruRef = collection(db, ...soruBasePath);
+            const q = query(soruRef, orderBy("soruNumarasi", "asc"));
+            const querySnapshot = await getDocs(q);
+            
+            const sorularData = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            setSorular(sorularData);
+            setSelectedSorular({});
+        } catch (error) {
+            console.error("Sorular yüklenirken hata:", error);
+            toast.error("Sorular yüklenirken bir hata oluştu!");
+        }
+    };
 
     const handleSoruToggle = (soruId) => {
         setSelectedSorular(prev => ({
@@ -63,15 +47,14 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
     };
 
     const handleHepsiToggle = () => {
-        const yeniDurum = !hepsiSecili;
-        setHepsiSecili(yeniDurum);
+        const hepsiSecili = sorular.every(soru => selectedSorular[soru.id]);
+        const yeniSecim = {};
         
-        const yeniSecimler = {};
         sorular.forEach(soru => {
-            yeniSecimler[soru.id] = yeniDurum;
+            yeniSecim[soru.id] = !hepsiSecili;
         });
         
-        setSelectedSorular(yeniSecimler);
+        setSelectedSorular(yeniSecim);
     };
 
     const seciliSoruSayisi = () => {
@@ -79,12 +62,10 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
     };
 
     const handleBulkDelete = async () => {
-        const seciliIDs = Object.entries(selectedSorular)
-            .filter(([_, value]) => value)
-            .map(([key]) => key);
-            
+        const seciliIDs = Object.keys(selectedSorular).filter(id => selectedSorular[id]);
+        
         if (seciliIDs.length === 0) {
-            toast.warning("Lütfen silinecek soruları seçin.");
+            toast.error("Lütfen silinecek soruları seçin!");
             return;
         }
         
@@ -126,6 +107,15 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
             // Tüm güncelleme işlemlerini bekle
             await Promise.all(updatePromises);
             
+            // Konu istatistiklerini otomatik güncelle
+            try {
+                await konuStatsService.updateKonuStatsOnSoruChange(konuId);
+                console.log("Konu istatistikleri otomatik güncellendi");
+            } catch (statsError) {
+                console.error("Konu istatistikleri güncellenirken hata:", statsError);
+                // İstatistik hatası ana işlemi etkilemesin
+            }
+            
             toast.success(`${seciliIDs.length} adet soru başarıyla silindi ve sıralama güncellendi.`);
             onClose(true); // true ile başarılı işlemi bildir
         } catch (error) {
@@ -160,7 +150,7 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
                                     <input 
                                         type="checkbox" 
                                         id="selectAll"
-                                        checked={hepsiSecili}
+                                        checked={sorular.every(soru => selectedSorular[soru.id])}
                                         onChange={handleHepsiToggle}
                                         className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                                     />
