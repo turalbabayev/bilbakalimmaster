@@ -2,12 +2,13 @@ import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
-import { FaBell, FaUsers, FaExclamationTriangle } from 'react-icons/fa';
+import { FaBell, FaUsers, FaExclamationTriangle, FaChartBar, FaTools, FaChevronDown } from 'react-icons/fa';
 
 const Header = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false);
 
     const handleSignOut = async () => {
         try {
@@ -20,7 +21,7 @@ const Header = () => {
         }
     };
 
-    const menuItems = [
+    const mainMenuItems = [
         { path: "/home", label: "Ana Sayfa" },
         { path: "/question", label: "Sorular" },
         { path: "/announcements", label: "Duyurular" },
@@ -28,7 +29,11 @@ const Header = () => {
         { path: "/notes", label: "Notlar" },
         { path: "/deneme-sinavlari", label: "Deneme Sınavları" },
         { path: "/bildirimler", label: "Bildirimler", icon: <FaBell className="inline-block mr-1" /> },
-        { path: "/users", label: "Kullanıcılar", icon: <FaUsers className="inline-block mr-1" /> },
+        { path: "/users", label: "Kullanıcılar", icon: <FaUsers className="inline-block mr-1" /> }
+    ];
+
+    const toolsMenuItems = [
+        { path: "/konu-istatistikler", label: "Konu İstatistikleri", icon: <FaChartBar className="inline-block mr-1" /> },
         { path: "/error-logs", label: "Hata Kayıtları", icon: <FaExclamationTriangle className="inline-block mr-1" /> }
     ];
 
@@ -69,7 +74,8 @@ const Header = () => {
                     {/* Navigation Menu */}
                     <nav className={`${isMobileMenuOpen ? 'block' : 'hidden'} lg:flex lg:items-center`}>
                         <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-1">
-                            {menuItems.map((item) => (
+                            {/* Ana menü öğeleri */}
+                            {mainMenuItems.map((item) => (
                                 <Link
                                     key={item.path}
                                     to={item.path}
@@ -79,9 +85,68 @@ const Header = () => {
                                         : 'text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/50'
                                     }`}
                                 >
+                                    {item.icon && item.icon}
                                     {item.label}
                                 </Link>
                             ))}
+
+                            {/* Araçlar Dropdown - Desktop */}
+                            <div className="relative hidden lg:block">
+                                <button
+                                    onClick={() => setIsToolsDropdownOpen(!isToolsDropdownOpen)}
+                                    className={`px-4 py-5 text-sm font-medium transition-colors duration-200 flex items-center ${
+                                        isActive('/konu-istatistikler') || isActive('/error-logs')
+                                        ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/50'
+                                        : 'text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/50'
+                                    }`}
+                                >
+                                    <FaTools className="inline-block mr-1" />
+                                    Araçlar
+                                    <FaChevronDown className={`ml-1 transition-transform duration-200 ${isToolsDropdownOpen ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {isToolsDropdownOpen && (
+                                    <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+                                        {toolsMenuItems.map((item) => (
+                                            <Link
+                                                key={item.path}
+                                                to={item.path}
+                                                onClick={() => setIsToolsDropdownOpen(false)}
+                                                className={`block px-4 py-3 text-sm font-medium transition-colors duration-200 ${
+                                                    isActive(item.path)
+                                                    ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/50'
+                                                    : 'text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/50'
+                                                }`}
+                                            >
+                                                {item.icon && item.icon}
+                                                {item.label}
+                                            </Link>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Araçlar Dropdown - Mobile */}
+                            <div className="lg:hidden">
+                                <div className="px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+                                    <FaTools className="inline-block mr-1" />
+                                    Araçlar
+                                </div>
+                                {toolsMenuItems.map((item) => (
+                                    <Link
+                                        key={item.path}
+                                        to={item.path}
+                                        className={`block px-8 py-3 text-sm font-medium transition-colors duration-200 ${
+                                            isActive(item.path)
+                                            ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/50'
+                                            : 'text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/50'
+                                        }`}
+                                    >
+                                        {item.icon && item.icon}
+                                        {item.label}
+                                    </Link>
+                                ))}
+                            </div>
                         </div>
                     </nav>
 
@@ -99,6 +164,14 @@ const Header = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Dropdown overlay - Desktop */}
+            {isToolsDropdownOpen && (
+                <div 
+                    className="fixed inset-0 z-40 lg:block hidden" 
+                    onClick={() => setIsToolsDropdownOpen(false)}
+                />
+            )}
         </header>
     );
 };
