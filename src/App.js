@@ -24,6 +24,7 @@ import ExamStatsPage from './pages/MainPage/exam-stats';
 import ErrorLogsPage from './pages/MainPage/error_logs_page';
 import NotificationsPage from './pages/MainPage/notifications_page';
 import KonuStatsPage from './pages/MainPage/konu_stats_page';
+import PDFBankPage from './pages/MainPage/pdf_bank_page';
 
 function App() {
     return (
@@ -52,6 +53,7 @@ function App() {
                     <Route path="/deneme-sinavlari/istatistik/:examId" element={<ProtectedRouter><ExamStatsPage /></ProtectedRouter>} />
                     <Route path="/error-logs" element={<ProtectedRouter><ErrorLogsPage /></ProtectedRouter>} />
                     <Route path='/konu-istatistikler' element={<ProtectedRouter><KonuStatsPage /></ProtectedRouter>} />
+                    <Route path='/pdf-bank' element={<ProtectedRouter><PDFBankPage /></ProtectedRouter>} />
                 </Routes>
             </Router>
         </AuthProvider>
