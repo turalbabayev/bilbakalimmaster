@@ -8,9 +8,7 @@ import {
     query, 
     where, 
     updateDoc,
-    serverTimestamp,
-    onSnapshot,
-    collectionGroup
+    serverTimestamp 
 } from "firebase/firestore";
 
 class KonuStatsService {
@@ -170,101 +168,6 @@ class KonuStatsService {
         } catch (error) {
             console.error(`Konu ${konuId} istatistikleri güncellenirken hata:`, error);
         }
-    }
-
-    // Real-time listener'ları başlat
-    startRealTimeUpdates() {
-        console.log('Real-time konu istatistikleri güncellemeleri başlatılıyor...');
-        
-        // Tüm konuları dinle
-        const konularRef = collection(db, "konular");
-        const konularUnsubscribe = onSnapshot(konularRef, (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-                const konuId = change.doc.id;
-                console.log(`Konu değişikliği algılandı: ${konuId} - ${change.type}`);
-                
-                if (change.type === 'added' || change.type === 'modified') {
-                    this.updateKonuStatsOnAltKonuChange(konuId);
-                }
-            });
-        });
-
-        // Tüm alt konuları dinle
-        const altKonularGroup = query(collectionGroup(db, "altkonular"));
-        const altKonularUnsubscribe = onSnapshot(altKonularGroup, (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-                const konuId = change.doc.ref.parent.parent.id;
-                console.log(`Alt konu değişikliği algılandı: ${konuId} - ${change.type}`);
-                
-                if (change.type === 'added' || change.type === 'modified' || change.type === 'removed') {
-                    this.updateKonuStatsOnAltKonuChange(konuId);
-                }
-            });
-        });
-
-        // Tüm soruları dinle
-        const sorularGroup = query(collectionGroup(db, "sorular"));
-        const sorularUnsubscribe = onSnapshot(sorularGroup, (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-                const konuId = change.doc.ref.parent.parent.parent.parent.id;
-                console.log(`Soru değişikliği algılandı: ${konuId} - ${change.type}`);
-                
-                if (change.type === 'added' || change.type === 'modified' || change.type === 'removed') {
-                    this.updateKonuStatsOnSoruChange(konuId);
-                }
-            });
-        });
-
-        // Cleanup fonksiyonunu döndür
-        return () => {
-            konularUnsubscribe();
-            altKonularUnsubscribe();
-            sorularUnsubscribe();
-            console.log('Real-time konu istatistikleri güncellemeleri durduruldu.');
-        };
-    }
-
-    // Belirli bir konunun real-time güncellemelerini başlat
-    startKonuRealTimeUpdates(konuId) {
-        console.log(`Konu ${konuId} için real-time güncellemeler başlatılıyor...`);
-        
-        // Konu değişikliklerini dinle
-        const konuRef = doc(db, "konular", konuId);
-        const konuUnsubscribe = onSnapshot(konuRef, (doc) => {
-            if (doc.exists()) {
-                console.log(`Konu ${konuId} değişikliği algılandı`);
-                this.updateKonuStatsOnAltKonuChange(konuId);
-            }
-        });
-
-        // Alt konuları dinle
-        const altKonularRef = collection(konuRef, "altkonular");
-        const altKonularUnsubscribe = onSnapshot(altKonularRef, (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-                console.log(`Alt konu değişikliği algılandı: ${konuId} - ${change.type}`);
-                this.updateKonuStatsOnAltKonuChange(konuId);
-            });
-        });
-
-        // Alt konuların sorularını dinle
-        const altKonularGroup = query(collectionGroup(db, "sorular"));
-        const sorularUnsubscribe = onSnapshot(altKonularGroup, (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-                const changeKonuId = change.doc.ref.parent.parent.parent.parent.id;
-                if (changeKonuId === konuId) {
-                    console.log(`Soru değişikliği algılandı: ${konuId} - ${change.type}`);
-                    this.updateKonuStatsOnSoruChange(konuId);
-                }
-            });
-        });
-
-        // Cleanup fonksiyonunu döndür
-        return () => {
-            konuUnsubscribe();
-            altKonularUnsubscribe();
-            sorularUnsubscribe();
-            console.log(`Konu ${konuId} için real-time güncellemeler durduruldu.`);
-        };
     }
 }
 

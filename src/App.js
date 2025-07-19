@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import LoginPage from "./pages/login_page";
@@ -24,17 +24,8 @@ import ExamStatsPage from './pages/MainPage/exam-stats';
 import ErrorLogsPage from './pages/MainPage/error_logs_page';
 import NotificationsPage from './pages/MainPage/notifications_page';
 import KonuStatsPage from './pages/MainPage/konu_stats_page';
-import konuStatsService from './services/konuStatsService';
 
 function App() {
-    useEffect(() => {
-        // Real-time konu istatistikleri güncellemelerini başlat
-        const cleanup = konuStatsService.startRealTimeUpdates();
-        
-        // Component unmount olduğunda cleanup yap
-        return cleanup;
-    }, []);
-
     return (
         <AuthProvider>
             <Router>
