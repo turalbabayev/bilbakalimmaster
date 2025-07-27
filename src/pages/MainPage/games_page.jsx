@@ -71,6 +71,13 @@ function GamesPage() {
             description: "Klasik XOX oyunu",
             icon: "grid",
             color: "pink"
+        },
+        {
+            id: "tekerleme",
+            title: "Tekerleme",
+            description: "Tekerlemeleri söyle ve dinle",
+            icon: "music",
+            color: "orange"
         }
     ];
 
@@ -377,6 +384,12 @@ function GamesPage() {
                 return (
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                );
+            case "music":
+                return (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                     </svg>
                 );
             default:
@@ -865,6 +878,8 @@ function GamesPage() {
                                             setShowWordPuzzle(true);
                                         } else if (game.title === "Eşleştir") {
                                             setShowMatching(true);
+                                        } else if (game.title === "Tekerleme") {
+                                            navigate('/tekerleme');
                                         }
                                     }}
                                     className={`relative overflow-hidden rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl cursor-pointer ${getColorClass(game.color)} text-white`}

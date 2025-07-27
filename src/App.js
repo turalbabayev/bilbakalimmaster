@@ -26,6 +26,8 @@ import NotificationsPage from './pages/MainPage/notifications_page';
 import KonuStatsPage from './pages/MainPage/konu_stats_page';
 import PDFBankPage from './pages/MainPage/pdf_bank_page';
 import MeetingArchivePage from './pages/MainPage/meeting_archive_page';
+import MobileSettingsPage from './pages/MainPage/mobile_settings';
+import TekerlemePage from './pages/MainPage/tekerleme_page';
 
 function App() {
     return (
@@ -56,6 +58,8 @@ function App() {
                     <Route path='/konu-istatistikler' element={<ProtectedRouter><KonuStatsPage /></ProtectedRouter>} />
                     <Route path='/pdf-bank' element={<ProtectedRouter><PDFBankPage /></ProtectedRouter>} />
                     <Route path='/toplanti-arsivi' element={<ProtectedRouter><MeetingArchivePage /></ProtectedRouter>} />
+                    <Route path='/mobile-settings' element={<ProtectedRouter><MobileSettingsPage /></ProtectedRouter>} />
+                    <Route path='/tekerleme' element={<ProtectedRouter><TekerlemePage /></ProtectedRouter>} />
                 </Routes>
             </Router>
         </AuthProvider>
