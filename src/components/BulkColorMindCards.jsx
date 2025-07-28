@@ -11,6 +11,8 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
     const [endRange, setEndRange] = useState(10);
     const [selectedHeading, setSelectedHeading] = useState('p'); // Varsayılan olarak paragraf
     const [isBold, setIsBold] = useState(false); // Bold seçeneği
+    const [isItalic, setIsItalic] = useState(false); // Italic seçeneği
+    const [isUnderline, setIsUnderline] = useState(false); // Underline seçeneği
 
     // Seçili kartların rengini kontrol et
     useEffect(() => {
@@ -24,14 +26,58 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
                 if (currentColor) {
                     setSelectedColor(currentColor);
                 }
+                
+                // Seçilen kartlardaki formatları kontrol et
+                checkSelectedCardsFormats();
             }
+        } else {
+            // Hiç kart seçili değilse formatları sıfırla
+            setIsBold(false);
+            setIsItalic(false);
+            setIsUnderline(false);
         }
     }, [selectedCards, selectedTarget]);
 
     // Target değiştiğinde rengi sıfırla
     useEffect(() => {
         setSelectedColor('#000000');
+        // Target değiştiğinde formatları da kontrol et
+        if (selectedCards.length > 0) {
+            checkSelectedCardsFormats();
+        }
     }, [selectedTarget]);
+
+    // Seçilen kartlardaki formatları kontrol eden fonksiyon
+    const checkSelectedCardsFormats = () => {
+        if (selectedCards.length === 0) return;
+
+        let hasBold = false;
+        let hasItalic = false;
+        let hasUnderline = false;
+
+        selectedCards.forEach(cardId => {
+            const card = cards.find(c => c.id === cardId);
+            if (!card) return;
+
+            const content = selectedTarget === 'content' ? card.content : card.altKonu;
+            
+            // HTML içeriğinde formatları kontrol et
+            if (content.includes('<strong>') || content.includes('<b>')) {
+                hasBold = true;
+            }
+            if (content.includes('<em>') || content.includes('<i>')) {
+                hasItalic = true;
+            }
+            if (content.includes('<u>')) {
+                hasUnderline = true;
+            }
+        });
+
+        // Tüm seçili kartlarda aynı format varsa aktif et
+        setIsBold(hasBold);
+        setIsItalic(hasItalic);
+        setIsUnderline(hasUnderline);
+    };
 
     const handleSelectAll = () => {
         setSelectedCards(cards.map(card => card.id));
@@ -103,8 +149,40 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
                             new RegExp(`<${selectedHeading}[^>]*>(.*?)</${selectedHeading}>`, 'g'),
                             `<${selectedHeading}><strong>$1</strong></${selectedHeading}>`
                         );
+                    } else {
+                        // Bold kapalıysa mevcut bold etiketlerini kaldır
+                        contentWithHeading = contentWithHeading.replace(/<\/?strong>/g, '');
+                        contentWithHeading = contentWithHeading.replace(/<\/?b>/g, '');
                     }
                     
+                    // Italic işlemi
+                    if (isItalic) {
+                        // Mevcut italic etiketlerini kaldır ve yeniden ekle
+                        contentWithHeading = contentWithHeading.replace(/<\/?em>/g, '');
+                        contentWithHeading = contentWithHeading.replace(/<\/?i>/g, '');
+                        contentWithHeading = contentWithHeading.replace(
+                            new RegExp(`<${selectedHeading}[^>]*>(.*?)</${selectedHeading}>`, 'g'),
+                            `<${selectedHeading}><em>$1</em></${selectedHeading}>`
+                        );
+                    } else {
+                        // Italic kapalıysa mevcut italic etiketlerini kaldır
+                        contentWithHeading = contentWithHeading.replace(/<\/?em>/g, '');
+                        contentWithHeading = contentWithHeading.replace(/<\/?i>/g, '');
+                    }
+                    
+                    // Underline işlemi
+                    if (isUnderline) {
+                        // Mevcut underline etiketlerini kaldır ve yeniden ekle
+                        contentWithHeading = contentWithHeading.replace(/<\/?u>/g, '');
+                        contentWithHeading = contentWithHeading.replace(
+                            new RegExp(`<${selectedHeading}[^>]*>(.*?)</${selectedHeading}>`, 'g'),
+                            `<${selectedHeading}><u>$1</u></${selectedHeading}>`
+                        );
+                    } else {
+                        // Underline kapalıysa mevcut underline etiketlerini kaldır
+                        contentWithHeading = contentWithHeading.replace(/<\/?u>/g, '');
+                    }
+
                     updateData.contentColor = selectedColor;
                     updateData.content = contentWithHeading;
                 } else {
@@ -123,6 +201,38 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
                             new RegExp(`<${selectedHeading}[^>]*>(.*?)</${selectedHeading}>`, 'g'),
                             `<${selectedHeading}><strong>$1</strong></${selectedHeading}>`
                         );
+                    } else {
+                        // Bold kapalıysa mevcut bold etiketlerini kaldır
+                        titleWithHeading = titleWithHeading.replace(/<\/?strong>/g, '');
+                        titleWithHeading = titleWithHeading.replace(/<\/?b>/g, '');
+                    }
+                    
+                    // Italic işlemi
+                    if (isItalic) {
+                        // Mevcut italic etiketlerini kaldır ve yeniden ekle
+                        titleWithHeading = titleWithHeading.replace(/<\/?em>/g, '');
+                        titleWithHeading = titleWithHeading.replace(/<\/?i>/g, '');
+                        titleWithHeading = titleWithHeading.replace(
+                            new RegExp(`<${selectedHeading}[^>]*>(.*?)</${selectedHeading}>`, 'g'),
+                            `<${selectedHeading}><em>$1</em></${selectedHeading}>`
+                        );
+                    } else {
+                        // Italic kapalıysa mevcut italic etiketlerini kaldır
+                        titleWithHeading = titleWithHeading.replace(/<\/?em>/g, '');
+                        titleWithHeading = titleWithHeading.replace(/<\/?i>/g, '');
+                    }
+                    
+                    // Underline işlemi
+                    if (isUnderline) {
+                        // Mevcut underline etiketlerini kaldır ve yeniden ekle
+                        titleWithHeading = titleWithHeading.replace(/<\/?u>/g, '');
+                        titleWithHeading = titleWithHeading.replace(
+                            new RegExp(`<${selectedHeading}[^>]*>(.*?)</${selectedHeading}>`, 'g'),
+                            `<${selectedHeading}><u>$1</u></${selectedHeading}>`
+                        );
+                    } else {
+                        // Underline kapalıysa mevcut underline etiketlerini kaldır
+                        titleWithHeading = titleWithHeading.replace(/<\/?u>/g, '');
                     }
                     
                     updateData.titleColor = selectedColor;
@@ -139,6 +249,8 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
             if (selectedColor !== '#000000') operations.push('rengi');
             if (selectedHeading !== 'p') operations.push('boyutu');
             if (isBold) operations.push('kalınlığı');
+            if (isItalic) operations.push('italik');
+            if (isUnderline) operations.push('altı çizili');
             
             const operationText = operations.length > 0 ? operations.join(', ') : 'özellikleri';
             toast.success(`Seçili kartların ${selectedTarget === 'content' ? 'içerik' : 'başlık'} ${operationText} güncellendi!`);
@@ -217,17 +329,48 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
                                 </select>
                             </div>
 
-                            <div className="flex items-center space-x-2">
-                                <button
-                                    onClick={() => setIsBold(!isBold)}
-                                    className={`px-4 py-2 rounded-lg font-bold ${
-                                        isBold
-                                            ? 'bg-green-600 text-white'
-                                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-                                    }`}
-                                >
-                                    <strong>B</strong> Kalın Yap
-                                </button>
+                            <div className="flex items-center space-x-4">
+                                <div className="flex items-center space-x-2">
+                                    <button
+                                        onClick={() => setIsBold(!isBold)}
+                                        className={`px-4 py-2 rounded-lg font-bold transition-all duration-200 ${
+                                            isBold
+                                                ? 'bg-green-600 text-white shadow-lg ring-2 ring-green-300'
+                                                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                        }`}
+                                        title={isBold ? "Kalın formatı aktif" : "Kalın formatı ekle"}
+                                    >
+                                        <strong>B</strong> Kalın
+                                    </button>
+                                </div>
+                                
+                                <div className="flex items-center space-x-2">
+                                    <button
+                                        onClick={() => setIsItalic(!isItalic)}
+                                        className={`px-4 py-2 rounded-lg italic transition-all duration-200 ${
+                                            isItalic
+                                                ? 'bg-green-600 text-white shadow-lg ring-2 ring-green-300'
+                                                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                        }`}
+                                        title={isItalic ? "İtalik formatı aktif" : "İtalik formatı ekle"}
+                                    >
+                                        <em>I</em> İtalik
+                                    </button>
+                                </div>
+                                
+                                <div className="flex items-center space-x-2">
+                                    <button
+                                        onClick={() => setIsUnderline(!isUnderline)}
+                                        className={`px-4 py-2 rounded-lg underline transition-all duration-200 ${
+                                            isUnderline
+                                                ? 'bg-green-600 text-white shadow-lg ring-2 ring-green-300'
+                                                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                        }`}
+                                        title={isUnderline ? "Altı çizili formatı aktif" : "Altı çizili formatı ekle"}
+                                    >
+                                        <u>U</u> Altı Çizili
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -296,9 +439,38 @@ const BulkColorMindCards = ({ isOpen, onClose, cards, selectedKonu, onSuccess })
                     {/* Scrollable Kart Listesi */}
                     <div className="flex-1 overflow-y-auto p-8">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                                Kartlar ({selectedCards.length} seçili)
-                            </h3>
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                    Kartlar ({selectedCards.length} seçili)
+                                </h3>
+                                {selectedCards.length > 0 && (
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                                            Aktif formatlar:
+                                        </span>
+                                        {isBold && (
+                                            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-bold">
+                                                Kalın
+                                            </span>
+                                        )}
+                                        {isItalic && (
+                                            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full italic">
+                                                İtalik
+                                            </span>
+                                        )}
+                                        {isUnderline && (
+                                            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full underline">
+                                                Altı Çizili
+                                            </span>
+                                        )}
+                                        {!isBold && !isItalic && !isUnderline && (
+                                            <span className="text-sm text-gray-500 dark:text-gray-400">
+                                                Format yok
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {cards.map(card => (
