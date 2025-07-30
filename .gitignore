@@ -26,3 +26,6 @@ yarn-error.log*
 # Firebase
 src/backend/serviceAccountKey.json
 .env
+
+# Vercel
+vercel.json
