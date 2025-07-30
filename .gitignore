@@ -29,3 +29,7 @@ src/backend/serviceAccountKey.json
 
 # Vercel
 vercel.json
+
+# Question files
+number-questions-cjs.js
+number-questions.js
