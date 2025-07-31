@@ -3,7 +3,7 @@ import Layout from '../../components/layout';
 import { db } from '../../firebase';
 import { collection, getDocs, doc, updateDoc, getDoc, query, where, orderBy, deleteDoc } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
-import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt, FaChartPie, FaChartBar, FaSearch, FaSort, FaSortAmountDown, FaSortAmountUp, FaFilter, FaMobile, FaExchangeAlt, FaEdit, FaEnvelope, FaChevronDown, FaUserTie, FaUserShield, FaCog, FaUserCog, FaUserClock, FaPaperPlane, FaUserPlus, FaUserTimes, FaTimes } from 'react-icons/fa';
+import { FaUsers, FaApple, FaAndroid, FaUserSecret, FaGraduationCap, FaCrown, FaUserAlt, FaChartPie, FaChartBar, FaSearch, FaSort, FaSortAmountDown, FaSortAmountUp, FaFilter, FaMobile, FaExchangeAlt, FaEdit, FaEnvelope, FaChevronDown, FaUserTie, FaUserShield, FaCog, FaUserCog, FaUserClock, FaPaperPlane, FaUserPlus, FaUserTimes, FaTimes, FaBell } from 'react-icons/fa';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Menu, Transition, Dialog } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -220,6 +220,9 @@ const UsersPage = () => {
             case 'android':
                 filtered = filtered.filter(user => user.device_type === 'Android');
                 break;
+            case 'notifications':
+                filtered = filtered.filter(user => user.oneSignalPlayerId);
+                break;
             default:
                 break;
         }
@@ -378,6 +381,9 @@ const UsersPage = () => {
                 break;
             case 'android':
                 filtered = filtered.filter(user => user.device_type === 'Android');
+                break;
+            case 'notifications':
+                filtered = filtered.filter(user => user.oneSignalPlayerId);
                 break;
             default:
                 break;
@@ -949,7 +955,7 @@ const UsersPage = () => {
                     </div>
 
                     {/* İstatistik Kartları */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 mb-8">
                         <StatCard
                             title="Toplam Kullanıcı"
                             count={stats.total}
@@ -997,6 +1003,14 @@ const UsersPage = () => {
                             color="green"
                             onClick={() => setActiveFilter('android')}
                             isActive={activeFilter === 'android'}
+                        />
+                        <StatCard
+                            title="Bildirim Hazır"
+                            count={users.filter(user => user.oneSignalPlayerId).length}
+                            icon={FaBell}
+                            color="green"
+                            onClick={() => setActiveFilter('notifications')}
+                            isActive={activeFilter === 'notifications'}
                         />
                     </div>
 
@@ -1308,14 +1322,14 @@ const UsersPage = () => {
                                                         className={`h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center ${user.character?.image ? 'hidden' : ''}`}
                                                     >
                                                         <span className="text-indigo-600 font-medium text-lg">
-                                                            {user.name ? user.name[0].toUpperCase() : '?'}
-                                                        </span>
-                                                    </div>
-                                                </div>
+                                                                    {user.name ? user.name[0].toUpperCase() : '?'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                 <div className="ml-4 flex-1">
                                                     <div className="flex items-center gap-2">
                                                         <h3 className="text-lg font-semibold text-gray-900">
-                                                            {user.name} {user.surname}
+                                                                {user.name} {user.surname}
                                                         </h3>
                                                         <button
                                                             className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-indigo-600"
@@ -1324,10 +1338,10 @@ const UsersPage = () => {
                                                         >
                                                             <FaEdit size={14} />
                                                         </button>
-                                                        {user.isGuest && (
-                                                            <FaUserSecret className="text-gray-400" title="Misafir Kullanıcı" />
-                                                        )}
-                                                    </div>
+                                                                {user.isGuest && (
+                                                                    <FaUserSecret className="text-gray-400" title="Misafir Kullanıcı" />
+                                                                )}
+                                                            </div>
                                                     <div className="flex items-center gap-2">
                                                         <p className="text-sm text-gray-600">{user.email}</p>
                                                         {!user.email?.includes('guest_') && (
@@ -1339,9 +1353,9 @@ const UsersPage = () => {
                                                                 <FaPaperPlane size={12} />
                                                             </button>
                                                         )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </div>
+                                                    </div>
 
                                             {/* Kullanıcı Bilgileri */}
                                             <div className="space-y-3">
@@ -1373,76 +1387,76 @@ const UsersPage = () => {
                                                 {/* Uzmanlık */}
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-sm font-medium text-gray-700">Uzmanlık:</span>
-                                                    <Menu as="div" className="relative inline-block text-left">
+                                                        <Menu as="div" className="relative inline-block text-left">
                                                         <Menu.Button className="inline-flex items-center justify-center px-3 py-1 border border-gray-300 rounded-lg shadow-sm text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
-                                                            {user.expertise || 'Seçiniz'}
-                                                            {updatingExpertise === user.id && (
+                                                                {user.expertise || 'Seçiniz'}
+                                                                {updatingExpertise === user.id && (
                                                                 <svg className="animate-spin ml-1 h-3 w-3 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                                </svg>
-                                                            )}
-                                                        </Menu.Button>
-                                                        <Transition
-                                                            as={Fragment}
-                                                            enter="transition ease-out duration-100"
-                                                            enterFrom="transform opacity-0 scale-95"
-                                                            enterTo="transform opacity-100 scale-100"
-                                                            leave="transition ease-in duration-75"
-                                                            leaveFrom="transform opacity-100 scale-100"
-                                                            leaveTo="transform opacity-0 scale-95"
-                                                        >
+                                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                    </svg>
+                                                                )}
+                                                            </Menu.Button>
+                                                            <Transition
+                                                                as={Fragment}
+                                                                enter="transition ease-out duration-100"
+                                                                enterFrom="transform opacity-0 scale-95"
+                                                                enterTo="transform opacity-100 scale-100"
+                                                                leave="transition ease-in duration-75"
+                                                                leaveFrom="transform opacity-100 scale-100"
+                                                                leaveTo="transform opacity-0 scale-95"
+                                                            >
                                                             <Menu.Items className="absolute right-0 mt-2 w-48 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-10">
-                                                                <div className="py-1">
-                                                                    {expertiseOptions.map((option) => (
-                                                                        <Menu.Item key={option}>
-                                                                            {({ active }) => (
-                                                                                <button
-                                                                                    onClick={() => handleExpertiseUpdate(user.id, option)}
-                                                                                    className={`
-                                                                                        ${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'}
-                                                                                        ${user.expertise === option ? 'bg-indigo-50 text-indigo-600' : ''}
-                                                                                        group flex items-center w-full px-4 py-2 text-sm
-                                                                                    `}
-                                                                                >
-                                                                                    {option}
-                                                                                </button>
-                                                                            )}
-                                                                        </Menu.Item>
-                                                                    ))}
-                                                                </div>
-                                                            </Menu.Items>
-                                                        </Transition>
-                                                    </Menu>
-                                                </div>
+                                                                    <div className="py-1">
+                                                                        {expertiseOptions.map((option) => (
+                                                                            <Menu.Item key={option}>
+                                                                                {({ active }) => (
+                                                                                    <button
+                                                                                        onClick={() => handleExpertiseUpdate(user.id, option)}
+                                                                                        className={`
+                                                                                            ${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'}
+                                                                                            ${user.expertise === option ? 'bg-indigo-50 text-indigo-600' : ''}
+                                                                                            group flex items-center w-full px-4 py-2 text-sm
+                                                                                        `}
+                                                                                    >
+                                                                                        {option}
+                                                                                    </button>
+                                                                                )}
+                                                                            </Menu.Item>
+                                                                        ))}
+                                                                    </div>
+                                                                </Menu.Items>
+                                                            </Transition>
+                                                        </Menu>
+                                                    </div>
 
                                                 {/* Kayıt Tarihi */}
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-sm font-medium text-gray-700">Kayıt Tarihi:</span>
                                                     <span className="text-xs text-gray-600">
-                                                        {(() => {
-                                                            try {
-                                                                const timestamp = user.created_at || user.createdAt;
-                                                                if (!timestamp) return '-';
-                                                                
-                                                                let date;
-                                                                if (timestamp.toDate) {
-                                                                    date = timestamp.toDate();
-                                                                } else if (timestamp instanceof Date) {
-                                                                    date = timestamp;
-                                                                } else if (typeof timestamp === 'string') {
-                                                                    date = new Date(timestamp);
-                                                                } else {
-                                                                    return '-';
-                                                                }
-
-                                                                return date.toLocaleDateString('tr-TR') + ' ' + date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-                                                            } catch (error) {
+                                                    {(() => {
+                                                        try {
+                                                            const timestamp = user.created_at || user.createdAt;
+                                                            if (!timestamp) return '-';
+                                                            
+                                                            let date;
+                                                            if (timestamp.toDate) {
+                                                                date = timestamp.toDate();
+                                                            } else if (timestamp instanceof Date) {
+                                                                date = timestamp;
+                                                            } else if (typeof timestamp === 'string') {
+                                                                date = new Date(timestamp);
+                                                            } else {
                                                                 return '-';
                                                             }
-                                                        })()}
+
+                                                                return date.toLocaleDateString('tr-TR') + ' ' + date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                                                        } catch (error) {
+                                                            return '-';
+                                                        }
+                                                    })()}
                                                     </span>
-                                                </div>
+                                                    </div>
 
                                                 {/* Premium Tarih */}
                                                 {user.premiumPurchaseDate && (
@@ -1481,29 +1495,37 @@ const UsersPage = () => {
                                                         {user.device_id || 'Yok'}
                                                     </span>
                                                 </div>
+
+                                                {/* OneSignal ID */}
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium text-gray-700">OneSignal ID:</span>
+                                                    <span className="text-xs text-gray-600 truncate max-w-24" title={user.oneSignalPlayerId}>
+                                                        {user.oneSignalPlayerId || 'Yok'}
+                                                    </span>
+                                                </div>
                                             </div>
 
                                             {/* İşlemler */}
                                             <div className="mt-6 flex flex-col gap-2">
-                                                <button
-                                                    onClick={() => handlePremiumUpdate(user.id, !user.isPremium)}
-                                                    disabled={updatingUserId === user.id}
+                                                    <button
+                                                        onClick={() => handlePremiumUpdate(user.id, !user.isPremium)}
+                                                        disabled={updatingUserId === user.id}
                                                     className={`w-full inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-lg text-white ${
-                                                        user.isPremium 
-                                                        ? 'bg-red-600 hover:bg-red-700' 
-                                                        : 'bg-green-600 hover:bg-green-700'
-                                                    } focus:outline-none transition ease-in-out duration-150 ${
-                                                        updatingUserId === user.id ? 'opacity-50 cursor-not-allowed' : ''
-                                                    }`}
-                                                >
-                                                    {updatingUserId === user.id ? (
-                                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                        </svg>
-                                                    ) : null}
-                                                    {user.isPremium ? 'Ücretsiz Yap' : 'Premium Yap'}
-                                                </button>
+                                                            user.isPremium 
+                                                            ? 'bg-red-600 hover:bg-red-700' 
+                                                            : 'bg-green-600 hover:bg-green-700'
+                                                        } focus:outline-none transition ease-in-out duration-150 ${
+                                                            updatingUserId === user.id ? 'opacity-50 cursor-not-allowed' : ''
+                                                        }`}
+                                                    >
+                                                        {updatingUserId === user.id ? (
+                                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                            </svg>
+                                                        ) : null}
+                                                        {user.isPremium ? 'Ücretsiz Yap' : 'Premium Yap'}
+                                                    </button>
                                                 
                                                 <button
                                                     onClick={() => {
