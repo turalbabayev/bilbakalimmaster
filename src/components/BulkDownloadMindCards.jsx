@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
-import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun } from "docx";
 import { saveAs } from "file-saver";
 import { toast } from "react-hot-toast";
 
@@ -87,58 +87,176 @@ const BulkDownloadMindCards = ({ isOpen, onClose, konuId }) => {
         try {
             setIndiriliyor(true);
 
+            // Önce tüm kartları işle
+            const allChildren = [];
+            
+            // Başlık ekle
+            allChildren.push(
+                new Paragraph({
+                    text: "Akıl Kartları",
+                    heading: HeadingLevel.HEADING_1,
+                    spacing: {
+                        after: 200,
+                    },
+                })
+            );
+
+            // Her kart için işle
+            for (const kart of kartlar) {
+                const children = [
+                    new Paragraph({
+                        text: `Kart ${kart.kartNo || (kartlar.indexOf(kart) + 1)}`,
+                        heading: HeadingLevel.HEADING_2,
+                        spacing: {
+                            before: 200,
+                            after: 100,
+                        },
+                    }),
+                    new Paragraph({
+                        text: "Alt Konu:",
+                        heading: HeadingLevel.HEADING_3,
+                        spacing: {
+                            after: 80,
+                        },
+                    }),
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: kart.altKonu || "",
+                            }),
+                        ],
+                        spacing: { after: 80 },
+                    }),
+                    new Paragraph({
+                        text: "İçerik:",
+                        heading: HeadingLevel.HEADING_3,
+                        spacing: {
+                            after: 80,
+                        },
+                    })
+                ];
+
+                // Content'ten resim URL'lerini çıkar ve docx'e ekle
+                if (kart.content) {
+                    const imgRegex = /<img[^>]+src="([^"]+)"[^>]*>/g;
+                    let match;
+                    const imgUrls = [];
+                    
+                    while ((match = imgRegex.exec(kart.content)) !== null) {
+                        imgUrls.push(match[1]);
+                    }
+
+                    // Her resim için docx'e ekle
+                    for (const imgUrl of imgUrls) {
+                        try {
+                            // Resmi canvas üzerinden base64'e çevir
+                            const img = new Image();
+                            img.crossOrigin = 'anonymous';
+                            
+                            await new Promise((resolve, reject) => {
+                                img.onload = () => {
+                                    try {
+                                        const canvas = document.createElement('canvas');
+                                        canvas.width = img.width;
+                                        canvas.height = img.height;
+                                        const ctx = canvas.getContext('2d');
+                                        ctx.drawImage(img, 0, 0);
+                                        
+                                        // Canvas'tan base64'e çevir
+                                        const base64Data = canvas.toDataURL('image/png');
+                                        
+                                        // Base64'ten blob'a çevir
+                                        fetch(base64Data)
+                                            .then(response => response.blob())
+                                            .then(blob => blob.arrayBuffer())
+                                            .then(arrayBuffer => {
+                                                children.push(
+                                                    new Paragraph({
+                                                        children: [
+                                                            new ImageRun({
+                                                                data: arrayBuffer,
+                                                                transformation: {
+                                                                    width: 400,
+                                                                    height: 300
+                                                                }
+                                                            })
+                                                        ],
+                                                        spacing: { before: 100, after: 100 }
+                                                    })
+                                                );
+                                                resolve();
+                                            })
+                                            .catch(reject);
+                                    } catch (error) {
+                                        reject(error);
+                                    }
+                                };
+                                
+                                img.onerror = () => {
+                                    console.warn("Resim yüklenemedi:", imgUrl);
+                                    // Resim yüklenemezse URL'yi metin olarak ekle
+                                    children.push(
+                                        new Paragraph({
+                                            children: [
+                                                new TextRun({
+                                                    text: "Resim yüklenemedi: ",
+                                                    bold: true,
+                                                    color: "ff0000"
+                                                }),
+                                                new TextRun({
+                                                    text: imgUrl,
+                                                    color: "666666"
+                                                })
+                                            ],
+                                            spacing: { before: 100, after: 100 }
+                                        })
+                                    );
+                                    resolve();
+                                };
+                                
+                                img.src = imgUrl;
+                            });
+                        } catch (error) {
+                            console.error("Resim eklenirken hata:", error);
+                            // Hata durumunda URL'yi metin olarak ekle
+                            children.push(
+                                new Paragraph({
+                                    children: [
+                                        new TextRun({
+                                            text: "Resim hatası: ",
+                                            bold: true,
+                                            color: "ff0000"
+                                        }),
+                                        new TextRun({
+                                            text: imgUrl,
+                                            color: "666666"
+                                        })
+                                    ],
+                                    spacing: { before: 100, after: 100 }
+                                })
+                            );
+                        }
+                    }
+                }
+
+                children.push(
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: stripHtml(kart.content),
+                            }),
+                        ],
+                        spacing: { after: 200 },
+                    })
+                );
+
+                allChildren.push(...children);
+            }
+
             const doc = new Document({
                 sections: [{
                     properties: {},
-                    children: [
-                        new Paragraph({
-                            text: "Akıl Kartları",
-                            heading: HeadingLevel.HEADING_1,
-                            spacing: {
-                                after: 200,
-                            },
-                        }),
-                        ...kartlar.flatMap((kart, index) => [
-                            new Paragraph({
-                                text: `Kart ${kart.kartNo || (index + 1)}`,
-                                heading: HeadingLevel.HEADING_2,
-                                spacing: {
-                                    before: 200,
-                                    after: 100,
-                                },
-                            }),
-                            new Paragraph({
-                                text: "Alt Konu:",
-                                heading: HeadingLevel.HEADING_3,
-                                spacing: {
-                                    after: 80,
-                                },
-                            }),
-                            new Paragraph({
-                                children: [
-                                    new TextRun({
-                                        text: kart.altKonu || "",
-                                    }),
-                                ],
-                                spacing: { after: 80 },
-                            }),
-                            new Paragraph({
-                                text: "İçerik:",
-                                heading: HeadingLevel.HEADING_3,
-                                spacing: {
-                                    after: 80,
-                                },
-                            }),
-                            new Paragraph({
-                                children: [
-                                    new TextRun({
-                                        text: stripHtml(kart.content),
-                                    }),
-                                ],
-                                spacing: { after: 200 },
-                            }),
-                        ]),
-                    ],
+                    children: allChildren,
                 }],
             });
 
