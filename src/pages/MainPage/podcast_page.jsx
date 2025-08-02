@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import Layout from "../../components/layout";
-import { db } from "../../firebase";
+import { db, storage } from "../../firebase";
 import { 
     collection, 
     getDocs, 
@@ -12,6 +12,12 @@ import {
     orderBy, 
     serverTimestamp 
 } from "firebase/firestore";
+import { 
+    ref as storageRef, 
+    uploadBytes, 
+    getDownloadURL, 
+    deleteObject 
+} from "firebase/storage";
 import { toast } from "react-hot-toast";
 import { 
     FaPlay, 
@@ -32,7 +38,9 @@ import {
     FaSort,
     FaVolumeUp,
     FaVolumeMute,
-    FaExternalLinkAlt
+    FaExternalLinkAlt,
+    FaImage,
+    FaFileUpload
 } from "react-icons/fa";
 
 const PodcastPage = () => {
@@ -51,8 +59,13 @@ const PodcastPage = () => {
     const [formData, setFormData] = useState({
         baslik: "",
         aciklama: "",
-        sesLinki: ""
+        sesLinki: "",
+        imageUrl: ""
     });
+
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const [imagePreview, setImagePreview] = useState(null);
+    const [selectedImageFile, setSelectedImageFile] = useState(null);
 
     useEffect(() => {
         loadPodcasts();
@@ -163,8 +176,62 @@ const PodcastPage = () => {
         setFormData({
             baslik: "",
             aciklama: "",
-            sesLinki: ""
+            sesLinki: "",
+            imageUrl: ""
         });
+        setImagePreview(null);
+        setSelectedImageFile(null);
+    };
+
+    const handleImageSelect = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Resim dosyası boyutu kontrolü (5MB)
+        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+        if (file.size > MAX_FILE_SIZE) {
+            toast.error("Resim dosyası boyutu çok büyük! Lütfen 5MB'dan küçük bir dosya seçin.");
+            return;
+        }
+
+        // Resim dosyası türü kontrolü
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            toast.error("Geçersiz resim dosyası türü! Lütfen JPEG, PNG, GIF veya WebP dosyası seçin.");
+            return;
+        }
+
+        // Dosyayı state'e kaydet
+        setSelectedImageFile(file);
+
+        // Resim önizlemesi
+        const url = URL.createObjectURL(file);
+        setImagePreview(url);
+    };
+
+    const uploadImage = async (file) => {
+        try {
+            const timestamp = Date.now();
+            const fileName = `podcast_image_${timestamp}_${file.name}`;
+            const imageRef = storageRef(storage, `podcast-images/${fileName}`);
+            
+            await uploadBytes(imageRef, file);
+            const downloadURL = await getDownloadURL(imageRef);
+            
+            return downloadURL;
+        } catch (error) {
+            console.error('Resim dosyası yüklenirken hata:', error);
+            throw error;
+        }
+    };
+
+    const removeImage = () => {
+        setFormData(prev => ({
+            ...prev,
+            imageUrl: ""
+        }));
+        setImagePreview(null);
+        setSelectedImageFile(null);
     };
 
     const openEditModal = (podcast) => {
@@ -172,8 +239,11 @@ const PodcastPage = () => {
         setFormData({
             baslik: podcast.baslik || "",
             aciklama: podcast.aciklama || "",
-            sesLinki: podcast.sesLinki || ""
+            sesLinki: podcast.sesLinki || "",
+            imageUrl: podcast.imageUrl || ""
         });
+        setImagePreview(podcast.imageUrl);
+        setSelectedImageFile(null);
         setShowEditModal(true);
     };
 
@@ -185,11 +255,20 @@ const PodcastPage = () => {
         }
 
         try {
+            let imageURL = formData.imageUrl;
+
+            // Eğer yeni resim seçildiyse yükle
+            if (selectedImageFile) {
+                setUploadingImage(true);
+                imageURL = await uploadImage(selectedImageFile);
+            }
+
             // Firestore'a kaydet
             await addDoc(collection(db, "podcasts"), {
                 baslik: formData.baslik.trim(),
                 aciklama: formData.aciklama.trim(),
                 sesLinki: formData.sesLinki.trim(),
+                imageUrl: imageURL,
                 createdAt: serverTimestamp(),
                 isActive: true
             });
@@ -201,6 +280,8 @@ const PodcastPage = () => {
         } catch (error) {
             console.error('Podcast eklenirken hata:', error);
             toast.error('Podcast eklenirken bir hata oluştu');
+        } finally {
+            setUploadingImage(false);
         }
     };
 
@@ -212,12 +293,21 @@ const PodcastPage = () => {
         }
 
         try {
+            let imageURL = formData.imageUrl;
+
+            // Eğer yeni resim seçildiyse yükle
+            if (selectedImageFile) {
+                setUploadingImage(true);
+                imageURL = await uploadImage(selectedImageFile);
+            }
+
             // Firestore'u güncelle
             const podcastRef = doc(db, "podcasts", editingPodcast.id);
             await updateDoc(podcastRef, {
                 baslik: formData.baslik.trim(),
                 aciklama: formData.aciklama.trim(),
                 sesLinki: formData.sesLinki.trim(),
+                imageUrl: imageURL,
                 lastUpdated: serverTimestamp()
             });
 
@@ -228,6 +318,8 @@ const PodcastPage = () => {
         } catch (error) {
             console.error('Podcast güncellenirken hata:', error);
             toast.error('Podcast güncellenirken bir hata oluştu');
+        } finally {
+            setUploadingImage(false);
         }
     };
 
@@ -366,6 +458,17 @@ const PodcastPage = () => {
                                                     {podcast.baslik}
                                                 </h3>
                                             </div>
+
+                                            {/* Podcast Resmi */}
+                                            {podcast.imageUrl && (
+                                                <div className="mb-4">
+                                                    <img 
+                                                        src={podcast.imageUrl} 
+                                                        alt={podcast.baslik}
+                                                        className="w-24 h-24 object-cover rounded-lg shadow-sm"
+                                                    />
+                                                </div>
+                                            )}
 
                                             {podcast.aciklama && (
                                                 <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
@@ -528,6 +631,58 @@ const PodcastPage = () => {
                                     </div>
                                 </div>
 
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                        Podcast Resmi
+                                    </label>
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-4">
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleImageSelect}
+                                                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 dark:file:bg-purple-900/30 dark:file:text-purple-300 hover:file:bg-purple-100 dark:hover:file:bg-purple-900/40"
+                                            />
+                                            {(imagePreview || formData.imageUrl) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={removeImage}
+                                                    className="px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all duration-200 font-medium"
+                                                >
+                                                    Kaldır
+                                                </button>
+                                            )}
+                                        </div>
+                                        
+                                        {(imagePreview || formData.imageUrl) && (
+                                            <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+                                                <div className="flex items-center gap-3">
+                                                    <FaImage className="text-purple-600" />
+                                                    <div>
+                                                        <p className="font-medium text-gray-900 dark:text-white">
+                                                            {selectedImageFile ? selectedImageFile.name : "Mevcut resim"}
+                                                        </p>
+                                                        {selectedImageFile && (
+                                                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                                {(selectedImageFile.size / 1024 / 1024).toFixed(2)} MB
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {(imagePreview || formData.imageUrl) && (
+                                                    <div className="mt-3">
+                                                        <img 
+                                                            src={imagePreview || formData.imageUrl} 
+                                                            alt="Podcast resmi" 
+                                                            className="w-32 h-32 object-cover rounded-lg"
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
                                 <div className="flex gap-4 pt-4">
                                     <button
                                         type="button"
@@ -617,6 +772,58 @@ const PodcastPage = () => {
                                                         </p>
                                                     </div>
                                                 </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                        Podcast Resmi
+                                    </label>
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-4">
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleImageSelect}
+                                                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 dark:file:bg-purple-900/30 dark:file:text-purple-300 hover:file:bg-purple-100 dark:hover:file:bg-purple-900/40"
+                                            />
+                                            {(imagePreview || formData.imageUrl) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={removeImage}
+                                                    className="px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all duration-200 font-medium"
+                                                >
+                                                    Kaldır
+                                                </button>
+                                            )}
+                                        </div>
+                                        
+                                        {(imagePreview || formData.imageUrl) && (
+                                            <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+                                                <div className="flex items-center gap-3">
+                                                    <FaImage className="text-purple-600" />
+                                                    <div>
+                                                        <p className="font-medium text-gray-900 dark:text-white">
+                                                            {selectedImageFile ? selectedImageFile.name : "Mevcut resim"}
+                                                        </p>
+                                                        {selectedImageFile && (
+                                                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                                {(selectedImageFile.size / 1024 / 1024).toFixed(2)} MB
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {(imagePreview || formData.imageUrl) && (
+                                                    <div className="mt-3">
+                                                        <img 
+                                                            src={imagePreview || formData.imageUrl} 
+                                                            alt="Podcast resmi" 
+                                                            className="w-32 h-32 object-cover rounded-lg"
+                                                        />
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
