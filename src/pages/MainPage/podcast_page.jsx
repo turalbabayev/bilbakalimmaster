@@ -60,7 +60,8 @@ const PodcastPage = () => {
         baslik: "",
         aciklama: "",
         sesLinki: "",
-        imageUrl: ""
+        imageUrl: "",
+        isPremium: false
     });
 
     const [uploadingImage, setUploadingImage] = useState(false);
@@ -177,7 +178,8 @@ const PodcastPage = () => {
             baslik: "",
             aciklama: "",
             sesLinki: "",
-            imageUrl: ""
+            imageUrl: "",
+            isPremium: false
         });
         setImagePreview(null);
         setSelectedImageFile(null);
@@ -240,7 +242,8 @@ const PodcastPage = () => {
             baslik: podcast.baslik || "",
             aciklama: podcast.aciklama || "",
             sesLinki: podcast.sesLinki || "",
-            imageUrl: podcast.imageUrl || ""
+            imageUrl: podcast.imageUrl || "",
+            isPremium: podcast.isPremium || false
         });
         setImagePreview(podcast.imageUrl);
         setSelectedImageFile(null);
@@ -270,7 +273,8 @@ const PodcastPage = () => {
                 sesLinki: formData.sesLinki.trim(),
                 imageUrl: imageURL,
                 createdAt: serverTimestamp(),
-                isActive: true
+                isActive: true,
+                isPremium: formData.isPremium
             });
 
             toast.success("Podcast başarıyla eklendi!");
@@ -308,7 +312,8 @@ const PodcastPage = () => {
                 aciklama: formData.aciklama.trim(),
                 sesLinki: formData.sesLinki.trim(),
                 imageUrl: imageURL,
-                lastUpdated: serverTimestamp()
+                lastUpdated: serverTimestamp(),
+                isPremium: formData.isPremium
             });
 
             toast.success("Podcast başarıyla güncellendi!");
@@ -454,9 +459,16 @@ const PodcastPage = () => {
                                         <div className="flex-1">
                                             <div className="flex items-center gap-3 mb-4">
                                                 <FaMicrophone className="text-purple-600 text-xl" />
-                                                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                                                    {podcast.baslik}
-                                                </h3>
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                                                        {podcast.baslik}
+                                                    </h3>
+                                                    {podcast.isPremium && (
+                                                        <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 text-xs font-medium rounded-full">
+                                                            Premium
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             {/* Podcast Resmi */}
@@ -683,6 +695,29 @@ const PodcastPage = () => {
                                     </div>
                                 </div>
 
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                        Premium Podcast
+                                    </label>
+                                    <div className="flex items-center gap-3">
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.isPremium}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, isPremium: e.target.checked }))}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                                        </label>
+                                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                                            {formData.isPremium ? "Premium" : "Ücretsiz"}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Premium podcast'ler özel içerik olarak işaretlenir.
+                                    </p>
+                                </div>
+
                                 <div className="flex gap-4 pt-4">
                                     <button
                                         type="button"
@@ -827,6 +862,29 @@ const PodcastPage = () => {
                                             </div>
                                         )}
                                     </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                        Premium Podcast
+                                    </label>
+                                    <div className="flex items-center gap-3">
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.isPremium}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, isPremium: e.target.checked }))}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                                        </label>
+                                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                                            {formData.isPremium ? "Premium" : "Ücretsiz"}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Premium podcast'ler özel içerik olarak işaretlenir.
+                                    </p>
                                 </div>
 
                                 <div className="flex gap-4 pt-4">

@@ -51,7 +51,8 @@ const PDFBankPage = () => {
         description: "",
         category: "",
         author: "",
-        file: null
+        file: null,
+        isPremium: false
     });
 
     useEffect(() => {
@@ -115,7 +116,8 @@ const PDFBankPage = () => {
                 storagePath: uploadResult.ref.fullPath,
                 uploadDate: serverTimestamp(),
                 isActive: true,
-                downloadCount: 0
+                downloadCount: 0,
+                isPremium: uploadForm.isPremium
             };
 
             await addDoc(collection(db, "pdf-bank"), pdfData);
@@ -127,7 +129,8 @@ const PDFBankPage = () => {
                 description: "",
                 category: "",
                 author: "",
-                file: null
+                file: null,
+                isPremium: false
             });
             loadPDFs();
         } catch (error) {
@@ -154,7 +157,8 @@ const PDFBankPage = () => {
                 description: uploadForm.description.trim(),
                 category: uploadForm.category.trim(),
                 author: uploadForm.author.trim(),
-                lastUpdated: serverTimestamp()
+                lastUpdated: serverTimestamp(),
+                isPremium: uploadForm.isPremium
             };
 
             await updateDoc(pdfRef, updateData);
@@ -167,7 +171,8 @@ const PDFBankPage = () => {
                 description: "",
                 category: "",
                 author: "",
-                file: null
+                file: null,
+                isPremium: false
             });
             loadPDFs();
         } catch (error) {
@@ -208,7 +213,8 @@ const PDFBankPage = () => {
             description: pdf.description || "",
             category: pdf.category || "",
             author: pdf.author || "",
-            file: null
+            file: null,
+            isPremium: pdf.isPremium || false
         });
         setShowEditModal(true);
     };
@@ -354,9 +360,16 @@ const PDFBankPage = () => {
                                     <div key={pdf.id} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 border border-gray-200 dark:border-gray-600 hover:shadow-lg transition-all duration-200">
                                         <div className="flex items-start justify-between mb-4">
                                             <div className="flex-1">
-                                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
-                                                    {pdf.title}
-                                                </h3>
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-2">
+                                                        {pdf.title}
+                                                    </h3>
+                                                    {pdf.isPremium && (
+                                                        <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 text-xs font-medium rounded-full">
+                                                            Premium
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 {pdf.description && (
                                                     <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">
                                                         {pdf.description}
@@ -507,6 +520,29 @@ const PDFBankPage = () => {
                                             placeholder="PDF yazarını girin"
                                         />
                                     </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                                        Premium PDF
+                                    </label>
+                                    <div className="flex items-center gap-3">
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={uploadForm.isPremium}
+                                                onChange={(e) => setUploadForm(prev => ({ ...prev, isPremium: e.target.checked }))}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                                        </label>
+                                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                                            {uploadForm.isPremium ? "Premium" : "Ücretsiz"}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Premium PDF'ler özel içerik olarak işaretlenir.
+                                    </p>
                                 </div>
 
                                 <div className="flex gap-4 pt-4">

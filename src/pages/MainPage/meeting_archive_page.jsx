@@ -67,7 +67,8 @@ const MeetingArchivePage = () => {
         meetingLink: "",
         archiveLink: "",
         image: null,
-        files: []
+        files: [],
+        isPremium: false
     });
 
     // File upload state
@@ -260,7 +261,8 @@ const MeetingArchivePage = () => {
                 image: uploadedImage,
                 files: uploadedFiles,
                 createdAt: serverTimestamp(),
-                isActive: true
+                isActive: true,
+                isPremium: meetingForm.isPremium
             };
 
             await addDoc(collection(db, "meeting-archive"), meetingData);
@@ -288,7 +290,8 @@ const MeetingArchivePage = () => {
             meetingLink: "",
             archiveLink: "",
             image: null,
-            files: []
+            files: [],
+            isPremium: false
         });
         setUploadingFiles([]);
         setUploadingImage(null);
@@ -333,7 +336,8 @@ const MeetingArchivePage = () => {
                 archiveLink: meetingForm.archiveLink.trim(),
                 image: newImage || editingMeeting.image, // Mevcut resmi koru veya yeni resmi ekle
                 files: allFiles,
-                lastUpdated: serverTimestamp()
+                lastUpdated: serverTimestamp(),
+                isPremium: meetingForm.isPremium
             };
 
             await updateDoc(meetingRef, updateData);
@@ -419,7 +423,8 @@ const MeetingArchivePage = () => {
             meetingLink: meeting.meetingLink || "",
             archiveLink: meeting.archiveLink || "",
             image: meeting.image || null,
-            files: meeting.files || []
+            files: meeting.files || [],
+            isPremium: meeting.isPremium || false
         });
         setImagePreview(meeting.image ? meeting.image.downloadURL : null);
         setUploadingFiles([]);
@@ -562,9 +567,16 @@ const MeetingArchivePage = () => {
                                                         </div>
                                                     )}
                                                     <div className="flex-1">
-                                                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                                                            {meeting.title}
-                                                        </h3>
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                                                                {meeting.title}
+                                                            </h3>
+                                                            {meeting.isPremium && (
+                                                                <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 text-xs font-medium rounded-full">
+                                                                    Premium
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         {meeting.description && (
                                                             <p className="text-gray-600 dark:text-gray-400 mb-3">
                                                                 {meeting.description}
@@ -862,19 +874,25 @@ const MeetingArchivePage = () => {
 
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                                        Toplantı Dosyaları
+                                        Premium Toplantı
                                     </label>
-                                    <input
-                                        type="file"
-                                        multiple
-                                        onChange={handleFileSelect}
-                                        className="w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                    />
-                                    {uploadingFiles.length > 0 && (
-                                        <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                            {uploadingFiles.length} dosya seçildi
-                                        </div>
-                                    )}
+                                    <div className="flex items-center gap-3">
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={meetingForm.isPremium}
+                                                onChange={(e) => setMeetingForm(prev => ({ ...prev, isPremium: e.target.checked }))}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                                        </label>
+                                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                                            {meetingForm.isPremium ? "Premium" : "Ücretsiz"}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Premium toplantılar özel içerik olarak işaretlenir.
+                                    </p>
                                 </div>
 
                                 <div className="flex gap-4 pt-4">
@@ -1088,6 +1106,29 @@ const MeetingArchivePage = () => {
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                                        Premium Toplantı
+                                    </label>
+                                    <div className="flex items-center gap-3">
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={meetingForm.isPremium}
+                                                onChange={(e) => setMeetingForm(prev => ({ ...prev, isPremium: e.target.checked }))}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                                        </label>
+                                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                                            {meetingForm.isPremium ? "Premium" : "Ücretsiz"}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Premium toplantılar özel içerik olarak işaretlenir.
+                                    </p>
                                 </div>
 
                                 <div className="flex gap-4 pt-4">
