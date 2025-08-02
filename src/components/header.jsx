@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
-import { FaBell, FaUsers, FaExclamationTriangle, FaChartBar, FaTools, FaChevronDown, FaFilePdf, FaVideo, FaMobileAlt, FaComments } from 'react-icons/fa';
+import { FaBell, FaUsers, FaExclamationTriangle, FaChartBar, FaTools, FaChevronDown, FaFilePdf, FaVideo, FaMobileAlt, FaComments, FaPodcast } from 'react-icons/fa';
 
 const Header = () => {
     const navigate = useNavigate();
@@ -38,6 +38,7 @@ const Header = () => {
         { path: "/toplanti-arsivi", label: "Toplantı Arşivi", icon: <FaVideo className="inline-block mr-1" /> },
         { path: "/mobile-settings", label: "Mobil Dinamik Ayarlar", icon: <FaMobileAlt className="inline-block mr-1" /> },
         { path: "/app-feedback", label: "Uygulama Geri Bildirimleri", icon: <FaComments className="inline-block mr-1" /> },
+        { path: "/podcast", label: "Podcast Yönetimi", icon: <FaPodcast className="inline-block mr-1" /> },
         { path: "/error-logs", label: "Hata Kayıtları", icon: <FaExclamationTriangle className="inline-block mr-1" /> }
     ];
 

@@ -29,6 +29,7 @@ import MeetingArchivePage from './pages/MainPage/meeting_archive_page';
 import MobileSettingsPage from './pages/MainPage/mobile_settings';
 import TekerlemePage from './pages/MainPage/tekerleme_page';
 import AppFeedbackPage from './pages/MainPage/app_feedback_page';
+import PodcastPage from './pages/MainPage/podcast_page';
 
 function App() {
     return (
@@ -62,6 +63,7 @@ function App() {
                     <Route path='/mobile-settings' element={<ProtectedRouter><MobileSettingsPage /></ProtectedRouter>} />
                     <Route path='/tekerleme' element={<ProtectedRouter><TekerlemePage /></ProtectedRouter>} />
                     <Route path='/app-feedback' element={<ProtectedRouter><AppFeedbackPage /></ProtectedRouter>} />
+                    <Route path='/podcast' element={<ProtectedRouter><PodcastPage /></ProtectedRouter>} />
                 </Routes>
             </Router>
         </AuthProvider>
