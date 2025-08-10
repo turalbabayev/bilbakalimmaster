@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaQuestionCircle, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
 import { db } from '../../firebase';
-import { collectionGroup, getDocs } from 'firebase/firestore';
+import { collectionGroup, getDocs, collection, onSnapshot } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -20,6 +20,20 @@ const StepThree = ({
     const [difficultyStats, setDifficultyStats] = useState({});
     const [loadingDifficulty, setLoadingDifficulty] = useState(false);
     const [questionsWithoutDifficulty, setQuestionsWithoutDifficulty] = useState(0);
+    const [manualQuestions, setManualQuestions] = useState([]);
+
+    // Manuel soruları yükle
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'manual-questions'), (snapshot) => {
+            const questions = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setManualQuestions(questions);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     // Otomatik kategori tanımları
     const automaticCategories = {
@@ -158,7 +172,7 @@ const StepThree = ({
                         setLoadingDifficulty(false);
                     }
                 } else {
-                    // Manuel seçim - gerçek soru sayılarını göster
+                    // Manuel seçim - gerçek soru sayılarını göster (hem normal hem manuel sorular)
                     const stats = {
                         easy: 0,
                         medium: 0,
@@ -169,22 +183,38 @@ const StepThree = ({
 
                     // Manuel seçim - sadece seçili konulardan istatistik çek
                     for (const topicId of selectedTopics) {
-                        const sorularRef = collectionGroup(db, "sorular");
-                        const sorularSnap = await getDocs(sorularRef);
-                        
-                        sorularSnap.forEach(doc => {
-                            const konuId = doc.ref.parent.parent.parent.parent.id;
-                            if (konuId === topicId) {
-                                const data = doc.data();
-                                const difficulty = data.difficulty;
-                                
+                        if (topicId.startsWith('manual-')) {
+                            // Manuel sorular
+                            const topicName = topicId.replace('manual-', '');
+                            const relevantQuestions = manualQuestions.filter(q => q.topicName === topicName);
+                            
+                            relevantQuestions.forEach(question => {
+                                const difficulty = question.difficulty;
                                 if (difficulty && ['easy', 'medium', 'hard'].includes(difficulty)) {
                                     stats[difficulty] = (stats[difficulty] || 0) + 1;
                                 } else {
                                     questionsWithoutDifficultyCount++;
                                 }
-                            }
-                        });
+                            });
+                        } else {
+                            // Normal sorular
+                            const sorularRef = collectionGroup(db, "sorular");
+                            const sorularSnap = await getDocs(sorularRef);
+                            
+                            sorularSnap.forEach(doc => {
+                                const konuId = doc.ref.parent.parent.parent.parent.id;
+                                if (konuId === topicId) {
+                                    const data = doc.data();
+                                    const difficulty = data.difficulty;
+                                    
+                                    if (difficulty && ['easy', 'medium', 'hard'].includes(difficulty)) {
+                                        stats[difficulty] = (stats[difficulty] || 0) + 1;
+                                    } else {
+                                        questionsWithoutDifficultyCount++;
+                                    }
+                                }
+                            });
+                        }
                     }
 
                     setDifficultyStats(stats);
@@ -199,7 +229,7 @@ const StepThree = ({
         };
 
         loadDifficultyStats();
-    }, [selectedTopics, selectionMethod, automaticDifficultyDistribution]);
+    }, [selectedTopics, selectionMethod, automaticDifficultyDistribution, manualQuestions]);
 
     if (loadingDifficulty) {
         return (

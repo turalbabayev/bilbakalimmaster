@@ -1,5 +1,7 @@
-import React from 'react';
-import { FaQuestionCircle, FaList } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { FaQuestionCircle, FaList, FaDatabase } from 'react-icons/fa';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../../firebase';
 
 const StepTwo = ({ 
     konular, 
@@ -8,7 +10,50 @@ const StepTwo = ({
     selectedTopics, 
     onToggleTopicSelection 
 }) => {
-    if (loading) {
+    const [manualTopics, setManualTopics] = useState([]);
+    const [manualLoading, setManualLoading] = useState(false);
+
+    // Manuel soruların konularını yükle
+    useEffect(() => {
+        setManualLoading(true);
+        const unsubscribe = onSnapshot(collection(db, 'manual-questions'), (snapshot) => {
+            const questions = snapshot.docs.map(doc => doc.data());
+            
+            // Benzersiz konuları bul ve soru sayılarını hesapla
+            const topicCounts = {};
+            questions.forEach(question => {
+                if (question.topicName && question.topicName.trim()) {
+                    const topicName = question.topicName.trim();
+                    topicCounts[topicName] = (topicCounts[topicName] || 0) + 1;
+                }
+            });
+
+            // Manuel konuları oluştur
+            const manualTopicsList = Object.entries(topicCounts).map(([topicName, count]) => ({
+                id: `manual-${topicName}`,
+                baslik: topicName,
+                soruSayisi: count,
+                isManual: true
+            }));
+
+            setManualTopics(manualTopicsList);
+            setManualLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    // Tüm konuları birleştir
+    const allTopics = [
+        ...konular.map(konu => ({
+            ...konu,
+            soruSayisi: konuIstatistikleri[konu.id]?.soruSayisi || 0,
+            isManual: false
+        })),
+        ...manualTopics
+    ];
+
+    if (loading || manualLoading) {
         return (
             <div className="flex justify-center items-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
@@ -17,7 +62,7 @@ const StepTwo = ({
         );
     }
 
-    if (konular.length === 0) {
+    if (allTopics.length === 0) {
         return (
             <div className="bg-gray-50 p-8 rounded-lg text-center">
                 <FaList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -29,36 +74,79 @@ const StepTwo = ({
 
     return (
         <>
+            {/* Konu Kategorileri Açıklaması */}
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <FaQuestionCircle className="h-4 w-4 text-blue-600" />
+                        <span className="text-sm font-medium text-blue-800">Normal Konular</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <FaDatabase className="h-4 w-4 text-green-600" />
+                        <span className="text-sm font-medium text-green-800">Manuel Soru Havuzu</span>
+                    </div>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">
+                    Hem mevcut konu bankasından hem de manuel eklediğiniz sorulardan seçim yapabilirsiniz.
+                </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-h-[500px] overflow-y-auto">
-                {konular.map((konu) => {
-                    const istatistik = konuIstatistikleri[konu.id] || { soruSayisi: 0 };
-                    const isSelected = selectedTopics.includes(konu.id);
+                {allTopics.map((topic) => {
+                    const isSelected = selectedTopics.includes(topic.id);
                     
                     return (
                         <div
-                            key={konu.id}
-                            onClick={() => onToggleTopicSelection(konu.id)}
+                            key={topic.id}
+                            onClick={() => onToggleTopicSelection(topic.id)}
                             className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
                                 isSelected 
-                                    ? 'border-blue-500 bg-blue-50 shadow-md' 
+                                    ? topic.isManual
+                                        ? 'border-green-500 bg-green-50 shadow-md'
+                                        : 'border-blue-500 bg-blue-50 shadow-md'
                                     : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
                             }`}
                         >
                             <div className="flex items-center justify-between">
                                 <div className="flex-1">
-                                    <h3 className={`font-medium ${isSelected ? 'text-blue-900' : 'text-gray-900'}`}>
-                                        {konu.baslik || "Başlık Yok"}
-                                    </h3>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h3 className={`font-medium ${
+                                            isSelected 
+                                                ? topic.isManual ? 'text-green-900' : 'text-blue-900'
+                                                : 'text-gray-900'
+                                        }`}>
+                                            {topic.baslik || "Başlık Yok"}
+                                        </h3>
+                                        {topic.isManual && (
+                                            <span className="text-xs px-2 py-0.5 bg-green-100 text-green-800 rounded-full">
+                                                Manuel
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="flex items-center mt-2">
-                                        <FaQuestionCircle className={`h-4 w-4 mr-1 ${isSelected ? 'text-blue-600' : 'text-gray-500'}`} />
-                                        <span className={`text-sm ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
-                                            {istatistik.soruSayisi} soru
+                                        {topic.isManual ? (
+                                            <FaDatabase className={`h-4 w-4 mr-1 ${
+                                                isSelected ? 'text-green-600' : 'text-gray-500'
+                                            }`} />
+                                        ) : (
+                                            <FaQuestionCircle className={`h-4 w-4 mr-1 ${
+                                                isSelected ? 'text-blue-600' : 'text-gray-500'
+                                            }`} />
+                                        )}
+                                        <span className={`text-sm ${
+                                            isSelected 
+                                                ? topic.isManual ? 'text-green-700' : 'text-blue-700'
+                                                : 'text-gray-600'
+                                        }`}>
+                                            {topic.soruSayisi} soru
                                         </span>
                                     </div>
                                 </div>
                                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                                     isSelected 
-                                        ? 'border-blue-500 bg-blue-500' 
+                                        ? topic.isManual
+                                            ? 'border-green-500 bg-green-500'
+                                            : 'border-blue-500 bg-blue-500'
                                         : 'border-gray-300'
                                 }`}>
                                     {isSelected && (
@@ -79,19 +167,23 @@ const StepTwo = ({
                     <h4 className="font-medium text-blue-900 mb-2">Seçilen Konular:</h4>
                     <div className="flex flex-wrap gap-2">
                         {selectedTopics.map(topicId => {
-                            const konu = konular.find(k => k.id === topicId);
-                            const istatistik = konuIstatistikleri[topicId] || { soruSayisi: 0 };
+                            const topic = allTopics.find(t => t.id === topicId);
                             return (
-                                <span key={topicId} className="inline-flex items-center bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                                    {konu?.baslik} ({istatistik.soruSayisi} soru)
+                                <span key={topicId} className={`inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded ${
+                                    topic?.isManual 
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                    {topic?.isManual && <FaDatabase className="w-3 h-3 mr-1" />}
+                                    {topic?.baslik} ({topic?.soruSayisi} soru)
                                 </span>
                             );
                         })}
                     </div>
                     <p className="text-sm text-blue-700 mt-2">
                         Toplam: {selectedTopics.reduce((total, topicId) => {
-                            const istatistik = konuIstatistikleri[topicId] || { soruSayisi: 0 };
-                            return total + istatistik.soruSayisi;
+                            const topic = allTopics.find(t => t.id === topicId);
+                            return total + (topic?.soruSayisi || 0);
                         }, 0)} soru
                     </p>
                 </div>

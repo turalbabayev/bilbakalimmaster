@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaBookOpen, FaGlobe, FaBrain, FaCheck, FaArrowLeft, FaEye, FaSpinner, FaCheckSquare, FaSquare } from 'react-icons/fa';
 import { db } from '../../firebase';
-import { collectionGroup, getDocs } from 'firebase/firestore';
+import { collectionGroup, getDocs, collection, onSnapshot } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
 
 const StepFive = ({ 
@@ -17,6 +17,7 @@ const StepFive = ({
     const [loading, setLoading] = useState(true);
     const [selectedQuestion, setSelectedQuestion] = useState(null);
     const [selectedQuestionIds, setSelectedQuestionIds] = useState(new Set());
+    const [manualQuestions, setManualQuestions] = useState([]);
 
     // Otomatik kategori tanımları
     const automaticCategories = {
@@ -369,6 +370,64 @@ const StepFive = ({
 
                 console.log('Kategorilere ayrılmış sorular:', allQuestionsByCategory);
 
+                // Manuel sorular için ek işlem - sadece manuel seçimde
+                if (selectionMethod === 'manual') {
+                    // Manuel konuları işle
+                    for (const topicId of selectedTopics) {
+                        if (topicId.startsWith('manual-')) {
+                            const topicName = topicId.replace('manual-', '');
+                            const relevantQuestions = manualQuestions.filter(q => q.topicName === topicName && q.isActive !== false);
+                            
+                            if (relevantQuestions.length > 0) {
+                                if (!allQuestionsByCategory[topicName]) {
+                                    allQuestionsByCategory[topicName] = {
+                                        easy: [],
+                                        medium: [],
+                                        hard: [],
+                                        unspecified: []
+                                    };
+                                }
+                                
+                                relevantQuestions.forEach(question => {
+                                    // Sadece seçilen zorluk seviyelerindeki soruları dahil et
+                                    if (question.difficulty && selectedDifficulties.includes(question.difficulty)) {
+                                        allQuestionsByCategory[topicName][question.difficulty].push({
+                                            id: question.id,
+                                            konuId: `manual-${topicName}`,
+                                            topicName: topicName,
+                                            soruMetni: question.soruMetni,
+                                            difficulty: question.difficulty,
+                                            dogruCevap: question.dogruCevap,
+                                            cevaplar: question.cevaplar, // Array formatında
+                                            aciklama: question.aciklama
+                                        });
+                                    } else if (!question.difficulty && selectedDifficulties.includes('unspecified')) {
+                                        // Zorluk seviyesi belirtilmemiş manuel sorular
+                                        allQuestionsByCategory[topicName]['unspecified'].push({
+                                            id: question.id,
+                                            konuId: `manual-${topicName}`,
+                                            topicName: topicName,
+                                            soruMetni: question.soruMetni,
+                                            difficulty: 'unspecified',
+                                            dogruCevap: question.dogruCevap,
+                                            cevaplar: question.cevaplar, // Array formatında
+                                            aciklama: question.aciklama
+                                        });
+                                    }
+                                });
+                                
+                                console.log(`Manuel konu ${topicName} işlendi:`, {
+                                    topicName,
+                                    totalQuestions: relevantQuestions.length,
+                                    processed: Object.values(allQuestionsByCategory[topicName]).flat().length
+                                });
+                            }
+                        }
+                    }
+                }
+
+                console.log('Manuel sorular dahil edilmiş kategoriler:', allQuestionsByCategory);
+
                 if (selectionMethod === 'automatic') {
                     // Otomatik seçim - Yeni global algoritma kullan
                     const globalDistribution = calculateCategoryDifficultyDistribution();
@@ -478,7 +537,20 @@ const StepFive = ({
         };
 
         loadQuestions();
-    }, [selectedTopics, selectedDifficulties, selectionMethod]);
+    }, [selectedTopics, selectedDifficulties, selectionMethod, manualQuestions]);
+
+    // Manuel soruları yükle
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'manual-questions'), (snapshot) => {
+            const questions = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setManualQuestions(questions);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     // Zorluk seviyesi renkleri
     const getDifficultyColor = (difficulty) => {

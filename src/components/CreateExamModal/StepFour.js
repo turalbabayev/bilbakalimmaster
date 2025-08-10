@@ -107,69 +107,69 @@ const StepFour = ({
 
         try {
             // Tüm soruları çek
-            const sorularRef = collectionGroup(db, "sorular");
-            const sorularSnap = await getDocs(sorularRef);
-            
-            // Kategorilere göre gerçek soru sayılarını hesapla
-            const realQuestionsByCategory = {};
-            
-            sorularSnap.forEach(doc => {
-                const konuId = doc.ref.parent.parent.parent.parent.id;
-                const data = doc.data();
+                const sorularRef = collectionGroup(db, "sorular");
+                const sorularSnap = await getDocs(sorularRef);
                 
-                // Sadece difficulty field'ı olan soruları say
-                if (!data.difficulty || !['easy', 'medium', 'hard'].includes(data.difficulty)) {
-                    return;
-                }
+                // Kategorilere göre gerçek soru sayılarını hesapla
+                const realQuestionsByCategory = {};
                 
-                // Hangi kategoriye ait olduğunu bul
-                for (const [categoryName, categoryData] of Object.entries(automaticCategories)) {
-                    if (categoryData.topicIds.includes(konuId)) {
-                        if (!realQuestionsByCategory[categoryName]) {
-                            realQuestionsByCategory[categoryName] = {
-                                easy: 0,
-                                medium: 0,
-                                hard: 0
-                            };
-                        }
-                        realQuestionsByCategory[categoryName][data.difficulty]++;
-                        break;
+                sorularSnap.forEach(doc => {
+                    const konuId = doc.ref.parent.parent.parent.parent.id;
+                    const data = doc.data();
+                    
+                    // Sadece difficulty field'ı olan soruları say
+                    if (!data.difficulty || !['easy', 'medium', 'hard'].includes(data.difficulty)) {
+                        return;
                     }
-                }
-            });
-
-            // Her kategori için planlanan vs gerçek karşılaştırması
-            const globalDistribution = calculateCategoryDifficultyDistribution();
-            
-            Object.entries(automaticCategories).forEach(([categoryName, categoryData]) => {
-                // Planlanan sayıları global dağılımdan al
-                const plannedEasy = globalDistribution.easy.categories[categoryName] || 0;
-                const plannedMedium = globalDistribution.medium.categories[categoryName] || 0;
-                const plannedHard = globalDistribution.hard.categories[categoryName] || 0;
-
-                // Gerçek soru sayıları
-                const realQuestions = realQuestionsByCategory[categoryName] || { easy: 0, medium: 0, hard: 0 };
-                
-                // Yetersiz soru kontrolü
-                const difficulties = [
-                    { level: 'easy', planned: plannedEasy, available: realQuestions.easy, text: 'Kolay' },
-                    { level: 'medium', planned: plannedMedium, available: realQuestions.medium, text: 'Orta' },
-                    { level: 'hard', planned: plannedHard, available: realQuestions.hard, text: 'Zor' }
-                ];
-
-                difficulties.forEach(({ level, planned, available, text }) => {
-                    if (planned > 0 && available < planned) {
-                        warnings.push({
-                            category: categoryName,
-                            difficulty: level,
-                            difficultyText: text,
-                            planned: planned,
-                            available: available,
-                            shortage: planned - available
-                        });
+                    
+                    // Hangi kategoriye ait olduğunu bul
+                    for (const [categoryName, categoryData] of Object.entries(automaticCategories)) {
+                        if (categoryData.topicIds.includes(konuId)) {
+                            if (!realQuestionsByCategory[categoryName]) {
+                                realQuestionsByCategory[categoryName] = {
+                                    easy: 0,
+                                    medium: 0,
+                                    hard: 0
+                                };
+                            }
+                            realQuestionsByCategory[categoryName][data.difficulty]++;
+                            break;
+                        }
                     }
                 });
-            });
+
+                // Her kategori için planlanan vs gerçek karşılaştırması
+                const globalDistribution = calculateCategoryDifficultyDistribution();
+                
+                Object.entries(automaticCategories).forEach(([categoryName, categoryData]) => {
+                    // Planlanan sayıları global dağılımdan al
+                    const plannedEasy = globalDistribution.easy.categories[categoryName] || 0;
+                    const plannedMedium = globalDistribution.medium.categories[categoryName] || 0;
+                    const plannedHard = globalDistribution.hard.categories[categoryName] || 0;
+
+                    // Gerçek soru sayıları
+                    const realQuestions = realQuestionsByCategory[categoryName] || { easy: 0, medium: 0, hard: 0 };
+                    
+                    // Yetersiz soru kontrolü
+                    const difficulties = [
+                        { level: 'easy', planned: plannedEasy, available: realQuestions.easy, text: 'Kolay' },
+                        { level: 'medium', planned: plannedMedium, available: realQuestions.medium, text: 'Orta' },
+                        { level: 'hard', planned: plannedHard, available: realQuestions.hard, text: 'Zor' }
+                    ];
+
+                    difficulties.forEach(({ level, planned, available, text }) => {
+                        if (planned > 0 && available < planned) {
+                            warnings.push({
+                                category: categoryName,
+                                difficulty: level,
+                                difficultyText: text,
+                                planned: planned,
+                                available: available,
+                                shortage: planned - available
+                            });
+                        }
+                    });
+                });
 
             setAvailabilityWarnings(warnings);
             
@@ -194,22 +194,22 @@ const StepFour = ({
                     let availableByDifficulty = { easy: 0, medium: 0, hard: 0 };
                     
                     // Her kategori için sorular say
-                    const sorularRef = collectionGroup(db, "sorular");
-                    const sorularSnap = await getDocs(sorularRef);
-                    
-                    sorularSnap.forEach(doc => {
-                        const konuId = doc.ref.parent.parent.parent.parent.id;
+                        const sorularRef = collectionGroup(db, "sorular");
+                        const sorularSnap = await getDocs(sorularRef);
+                        
+                        sorularSnap.forEach(doc => {
+                            const konuId = doc.ref.parent.parent.parent.parent.id;
                         if (categoryData.topicIds.includes(konuId)) {
-                            const data = doc.data();
-                            const difficulty = data.difficulty;
-                            
+                                const data = doc.data();
+                                const difficulty = data.difficulty;
+                                
                             // Tüm geçerli zorluk seviyelerindeki soruları say (seçimden bağımsız)
-                            if (difficulty && ['easy', 'medium', 'hard'].includes(difficulty)) {
+                                if (difficulty && ['easy', 'medium', 'hard'].includes(difficulty)) {
                                 totalQuestions++;
                                 availableByDifficulty[difficulty]++;
+                                }
                             }
-                        }
-                    });
+                        });
                     
                     stats[categoryName] = {
                         ...categoryData,
