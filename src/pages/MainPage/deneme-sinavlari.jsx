@@ -5,7 +5,8 @@ import {
     FaPlus, 
     FaListAlt, 
     FaChartBar, 
-    FaClipboardCheck 
+    FaClipboardCheck,
+    FaDatabase
 } from 'react-icons/fa';
 
 const DenemeSinavlariPage = () => {
@@ -16,7 +17,15 @@ const DenemeSinavlariPage = () => {
             icon: FaPlus,
             description: 'Yeni deneme sınavları oluşturun ve düzenleyin',
             color: 'bg-blue-500',
-            link: '/deneme-sinavlari/olustur'
+            link: '/create-exam'
+        },
+        {
+            id: 'pool',
+            title: 'Soru Havuzu',
+            icon: FaDatabase,
+            description: 'Manuel eklenen soruları görüntüleyin ve düzenleyin',
+            color: 'bg-green-500',
+            link: '/soru-havuzu'
         },
         {
             id: 'exams',
