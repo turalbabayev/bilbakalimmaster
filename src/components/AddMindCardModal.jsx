@@ -291,7 +291,7 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                                         İçerik
                                     </label>
                                     <Editor
-                                        apiKey="83kpgxax9nnx3wf6kruxk3rhefe9xso7fgxkah69lh4eie05"
+                                        apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
                                         onInit={(evt, editor) => editorRef.current = editor}
                                         value={formData.content}
                                         onEditorChange={handleEditorChange}
@@ -302,24 +302,26 @@ const AddMindCardModal = ({ isOpen, onClose, onSuccess }) => {
                                                 'advlist', 'autolink', 'lists', 'link', 'image', 
                                                 'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 
                                                 'code', 'fullscreen', 'insertdatetime', 'media', 'table', 
-                                                'help', 'wordcount'
+                                                'help', 'wordcount', 'textcolor'
                                             ],
                                             toolbar: 'undo redo | blocks | ' +
-                                                'bold italic underline forecolor | alignleft aligncenter ' +
+                                                'bold italic underline | forecolor backcolor | alignleft aligncenter ' +
                                                 'alignright alignjustify | bullist numlist outdent indent | ' +
                                                 'removeformat | image',
                                             formats: {
-                                                underline: { inline: 'u' }
+                                                underline: { inline: 'u', styles: { 'display': 'inline' } },
+                                                forecolor: { inline: 'span', styles: { color: '%value' } }
                                             },
-                                            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                                            valid_elements: 'p,b,strong,i,em,u,h1,h2,h3,h4,h5,h6,br,img[src|alt|width|height],a[href|target],ul,ol,li,span[style|class],div[style|class],font[color|face|size]',
+                                            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px } u { display: inline; text-decoration: underline; }',
                                             images_upload_handler: handleImageUpload,
                                             automatic_uploads: true,
                                             images_reuse_filename: true,
                                             paste_data_images: true,
                                             paste_as_text: false,
                                             paste_enable_default_filters: true,
-                                            paste_word_valid_elements: "p,b,strong,i,em,h1,h2,h3,h4,h5,h6",
-                                            paste_retain_style_properties: "color,background-color,font-size",
+                                            paste_word_valid_elements: "p,b,strong,i,em,u,h1,h2,h3,h4,h5,h6,span[style],font[color]",
+                                            paste_retain_style_properties: "color,background-color,font-size,text-decoration",
                                             convert_urls: false,
                                             relative_urls: false,
                                             remove_script_host: false

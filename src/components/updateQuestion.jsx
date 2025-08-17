@@ -392,7 +392,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                                 </label>
                                 <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
                                     <Editor
-                                        apiKey="83kpgxax9nnx3wf6kruxk3rhefe9xso7fgxkah69lh4eie05"
+                                        apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
                                         value={soru.soruMetni}
                                         onEditorChange={(content) => setSoru({ ...soru, soruMetni: content })}
                                         init={{
@@ -501,7 +501,7 @@ const UpdateQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateCo
                                 </label>
                                 <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
                                     <Editor
-                                        apiKey="83kpgxax9nnx3wf6kruxk3rhefe9xso7fgxkah69lh4eie05"
+                                        apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
                                         value={soru.aciklama}
                                         onEditorChange={(content) => setSoru({ ...soru, aciklama: content })}
                                         init={{

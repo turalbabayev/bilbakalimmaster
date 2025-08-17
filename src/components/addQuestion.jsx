@@ -197,7 +197,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                             </label>
                             <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
                                 <Editor
-                                    apiKey="83kpgxax9nnx3wf6kruxk3rhefe9xso7fgxkah69lh4eie05"
+                                    apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
                                     value={soruMetni}
                                     onEditorChange={(content) => setSoruMetni(content)}
                                     init={{

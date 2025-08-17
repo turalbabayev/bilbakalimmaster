@@ -472,7 +472,7 @@ const CreateExamPage = () => {
                                             Soru Metni *
                                         </label>
                                         <Editor
-                                            apiKey="dkuept8sp7ahnuqeiluabkpyrwzfgtq1b9o3pykn2kvl284j"
+                                            apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
                                             value={questionForm.questionText}
                                             onEditorChange={(content) => setQuestionForm(prev => ({ ...prev, questionText: content }))}
                                             init={{
@@ -557,7 +557,7 @@ const CreateExamPage = () => {
                                             Açıklama
                                         </label>
                                         <Editor
-                                            apiKey="dkuept8sp7ahnuqeiluabkpyrwzfgtq1b9o3pykn2kvl284j"
+                                            apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
                                             value={questionForm.explanation}
                                             onEditorChange={(content) => setQuestionForm(prev => ({ ...prev, explanation: content }))}
                                             init={{
