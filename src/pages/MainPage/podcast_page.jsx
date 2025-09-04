@@ -10,7 +10,9 @@ import {
     updateDoc, 
     query, 
     orderBy, 
-    serverTimestamp 
+    serverTimestamp, 
+    setDoc, 
+    getDoc 
 } from "firebase/firestore";
 import { 
     ref as storageRef, 
@@ -42,6 +44,7 @@ import {
     FaImage,
     FaFileUpload
 } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 const PodcastPage = () => {
     const [podcasts, setPodcasts] = useState([]);
@@ -55,13 +58,17 @@ const PodcastPage = () => {
     const [audioVolume, setAudioVolume] = useState(0.7);
     const [isMuted, setIsMuted] = useState(false);
     const audioRef = useRef(null);
+    const navigate = useNavigate();
+
+    const [units, setUnits] = useState([]);
 
     const [formData, setFormData] = useState({
         baslik: "",
         aciklama: "",
         sesLinki: "",
         imageUrl: "",
-        isPremium: false
+        isPremium: false,
+        unitId: ""
     });
 
     const [uploadingImage, setUploadingImage] = useState(false);
@@ -70,7 +77,19 @@ const PodcastPage = () => {
 
     useEffect(() => {
         loadPodcasts();
+        loadUnits();
     }, []);
+
+    const loadUnits = async () => {
+        try {
+            const snap = await getDocs(collection(db, "podcast-units"));
+            const items = snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
+            setUnits(items);
+        } catch (e) {
+            console.error("Üniteler yüklenirken hata:", e);
+            toast.error("Üniteler yüklenirken hata oluştu");
+        }
+    };
 
     useEffect(() => {
         filterPodcasts();
@@ -179,7 +198,8 @@ const PodcastPage = () => {
             aciklama: "",
             sesLinki: "",
             imageUrl: "",
-            isPremium: false
+            isPremium: false,
+            unitId: ""
         });
         setImagePreview(null);
         setSelectedImageFile(null);
@@ -243,7 +263,8 @@ const PodcastPage = () => {
             aciklama: podcast.aciklama || "",
             sesLinki: podcast.sesLinki || "",
             imageUrl: podcast.imageUrl || "",
-            isPremium: podcast.isPremium || false
+            isPremium: podcast.isPremium || false,
+            unitId: podcast.unitId || ""
         });
         setImagePreview(podcast.imageUrl);
         setSelectedImageFile(null);
@@ -256,26 +277,39 @@ const PodcastPage = () => {
             toast.error("Lütfen başlık ve ses dosyası linki girin!");
             return;
         }
+        if (!formData.unitId) {
+            toast.error("Lütfen bir ünite seçin!");
+            return;
+        }
 
         try {
             let imageURL = formData.imageUrl;
 
-            // Eğer yeni resim seçildiyse yükle
             if (selectedImageFile) {
                 setUploadingImage(true);
                 imageURL = await uploadImage(selectedImageFile);
             }
 
-            // Firestore'a kaydet
-            await addDoc(collection(db, "podcasts"), {
+            const createdRef = await addDoc(collection(db, "podcasts"), {
                 baslik: formData.baslik.trim(),
                 aciklama: formData.aciklama.trim(),
                 sesLinki: formData.sesLinki.trim(),
                 imageUrl: imageURL,
                 createdAt: serverTimestamp(),
                 isActive: true,
-                isPremium: formData.isPremium
+                isPremium: formData.isPremium,
+                unitId: formData.unitId
             });
+
+            // Map podcast -> unit: add under unit subcollection
+            try {
+                await setDoc(doc(db, "podcast-units", formData.unitId, "podcasts", createdRef.id), {
+                    podcastId: createdRef.id,
+                    createdAt: serverTimestamp()
+                });
+            } catch (mapErr) {
+                console.error("Ünite eşlemesi yazılamadı:", mapErr);
+            }
 
             toast.success("Podcast başarıyla eklendi!");
             setShowAddModal(false);
@@ -295,26 +329,50 @@ const PodcastPage = () => {
             toast.error("Lütfen podcast başlığını girin!");
             return;
         }
+        if (!formData.unitId) {
+            toast.error("Lütfen bir ünite seçin!");
+            return;
+        }
 
         try {
             let imageURL = formData.imageUrl;
 
-            // Eğer yeni resim seçildiyse yükle
             if (selectedImageFile) {
                 setUploadingImage(true);
                 imageURL = await uploadImage(selectedImageFile);
             }
 
-            // Firestore'u güncelle
             const podcastRef = doc(db, "podcasts", editingPodcast.id);
+            const prevUnitId = editingPodcast.unitId || "";
+
             await updateDoc(podcastRef, {
                 baslik: formData.baslik.trim(),
                 aciklama: formData.aciklama.trim(),
                 sesLinki: formData.sesLinki.trim(),
                 imageUrl: imageURL,
                 lastUpdated: serverTimestamp(),
-                isPremium: formData.isPremium
+                isPremium: formData.isPremium,
+                unitId: formData.unitId
             });
+
+            // Sync mapping: if unit changed, move mapping
+            try {
+                if (prevUnitId && prevUnitId !== formData.unitId) {
+                    // Remove from previous unit mapping if exists
+                    const prevDocRef = doc(db, "podcast-units", prevUnitId, "podcasts", editingPodcast.id);
+                    const prevDocSnap = await getDoc(prevDocRef);
+                    if (prevDocSnap.exists()) {
+                        await deleteDoc(prevDocRef);
+                    }
+                }
+                // Ensure exists in new unit mapping
+                await setDoc(doc(db, "podcast-units", formData.unitId, "podcasts", editingPodcast.id), {
+                    podcastId: editingPodcast.id,
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+            } catch (mapErr) {
+                console.error("Ünite eşlemesi senkronizasyon hatası:", mapErr);
+            }
 
             toast.success("Podcast başarıyla güncellendi!");
             setShowEditModal(false);
@@ -372,13 +430,21 @@ const PodcastPage = () => {
                                 <p className="text-gray-600 dark:text-gray-400 mt-1">Podcast ses kayıtlarını yönetin</p>
                             </div>
                         </div>
-                        <button
-                            onClick={() => setShowAddModal(true)}
-                            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center gap-2"
-                        >
-                            <FaPlus />
-                            Podcast Ekle
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => navigate('/podcast-uniteleri')}
+                                className="px-4 py-3 bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-900 text-purple-700 dark:text-purple-300 rounded-xl font-semibold hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200"
+                            >
+                                Üniteleri Göster
+                            </button>
+                            <button
+                                onClick={() => setShowAddModal(true)}
+                                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center gap-2"
+                            >
+                                <FaPlus />
+                                Podcast Ekle
+                            </button>
+                        </div>
                     </div>
 
                     {/* Ses Kontrolleri */}
@@ -466,6 +532,11 @@ const PodcastPage = () => {
                                                     {podcast.isPremium && (
                                                         <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 text-xs font-medium rounded-full">
                                                             Premium
+                                                        </span>
+                                                    )}
+                                                    {podcast.unitId && (
+                                                        <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 text-xs font-medium rounded-full">
+                                                            Ünite: {units.find(u => u.id === podcast.unitId)?.name || podcast.unitId}
                                                         </span>
                                                     )}
                                                 </div>
@@ -600,6 +671,23 @@ const PodcastPage = () => {
 
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                        Ünite *
+                                    </label>
+                                    <select
+                                        value={formData.unitId}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, unitId: e.target.value }))}
+                                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                        required
+                                    >
+                                        <option value="">Ünite seçin</option>
+                                        {units.map(u => (
+                                            <option key={u.id} value={u.id}>{u.name || u.id}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                                         Açıklama
                                     </label>
                                     <textarea
@@ -674,11 +762,6 @@ const PodcastPage = () => {
                                                         <p className="font-medium text-gray-900 dark:text-white">
                                                             {selectedImageFile ? selectedImageFile.name : "Mevcut resim"}
                                                         </p>
-                                                        {selectedImageFile && (
-                                                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                                {(selectedImageFile.size / 1024 / 1024).toFixed(2)} MB
-                                                            </p>
-                                                        )}
                                                     </div>
                                                 </div>
                                                 {(imagePreview || formData.imageUrl) && (
@@ -770,6 +853,23 @@ const PodcastPage = () => {
 
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                        Ünite *
+                                    </label>
+                                    <select
+                                        value={formData.unitId}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, unitId: e.target.value }))}
+                                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                        required
+                                    >
+                                        <option value="">Ünite seçin</option>
+                                        {units.map(u => (
+                                            <option key={u.id} value={u.id}>{u.name || u.id}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                                         Açıklama
                                     </label>
                                     <textarea
@@ -843,11 +943,6 @@ const PodcastPage = () => {
                                                         <p className="font-medium text-gray-900 dark:text-white">
                                                             {selectedImageFile ? selectedImageFile.name : "Mevcut resim"}
                                                         </p>
-                                                        {selectedImageFile && (
-                                                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                                {(selectedImageFile.size / 1024 / 1024).toFixed(2)} MB
-                                                            </p>
-                                                        )}
                                                     </div>
                                                 </div>
                                                 {(imagePreview || formData.imageUrl) && (

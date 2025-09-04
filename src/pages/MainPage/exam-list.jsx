@@ -32,7 +32,7 @@ import { toast } from 'react-hot-toast';
 
 const ExamListPage = () => {
     const navigate = useNavigate();
-    
+
     // State yönetimi
     const [exams, setExams] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -286,8 +286,8 @@ const ExamListPage = () => {
                 };
                 
                 const currentStatus = statusConfig[status] || statusConfig.draft;
-                
-                return (
+
+    return (
                     <div key={exam.id} className="group">
                         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 overflow-hidden">
                             {/* Gradient Header */}
@@ -434,7 +434,7 @@ const ExamListPage = () => {
                                                 <FaStop className="h-3 w-3" />
                                             </button>
                                         )}
-                                        <button
+                        <button
                                             onClick={() => handleDeleteExam(exam.id)}
                                             className="p-2.5 bg-red-100 text-red-600 hover:bg-red-200 rounded-xl transition-all duration-200 hover:scale-110"
                                             title="Sil"
@@ -445,7 +445,7 @@ const ExamListPage = () => {
                                             ) : (
                                                 <FaTrash className="h-3 w-3" />
                                             )}
-                                        </button>
+                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -462,34 +462,34 @@ const ExamListPage = () => {
     // Liste görünümü
     const ListView = () => (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Sınav
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Durum
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Durum
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Tarih
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Süre
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Süre
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Sorular
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Katılımcılar
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                İşlemler
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            İşlemler
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
                         {filteredAndSortedExams.map((exam) => {
                             const status = getExamStatus(exam);
                             return (
@@ -506,56 +506,56 @@ const ExamListPage = () => {
                                                     </div>
                                                 )}
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
                                         {getStatusBadge(status)}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="text-sm text-gray-900">
                                             {new Date(exam.startDate).toLocaleDateString('tr-TR')}
                                         </div>
-                                        <div className="text-sm text-gray-500">
+                                                <div className="text-sm text-gray-500">
                                             {new Date(exam.startDate).toLocaleTimeString('tr-TR', {
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="text-sm text-gray-900 flex items-center">
                                             <FaClock className="h-4 w-4 mr-2 text-gray-400" />
                                             {exam.duration || 0} dk
-                                        </div>
-                                    </td>
+                                                </div>
+                                            </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="text-sm text-gray-900 flex items-center">
                                             <FaQuestionCircle className="h-4 w-4 mr-2 text-gray-400" />
                                             {exam.totalQuestions || 0}
                                         </div>
-                                    </td>
+                                            </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="text-sm text-gray-900 flex items-center">
                                             <FaUsers className="h-4 w-4 mr-2 text-gray-400" />
                                             {exam.participants || 0}
                                         </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex justify-end items-center space-x-2">
                                             <button
                                                 onClick={() => navigate(`/deneme-sinavlari/detay/${exam.id}`)}
                                                 className="text-gray-400 hover:text-blue-600 transition-colors"
                                                 title="Görüntüle"
                                             >
-                                                <FaEye className="h-4 w-4" />
-                                            </button>
+                                                        <FaEye className="h-4 w-4" />
+                                                    </button>
                                             <button
                                                 onClick={() => navigate(`/deneme-sinavlari/duzenle/${exam.id}`)}
                                                 className="text-gray-400 hover:text-green-600 transition-colors"
                                                 title="Düzenle"
                                             >
-                                                <FaEdit className="h-4 w-4" />
-                                            </button>
+                                                        <FaEdit className="h-4 w-4" />
+                                                    </button>
                                             <button
                                                 onClick={() => navigate(`/deneme-sinavlari/istatistik/${exam.id}`)}
                                                 className="text-gray-400 hover:text-purple-600 transition-colors"
@@ -572,16 +572,16 @@ const ExamListPage = () => {
                                                 {deleteLoading ? (
                                                     <FaSpinner className="h-4 w-4 animate-spin" />
                                                 ) : (
-                                                    <FaTrash className="h-4 w-4" />
+                                                        <FaTrash className="h-4 w-4" />
                                                 )}
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
                             );
                         })}
-                    </tbody>
-                </table>
+                                </tbody>
+                            </table>
             </div>
         </div>
     );
@@ -754,4 +754,4 @@ const ExamListPage = () => {
     );
 };
 
-export default ExamListPage;
+export default ExamListPage; 

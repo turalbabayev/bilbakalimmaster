@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
-import { FaBell, FaUsers, FaExclamationTriangle, FaChartBar, FaTools, FaChevronDown, FaFilePdf, FaVideo, FaMobileAlt, FaComments, FaPodcast } from 'react-icons/fa';
+import { FaBell, FaUsers, FaExclamationTriangle, FaChartBar, FaTools, FaChevronDown, FaFilePdf, FaVideo, FaMobileAlt, FaComments, FaPodcast, FaQuestionCircle } from 'react-icons/fa';
 
 const Header = () => {
     const navigate = useNavigate();
@@ -39,6 +39,7 @@ const Header = () => {
         { path: "/mobile-settings", label: "Mobil Dinamik Ayarlar", icon: <FaMobileAlt className="inline-block mr-1" /> },
         { path: "/app-feedback", label: "Uygulama Geri Bildirimleri", icon: <FaComments className="inline-block mr-1" /> },
         { path: "/podcast", label: "Podcast Yönetimi", icon: <FaPodcast className="inline-block mr-1" /> },
+        { path: "/faq", label: "Sıkça Sorulan Sorular", icon: <FaQuestionCircle className="inline-block mr-1" /> },
         { path: "/error-logs", label: "Hata Kayıtları", icon: <FaExclamationTriangle className="inline-block mr-1" /> }
     ];
 
@@ -100,7 +101,7 @@ const Header = () => {
                                 <button
                                     onClick={() => setIsToolsDropdownOpen(!isToolsDropdownOpen)}
                                     className={`px-4 py-5 text-sm font-medium transition-colors duration-200 flex items-center ${
-                                        isActive('/konu-istatistikler') || isActive('/pdf-bank') || isActive('/toplanti-arsivi') || isActive('/error-logs')
+                                        isActive('/konu-istatistikler') || isActive('/pdf-bank') || isActive('/toplanti-arsivi') || isActive('/error-logs') || isActive('/faq')
                                         ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/50'
                                         : 'text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/50'
                                     }`}
@@ -111,7 +112,7 @@ const Header = () => {
                                 </button>
 
                                 {isToolsDropdownOpen && (
-                                    <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+                                    <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
                                         {toolsMenuItems.map((item) => (
                                             <Link
                                                 key={item.path}
