@@ -12,7 +12,9 @@ import {
     orderBy, 
     serverTimestamp, 
     setDoc, 
-    getDoc 
+    getDoc,
+    limit,
+    writeBatch
 } from "firebase/firestore";
 import { 
     ref as storageRef, 
@@ -43,10 +45,205 @@ import {
     FaExternalLinkAlt,
     FaImage,
     FaFileUpload,
+    FaGripVertical,
     FaArrowUp,
     FaArrowDown
 } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+    useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+// Sortable Item Component
+const SortableItem = ({ podcast, units, playingAudio, playAudio, openEditModal, handleDeletePodcast, movePodcast, isSorting }) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: podcast.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    const formatDate = (timestamp) => {
+        if (!timestamp) return "Tarih yok";
+        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        return date.toLocaleDateString('tr-TR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={`bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-300 ${
+                isDragging ? 'z-50' : ''
+            }`}
+        >
+            <div className="flex items-start justify-between">
+                <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-4">
+                        <FaMicrophone className="text-purple-600 text-xl" />
+                        <div className="flex items-center gap-2">
+                            <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-full">
+                                #{podcast.siraNumarasi || 0}
+                            </span>
+                            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                                {podcast.baslik}
+                            </h3>
+                            {podcast.isPremium && (
+                                <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 text-xs font-medium rounded-full">
+                                    Premium
+                                </span>
+                            )}
+                            {podcast.unitId && (
+                                <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 text-xs font-medium rounded-full">
+                                    Ünite: {units.find(u => u.id === podcast.unitId)?.name || podcast.unitId}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Podcast Resmi */}
+                    {podcast.imageUrl && (
+                        <div className="mb-4">
+                            <img 
+                                src={podcast.imageUrl} 
+                                alt={podcast.baslik}
+                                className="w-24 h-24 object-cover rounded-lg shadow-sm"
+                            />
+                        </div>
+                    )}
+
+                    {podcast.aciklama && (
+                        <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+                            {podcast.aciklama}
+                        </p>
+                    )}
+
+                    <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        <div className="flex items-center gap-1">
+                            <FaCalendar />
+                            <span>{formatDate(podcast.createdAt)}</span>
+                        </div>
+                    </div>
+
+                    {/* Ses Dosyası Linki */}
+                    {podcast.sesLinki && (
+                        <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => playAudio(podcast.sesLinki)}
+                                        className={`p-3 rounded-xl transition-colors ${
+                                            playingAudio === podcast.sesLinki
+                                                ? 'bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800'
+                                                : 'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-800'
+                                        }`}
+                                    >
+                                        {playingAudio === podcast.sesLinki ? (
+                                            <FaPause />
+                                        ) : (
+                                            <FaPlay />
+                                        )}
+                                    </button>
+                                    <div className="flex-1">
+                                        <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                                            {podcast.sesLinki}
+                                        </p>
+                                        <p className="text-xs text-purple-600 dark:text-purple-400">
+                                            {playingAudio === podcast.sesLinki ? "Çalıyor..." : "Dinlemek için tıklayın"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <a
+                                        href={podcast.sesLinki}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="p-2 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
+                                        title="Linki aç"
+                                    >
+                                        <FaExternalLinkAlt />
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                    {isSorting && (
+                        <div className="flex flex-col gap-1">
+                            <button
+                                onClick={() => movePodcast(podcast.id, 'up')}
+                                className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded transition-colors"
+                                title="Yukarı taşı"
+                            >
+                                <FaArrowUp />
+                            </button>
+                            <button
+                                onClick={() => movePodcast(podcast.id, 'down')}
+                                className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded transition-colors"
+                                title="Aşağı taşı"
+                            >
+                                <FaArrowDown />
+                            </button>
+                        </div>
+                    )}
+                    <button
+                        onClick={() => openEditModal(podcast)}
+                        className="p-2 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
+                    >
+                        <FaEdit />
+                    </button>
+                    <button
+                        onClick={() => handleDeletePodcast(podcast)}
+                        className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                    >
+                        <FaTrash />
+                    </button>
+                    {isSorting && (
+                        <div
+                            {...attributes}
+                            {...listeners}
+                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-grab active:cursor-grabbing"
+                            title="Sürükleyerek taşı"
+                        >
+                            <FaGripVertical />
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const PodcastPage = () => {
     const [podcasts, setPodcasts] = useState([]);
@@ -63,11 +260,9 @@ const PodcastPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [unitFilter, setUnitFilter] = useState("");
-    const [sortBy, setSortBy] = useState("siraNumarasi"); // "siraNumarasi" veya "createdAt"
-    const [sortOrder, setSortOrder] = useState("asc"); // "asc" veya "desc"
-    const [isAutoNumbering, setIsAutoNumbering] = useState(false);
 
     const [units, setUnits] = useState([]);
+    const [isSorting, setIsSorting] = useState(false);
 
     const [formData, setFormData] = useState({
         baslik: "",
@@ -75,13 +270,20 @@ const PodcastPage = () => {
         sesLinki: "",
         imageUrl: "",
         isPremium: false,
-        unitId: "",
-        siraNumarasi: 0
+        unitId: ""
     });
 
     const [uploadingImage, setUploadingImage] = useState(false);
     const [imagePreview, setImagePreview] = useState(null);
     const [selectedImageFile, setSelectedImageFile] = useState(null);
+
+    // Drag & Drop sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
 
     useEffect(() => {
         loadPodcasts();
@@ -107,7 +309,7 @@ const PodcastPage = () => {
 
     useEffect(() => {
         filterPodcasts();
-    }, [podcasts, searchTerm, unitFilter, sortBy, sortOrder]);
+    }, [podcasts, searchTerm]);
 
     // Audio element için event listener'lar
     useEffect(() => {
@@ -121,39 +323,13 @@ const PodcastPage = () => {
         setLoading(true);
         try {
             const podcastsRef = collection(db, "podcasts");
-            const snapshot = await getDocs(podcastsRef);
+            const q = query(podcastsRef, orderBy("siraNumarasi", "asc"));
+            const snapshot = await getDocs(q);
             
             const podcastsData = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
-            
-            // Debug: Podcast verilerini kontrol et
-            console.log('Yüklenen podcast\'ler:', podcastsData.map(p => ({ 
-                id: p.id, 
-                baslik: p.baslik, 
-                siraNumarasi: p.siraNumarasi 
-            })));
-            
-            // Sıralama: önce siraNumarasi olanlar (küçükten büyüğe), sonra olmayanlar (tarihe göre)
-            podcastsData.sort((a, b) => {
-                const aSira = a.siraNumarasi || 0;
-                const bSira = b.siraNumarasi || 0;
-                
-                // Eğer ikisi de sıra numarasına sahipse, sıra numarasına göre sırala
-                if (aSira > 0 && bSira > 0) {
-                    return aSira - bSira;
-                }
-                
-                // Eğer sadece biri sıra numarasına sahipse, o önce gelsin
-                if (aSira > 0 && bSira === 0) return -1;
-                if (aSira === 0 && bSira > 0) return 1;
-                
-                // İkisi de sıra numarasına sahip değilse, tarihe göre sırala (yeni önce)
-                const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-                const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-                return bDate - aDate;
-            });
             
             setPodcasts(podcastsData);
         } catch (error) {
@@ -175,102 +351,82 @@ const PodcastPage = () => {
         }
 
         if (unitFilter) {
-            console.log('Unit filter aktif:', unitFilter);
-            console.log('Toplam podcast:', podcasts.length);
-            console.log('UnitId olan podcast\'ler:', podcasts.filter(p => p.unitId).map(p => ({ id: p.id, unitId: p.unitId, baslik: p.baslik })));
             filtered = filtered.filter(podcast => (podcast.unitId || "") === unitFilter);
-            console.log('Filtrelenmiş podcast sayısı:', filtered.length);
         }
-
-        // Sıralama uygula - sadece filtrelenmiş podcast'ler için
-        filtered.sort((a, b) => {
-            if (sortBy === "siraNumarasi") {
-                const aSira = a.siraNumarasi || 0;
-                const bSira = b.siraNumarasi || 0;
-                
-                if (sortOrder === "asc") {
-                    return aSira - bSira;
-                } else {
-                    return bSira - aSira;
-                }
-            } else if (sortBy === "createdAt") {
-                const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-                const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-                
-                if (sortOrder === "asc") {
-                    return aDate - bDate;
-                } else {
-                    return bDate - aDate;
-                }
-            }
-            return 0;
-        });
 
         setFilteredPodcasts(filtered);
     };
 
-    const autoNumberPodcasts = async () => {
-        if (isAutoNumbering) return;
-        
-        setIsAutoNumbering(true);
+    const getNextSiraNumarasi = async () => {
         try {
-            // Eğer ünite filtresi aktifse, sadece o üniteye ait podcast'leri al
-            let podcastsToNumber = [...podcasts];
+            const podcastsRef = collection(db, "podcasts");
+            const q = query(podcastsRef, orderBy("siraNumarasi", "desc"), limit(1));
+            const snapshot = await getDocs(q);
             
-            if (unitFilter) {
-                podcastsToNumber = podcastsToNumber.filter(podcast => (podcast.unitId || "") === unitFilter);
-                console.log(`Ünite filtresi aktif: ${unitFilter}`);
-                console.log(`Filtrelenmiş podcast sayısı: ${podcastsToNumber.length}`);
+            if (snapshot.empty) {
+                return 1;
             }
             
-            // Seçilen podcast'leri tarihe göre sırala (eski → yeni)
-            const sortedPodcasts = podcastsToNumber.sort((a, b) => {
-                const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-                const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-                return aDate - bDate;
-            });
-
-            // Her podcast'e sıra numarası ata
-            for (let i = 0; i < sortedPodcasts.length; i++) {
-                const podcast = sortedPodcasts[i];
-                const siraNumarasi = i + 1;
-                
-                await updateDoc(doc(db, "podcasts", podcast.id), {
-                    siraNumarasi: siraNumarasi
-                });
-                
-                console.log(`${i + 1}/${sortedPodcasts.length} - ${podcast.baslik} → Sıra: ${siraNumarasi}`);
-            }
-
-            const message = unitFilter 
-                ? `${sortedPodcasts.length} podcast'e (${units.find(u => u.id === unitFilter)?.name || unitFilter} ünitesi) otomatik sıra numarası atandı!`
-                : `${sortedPodcasts.length} podcast'e otomatik sıra numarası atandı!`;
-            
-            toast.success(message);
-            
-            // Podcast'leri yeniden yükle
-            await loadPodcasts();
-            
+            const lastPodcast = snapshot.docs[0].data();
+            return (lastPodcast.siraNumarasi || 0) + 1;
         } catch (error) {
-            console.error('Otomatik numaralandırma hatası:', error);
-            toast.error('Otomatik numaralandırma sırasında hata oluştu!');
-        } finally {
-            setIsAutoNumbering(false);
+            console.error('Son sıra numarası alınırken hata:', error);
+            return 1;
         }
     };
 
-    const getNextSiraNumarasi = (unitId) => {
-        if (!unitId) return 1;
-        
-        // Seçilen üniteye ait podcast'leri filtrele
-        const unitPodcasts = podcasts.filter(podcast => (podcast.unitId || "") === unitId);
-        
-        if (unitPodcasts.length === 0) return 1;
-        
-        // En yüksek sıra numarasını bul
-        const maxSira = Math.max(...unitPodcasts.map(p => p.siraNumarasi || 0));
-        
-        return maxSira + 1;
+    const handleDragEnd = async (event) => {
+        const { active, over } = event;
+
+        if (active.id !== over.id) {
+            const oldIndex = filteredPodcasts.findIndex(podcast => podcast.id === active.id);
+            const newIndex = filteredPodcasts.findIndex(podcast => podcast.id === over.id);
+
+            const newOrder = arrayMove(filteredPodcasts, oldIndex, newIndex);
+            setFilteredPodcasts(newOrder);
+
+            // Update siraNumarasi for all podcasts
+            try {
+                const batch = writeBatch(db);
+                newOrder.forEach((podcast, index) => {
+                    const podcastRef = doc(db, "podcasts", podcast.id);
+                    batch.update(podcastRef, { siraNumarasi: index + 1 });
+                });
+                await batch.commit();
+                toast.success("Sıralama güncellendi!");
+            } catch (error) {
+                console.error('Sıralama güncellenirken hata:', error);
+                toast.error('Sıralama güncellenirken hata oluştu');
+                // Reload podcasts to revert changes
+                loadPodcasts();
+            }
+        }
+    };
+
+    const movePodcast = async (podcastId, direction) => {
+        const currentIndex = filteredPodcasts.findIndex(p => p.id === podcastId);
+        if (currentIndex === -1) return;
+
+        const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+        if (newIndex < 0 || newIndex >= filteredPodcasts.length) return;
+
+        const newOrder = arrayMove(filteredPodcasts, currentIndex, newIndex);
+        setFilteredPodcasts(newOrder);
+
+        // Update siraNumarasi for all podcasts
+        try {
+            const batch = writeBatch(db);
+            newOrder.forEach((podcast, index) => {
+                const podcastRef = doc(db, "podcasts", podcast.id);
+                batch.update(podcastRef, { siraNumarasi: index + 1 });
+            });
+            await batch.commit();
+            toast.success("Sıralama güncellendi!");
+        } catch (error) {
+            console.error('Sıralama güncellenirken hata:', error);
+            toast.error('Sıralama güncellenirken hata oluştu');
+            loadPodcasts();
+        }
     };
 
     const playAudio = (audioUrl) => {
@@ -393,7 +549,6 @@ const PodcastPage = () => {
     };
 
     const openEditModal = (podcast) => {
-        console.log('Podcast data:', podcast); // Debug için
         setEditingPodcast(podcast);
         setFormData({
             baslik: podcast.baslik || "",
@@ -401,8 +556,7 @@ const PodcastPage = () => {
             sesLinki: podcast.sesLinki || "",
             imageUrl: podcast.imageUrl || "",
             isPremium: podcast.isPremium || false,
-            unitId: podcast.unitId || "",
-            siraNumarasi: podcast.siraNumarasi || 0
+            unitId: podcast.unitId || ""
         });
         setImagePreview(podcast.imageUrl);
         setSelectedImageFile(null);
@@ -421,24 +575,6 @@ const PodcastPage = () => {
         }
 
         try {
-            // Sıra numarası çakışması kontrolü (aynı ünite içinde)
-            const newSira = formData.siraNumarasi || 0;
-            if (newSira > 0 && formData.unitId) {
-                // Aynı ünite içinde aynı sıra numarasına sahip başka bir podcast var mı kontrol et
-                const conflictingPodcast = podcasts.find(p => 
-                    p.unitId === formData.unitId && 
-                    p.siraNumarasi === newSira
-                );
-                
-                if (conflictingPodcast) {
-                    // Çakışan podcast'i 0 yap (sıra numarası yok)
-                    await updateDoc(doc(db, "podcasts", conflictingPodcast.id), {
-                        siraNumarasi: 0
-                    });
-                    console.log(`${conflictingPodcast.baslik} podcast'inin sıra numarası kaldırıldı`);
-                }
-            }
-
             let imageURL = formData.imageUrl;
 
             if (selectedImageFile) {
@@ -454,8 +590,7 @@ const PodcastPage = () => {
                 createdAt: serverTimestamp(),
                 isActive: true,
                 isPremium: formData.isPremium,
-                unitId: formData.unitId,
-                siraNumarasi: formData.siraNumarasi
+                unitId: formData.unitId
             });
 
             // Map podcast -> unit: add under unit subcollection
@@ -482,7 +617,6 @@ const PodcastPage = () => {
 
     const handleEditPodcast = async (e) => {
         e.preventDefault();
-        console.log('Form data:', formData); // Debug için
         if (!formData.baslik.trim()) {
             toast.error("Lütfen podcast başlığını girin!");
             return;
@@ -493,28 +627,6 @@ const PodcastPage = () => {
         }
 
         try {
-            // Sıra numarası değişikliği kontrolü (aynı ünite içinde)
-            const originalSira = editingPodcast?.siraNumarasi || 0;
-            const newSira = formData.siraNumarasi || 0;
-            
-            // Eğer sıra numarası değiştiyse ve aynı ünite içindeyse, yer değiştirme yap
-            if (originalSira !== newSira && newSira > 0 && formData.unitId) {
-                // Aynı ünite içinde yeni sıra numarasına sahip başka bir podcast var mı kontrol et
-                const conflictingPodcast = podcasts.find(p => 
-                    p.id !== editingPodcast.id && 
-                    p.unitId === formData.unitId && 
-                    p.siraNumarasi === newSira
-                );
-                
-                if (conflictingPodcast) {
-                    // Çakışan podcast'i eski sıra numarasına taşı
-                    await updateDoc(doc(db, "podcasts", conflictingPodcast.id), {
-                        siraNumarasi: originalSira
-                    });
-                    console.log(`${conflictingPodcast.baslik} podcast'i ${originalSira} numarasına taşındı`);
-                }
-            }
-
             let imageURL = formData.imageUrl;
 
             if (selectedImageFile) {
@@ -525,17 +637,6 @@ const PodcastPage = () => {
             const podcastRef = doc(db, "podcasts", editingPodcast.id);
             const prevUnitId = editingPodcast.unitId || "";
 
-            console.log('Güncellenecek veri:', {
-                baslik: formData.baslik.trim(),
-                aciklama: formData.aciklama.trim(),
-                sesLinki: formData.sesLinki.trim(),
-                imageUrl: imageURL,
-                lastUpdated: serverTimestamp(),
-                isPremium: formData.isPremium,
-                unitId: formData.unitId,
-                siraNumarasi: formData.siraNumarasi
-            });
-
             await updateDoc(podcastRef, {
                 baslik: formData.baslik.trim(),
                 aciklama: formData.aciklama.trim(),
@@ -543,8 +644,7 @@ const PodcastPage = () => {
                 imageUrl: imageURL,
                 lastUpdated: serverTimestamp(),
                 isPremium: formData.isPremium,
-                unitId: formData.unitId,
-                siraNumarasi: formData.siraNumarasi
+                unitId: formData.unitId
             });
 
             // Sync mapping: if unit changed, move mapping
@@ -629,21 +729,8 @@ const PodcastPage = () => {
                             >
                                 Üniteleri Göster
                             </button>
-                            
-                            
                             <button
-                                onClick={() => {
-                                    setFormData({
-                                        baslik: "",
-                                        aciklama: "",
-                                        sesLinki: "",
-                                        imageUrl: "",
-                                        isPremium: false,
-                                        unitId: "",
-                                        siraNumarasi: 0
-                                    });
-                                    setShowAddModal(true);
-                                }}
+                                onClick={() => setShowAddModal(true)}
                                 className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center gap-2"
                             >
                                 <FaPlus />
@@ -705,96 +792,38 @@ const PodcastPage = () => {
                                 className="w-full pl-12 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                             />
                         </div>
-                        {unitFilter && (
-                            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                                <div className="flex items-center justify-between">
-                                    <p className="text-sm text-blue-700 dark:text-blue-300">
-                                        🔍 Ünite filtresi aktif: {units.find(u => u.id === unitFilter)?.name || unitFilter}
-                                    </p>
-                                    <button
-                                        onClick={() => setUnitFilter("")}
-                                        className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-700 transition-colors"
-                                    >
-                                        Filtreyi Temizle
-                                    </button>
-                                </div>
-                            </div>
-                        )}
                     </div>
 
                     {/* Sıralama Kontrolleri */}
-                    <div className={`rounded-2xl p-6 shadow-sm border mb-8 ${
-                        unitFilter 
-                            ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' 
-                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-                    }`}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
                         <div className="flex items-center justify-between">
-                            <h3 className={`text-lg font-semibold flex items-center gap-2 ${
-                                unitFilter 
-                                    ? 'text-blue-900 dark:text-blue-100' 
-                                    : 'text-gray-900 dark:text-white'
-                            }`}>
-                                <FaSort className={unitFilter ? 'text-blue-500' : 'text-purple-500'} />
-                                Sıralama
-                                {unitFilter && (
-                                    <span className="text-sm font-normal text-blue-600 dark:text-blue-400">
-                                        (Sadece {units.find(u => u.id === unitFilter)?.name || unitFilter} ünitesi)
-                                    </span>
-                                )}
-                            </h3>
                             <div className="flex items-center gap-4">
-                                {/* Sıralama Kriteri */}
-                                <div className="flex items-center gap-2">
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Sırala:
-                                    </label>
-                                    <select
-                                        value={sortBy}
-                                        onChange={(e) => setSortBy(e.target.value)}
-                                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                    >
-                                        <option value="siraNumarasi">Sıra Numarası</option>
-                                        <option value="createdAt">Oluşturulma Tarihi</option>
-                                    </select>
-                                </div>
-
-                                {/* Sıralama Yönü */}
-                                <div className="flex items-center gap-2">
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Yön:
-                                    </label>
-                                    <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                                        <button
-                                            onClick={() => setSortOrder("asc")}
-                                            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                                                sortOrder === "asc"
-                                                    ? "bg-white dark:bg-gray-600 text-purple-600 dark:text-purple-400 shadow-sm"
-                                                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                                            }`}
-                                        >
-                                            <FaArrowUp className="inline mr-1" />
-                                            Artan
-                                        </button>
-                                        <button
-                                            onClick={() => setSortOrder("desc")}
-                                            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                                                sortOrder === "desc"
-                                                    ? "bg-white dark:bg-gray-600 text-purple-600 dark:text-purple-400 shadow-sm"
-                                                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                                            }`}
-                                        >
-                                            <FaArrowDown className="inline mr-1" />
-                                            Azalan
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Toplam Sayı */}
-                                <div className="text-sm text-gray-600 dark:text-gray-400">
+                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Podcast Sıralaması</h3>
+                                <span className="text-sm text-gray-600 dark:text-gray-400">
                                     {filteredPodcasts.length} podcast
-                                </div>
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => setIsSorting(!isSorting)}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                        isSorting 
+                                            ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                    }`}
+                                >
+                                    <FaSort className="inline mr-2" />
+                                    {isSorting ? 'Sıralamayı Bitir' : 'Sıralamayı Düzenle'}
+                                </button>
                             </div>
                         </div>
+                        {isSorting && (
+                            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                    💡 Sıralama modu aktif! Podcast'leri sürükleyerek veya yukarı/aşağı butonları ile taşıyabilirsiniz.
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Podcast Listesi */}
@@ -811,122 +840,30 @@ const PodcastPage = () => {
                                 <p className="text-gray-600 dark:text-gray-400">Henüz podcast eklenmemiş veya arama kriterlerinize uygun podcast yok.</p>
                             </div>
                         ) : (
-                            filteredPodcasts.map((podcast) => (
-                                <div
-                                    key={podcast.id}
-                                    className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-300"
+                            <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleDragEnd}
+                            >
+                                <SortableContext
+                                    items={filteredPodcasts.map(p => p.id)}
+                                    strategy={verticalListSortingStrategy}
                                 >
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-3 mb-4">
-                                                <FaMicrophone className="text-purple-600 text-xl" />
-                                                <div className="flex items-center gap-2">
-                                                    {podcast.siraNumarasi && (
-                                                        <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-full">
-                                                            #{podcast.siraNumarasi}
-                                                        </span>
-                                                    )}
-                                                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                                                        {podcast.baslik}
-                                                    </h3>
-                                                    {podcast.isPremium && (
-                                                        <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 text-xs font-medium rounded-full">
-                                                            Premium
-                                                        </span>
-                                                    )}
-                                                    {podcast.unitId && (
-                                                        <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 text-xs font-medium rounded-full">
-                                                            Ünite: {units.find(u => u.id === podcast.unitId)?.name || podcast.unitId}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Podcast Resmi */}
-                                            {podcast.imageUrl && (
-                                                <div className="mb-4">
-                                                    <img 
-                                                        src={podcast.imageUrl} 
-                                                        alt={podcast.baslik}
-                                                        className="w-24 h-24 object-cover rounded-lg shadow-sm"
-                                                    />
-                                                </div>
-                                            )}
-
-                                            {podcast.aciklama && (
-                                                <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
-                                                    {podcast.aciklama}
-                                                </p>
-                                            )}
-
-                                            <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400 mb-4">
-                                                <div className="flex items-center gap-1">
-                                                    <FaCalendar />
-                                                    <span>{formatDate(podcast.createdAt)}</span>
-                                                </div>
-                                            </div>
-
-                                            {/* Ses Dosyası Linki */}
-                                            {podcast.sesLinki && (
-                                                <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-3">
-                                                            <button
-                                                                onClick={() => playAudio(podcast.sesLinki)}
-                                                                className={`p-3 rounded-xl transition-colors ${
-                                                                    playingAudio === podcast.sesLinki
-                                                                        ? 'bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800'
-                                                                        : 'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-800'
-                                                                }`}
-                                                            >
-                                                                {playingAudio === podcast.sesLinki ? (
-                                                                    <FaPause />
-                                                                ) : (
-                                                                    <FaPlay />
-                                                                )}
-                                                            </button>
-                                                            <div className="flex-1">
-                                                                <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                                                                    {podcast.sesLinki}
-                                                                </p>
-                                                                <p className="text-xs text-purple-600 dark:text-purple-400">
-                                                                    {playingAudio === podcast.sesLinki ? "Çalıyor..." : "Dinlemek için tıklayın"}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <a
-                                                                href={podcast.sesLinki}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="p-2 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
-                                                                title="Linki aç"
-                                                            >
-                                                                <FaExternalLinkAlt />
-                                                            </a>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => openEditModal(podcast)}
-                                                className="p-2 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
-                                            >
-                                                <FaEdit />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeletePodcast(podcast)}
-                                                className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                                            >
-                                                <FaTrash />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))
+                                    {filteredPodcasts.map((podcast) => (
+                                        <SortableItem
+                                            key={podcast.id}
+                                            podcast={podcast}
+                                            units={units}
+                                            playingAudio={playingAudio}
+                                            playAudio={playAudio}
+                                            openEditModal={openEditModal}
+                                            handleDeletePodcast={handleDeletePodcast}
+                                            movePodcast={movePodcast}
+                                            isSorting={isSorting}
+                                        />
+                                    ))
+                                </SortableContext>
+                            </DndContext>
                         )}
                     </div>
                 </div>
@@ -975,15 +912,7 @@ const PodcastPage = () => {
                                     </label>
                                     <select
                                         value={formData.unitId}
-                                        onChange={(e) => {
-                                            const selectedUnitId = e.target.value;
-                                            const nextSira = getNextSiraNumarasi(selectedUnitId);
-                                            setFormData(prev => ({ 
-                                                ...prev, 
-                                                unitId: selectedUnitId,
-                                                siraNumarasi: nextSira
-                                            }));
-                                        }}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, unitId: e.target.value }))}
                                         className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                         required
                                     >
@@ -992,63 +921,6 @@ const PodcastPage = () => {
                                             <option key={u.id} value={u.id}>{u.name || u.id}</option>
                                         ))}
                                     </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                                        Sıra Numarası
-                                    </label>
-                                    <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-xl p-4 border border-green-200 dark:border-green-800">
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex-1">
-                                                <input
-                                                    type="number"
-                                                    value={formData.siraNumarasi}
-                                                    onChange={(e) => setFormData(prev => ({ ...prev, siraNumarasi: parseInt(e.target.value) || 0 }))}
-                                                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center text-lg font-semibold"
-                                                    placeholder="0"
-                                                    min="1"
-                                                    required
-                                                />
-                                            </div>
-                                            <div className="flex flex-col gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setFormData(prev => ({ ...prev, siraNumarasi: (prev.siraNumarasi || 0) + 1 }))}
-                                                    className="w-10 h-10 flex items-center justify-center bg-green-100 dark:bg-green-800 text-green-600 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-700 rounded-lg transition-colors shadow-sm"
-                                                    title="Artır"
-                                                >
-                                                    <FaArrowUp />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setFormData(prev => ({ ...prev, siraNumarasi: Math.max(1, (prev.siraNumarasi || 1) - 1) }))}
-                                                    className="w-10 h-10 flex items-center justify-center bg-green-100 dark:bg-green-800 text-green-600 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-700 rounded-lg transition-colors shadow-sm"
-                                                    title="Azalt"
-                                                >
-                                                    <FaArrowDown />
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div className="mt-3 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                                                <span className="text-sm text-gray-600 dark:text-gray-400">
-                                                    {formData.unitId ? `Sıra: ${formData.siraNumarasi}` : 'Önce ünite seçin'}
-                                                </span>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const nextSira = getNextSiraNumarasi(formData.unitId);
-                                                    setFormData(prev => ({ ...prev, siraNumarasi: nextSira }));
-                                                }}
-                                                className="text-xs px-3 py-1 bg-green-100 dark:bg-green-700 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-600 rounded-full transition-colors"
-                                            >
-                                                Otomatik
-                                            </button>
-                                        </div>
-                                    </div>
                                 </div>
 
                                 <div>
@@ -1202,59 +1074,6 @@ const PodcastPage = () => {
                             </div>
                             
                             <form onSubmit={handleEditPodcast} className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-200px)]">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                                        Sıra Numarası
-                                    </label>
-                                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex-1">
-                                                <input
-                                                    type="number"
-                                                    value={formData.siraNumarasi}
-                                                    onChange={(e) => setFormData(prev => ({ ...prev, siraNumarasi: parseInt(e.target.value) || 0 }))}
-                                                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-center text-lg font-semibold"
-                                                    placeholder="0"
-                                                    min="0"
-                                                />
-                                            </div>
-                                            <div className="flex flex-col gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setFormData(prev => ({ ...prev, siraNumarasi: (prev.siraNumarasi || 0) + 1 }))}
-                                                    className="w-10 h-10 flex items-center justify-center bg-purple-100 dark:bg-purple-800 text-purple-600 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-700 rounded-lg transition-colors shadow-sm"
-                                                    title="Artır"
-                                                >
-                                                    <FaArrowUp />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setFormData(prev => ({ ...prev, siraNumarasi: Math.max(0, (prev.siraNumarasi || 0) - 1) }))}
-                                                    className="w-10 h-10 flex items-center justify-center bg-purple-100 dark:bg-purple-800 text-purple-600 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-700 rounded-lg transition-colors shadow-sm"
-                                                    title="Azalt"
-                                                >
-                                                    <FaArrowDown />
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div className="mt-3 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-3 h-3 rounded-full ${formData.siraNumarasi > 0 ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                                                <span className="text-sm text-gray-600 dark:text-gray-400">
-                                                    {formData.siraNumarasi > 0 ? 'Sıralı podcast' : 'Sıra numarası yok'}
-                                                </span>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setFormData(prev => ({ ...prev, siraNumarasi: 0 }))}
-                                                className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors"
-                                            >
-                                                Sıfırla
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                                         Podcast Başlığı *

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import Layout from "../../components/layout";
 import { db } from "../../firebase";
-import { collection, addDoc, getDocs, serverTimestamp, orderBy, query, updateDoc, doc, deleteDoc, setDoc } from "firebase/firestore";
+import { collection, addDoc, getDocs, serverTimestamp, orderBy, query, updateDoc, doc, deleteDoc, setDoc, where } from "firebase/firestore";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { FaBookOpen, FaPlus, FaSave, FaImage, FaEdit, FaTrash, FaSearch } from "react-icons/fa";
+import { FaBookOpen, FaPlus, FaSave, FaImage, FaEdit, FaTrash, FaSearch, FaEye, FaTimes } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 
 const PodcastUnitsPage = () => {
@@ -11,18 +11,14 @@ const PodcastUnitsPage = () => {
     const [loading, setLoading] = useState(true);
     const [showAdd, setShowAdd] = useState(false);
     const [showEdit, setShowEdit] = useState(false);
-    const [newUnit, setNewUnit] = useState({ name: "", description: "" });
-    const [editUnit, setEditUnit] = useState({ id: "", name: "", description: "", imageUrl: "" });
+    const [newUnit, setNewUnit] = useState({ name: "", description: "", siraNumarasi: 0 });
+    const [editUnit, setEditUnit] = useState({ id: "", name: "", description: "", imageUrl: "", siraNumarasi: 0 });
+    const [isAutoNumbering, setIsAutoNumbering] = useState(false);
     const [selectedImageFile, setSelectedImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
     const [editSelectedImageFile, setEditSelectedImageFile] = useState(null);
     const [editImagePreview, setEditImagePreview] = useState(null);
     const [uploadingImage, setUploadingImage] = useState(false);
-
-    // Delete confirmation modal state
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [unitToDelete, setUnitToDelete] = useState(null);
-    const [unitDeletePodcastCount, setUnitDeletePodcastCount] = useState(0);
 
     // Podcasts for selection
     const [podcasts, setPodcasts] = useState([]);
@@ -30,14 +26,33 @@ const PodcastUnitsPage = () => {
     const [podcastSearch, setPodcastSearch] = useState("");
     const [selectedPodcastIds, setSelectedPodcastIds] = useState(new Set());
     const [editSelectedPodcastIds, setEditSelectedPodcastIds] = useState(new Set());
+    const [showPodcastsModal, setShowPodcastsModal] = useState(false);
+    const [selectedUnit, setSelectedUnit] = useState(null);
+    const [unitPodcasts, setUnitPodcasts] = useState([]);
 
     const loadUnits = async () => {
         setLoading(true);
         try {
             const ref = collection(db, "podcast-units");
-            const q = query(ref, orderBy("createdAt", "desc"));
-            const snap = await getDocs(q);
+            const snap = await getDocs(ref);
             const base = snap.docs.map(d => ({ id: d.id, ...d.data(), podcastCount: 0 }));
+            
+            // Sıralama: önce siraNumarasi olanlar (küçükten büyüğe), sonra olmayanlar (tarihe göre)
+            base.sort((a, b) => {
+                const aSira = a.siraNumarasi || 0;
+                const bSira = b.siraNumarasi || 0;
+                
+                if (aSira > 0 && bSira > 0) {
+                    return aSira - bSira;
+                }
+                
+                if (aSira > 0 && bSira === 0) return -1;
+                if (aSira === 0 && bSira > 0) return 1;
+                
+                const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+                const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+                return bDate - aDate;
+            });
             // fetch podcast counts in parallel
             const withCounts = await Promise.all(base.map(async (u) => {
                 try {
@@ -53,6 +68,94 @@ const PodcastUnitsPage = () => {
             toast.error("Üniteler yüklenemedi");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const viewUnitPodcasts = async (unit) => {
+        try {
+            setSelectedUnit(unit);
+            setUnitPodcasts([]);
+            setShowPodcastsModal(true);
+            
+            // Load podcasts for this unit
+            const podcastsRef = collection(db, "podcast-units", unit.id, "podcasts");
+            const podcastsSnap = await getDocs(podcastsRef);
+            
+            if (podcastsSnap.empty) {
+                setUnitPodcasts([]);
+                return;
+            }
+            
+            // Get podcast details from main podcasts collection
+            const podcastIds = podcastsSnap.docs.map(doc => doc.id);
+            const podcastPromises = podcastIds.map(async (podcastId) => {
+                try {
+                    const podcastDoc = await getDocs(query(collection(db, "podcasts"), where("__name__", "==", podcastId)));
+                    if (!podcastDoc.empty) {
+                        return { id: podcastId, ...podcastDoc.docs[0].data() };
+                    }
+                } catch (err) {
+                    console.error(`Podcast ${podcastId} yüklenirken hata:`, err);
+                }
+                return null;
+            });
+            
+            const podcastResults = await Promise.all(podcastPromises);
+            const validPodcasts = podcastResults.filter(p => p !== null);
+            
+            // Sort by siraNumarasi
+            validPodcasts.sort((a, b) => (a.siraNumarasi || 0) - (b.siraNumarasi || 0));
+            
+            setUnitPodcasts(validPodcasts);
+        } catch (error) {
+            console.error("Ünite podcast'leri yüklenirken hata:", error);
+            toast.error("Podcast'ler yüklenirken hata oluştu");
+        }
+    };
+
+    const getNextSiraNumarasi = () => {
+        if (units.length === 0) return 1;
+        
+        // En yüksek sıra numarasını bul
+        const maxSira = Math.max(...units.map(u => u.siraNumarasi || 0));
+        
+        return maxSira + 1;
+    };
+
+    const autoNumberUnits = async () => {
+        if (isAutoNumbering) return;
+        
+        setIsAutoNumbering(true);
+        try {
+            // Tüm üniteleri tarihe göre sırala (eski → yeni)
+            const sortedUnits = [...units].sort((a, b) => {
+                const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+                const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+                return aDate - bDate;
+            });
+
+            // Her üniteye sıra numarası ata
+            for (let i = 0; i < sortedUnits.length; i++) {
+                const unit = sortedUnits[i];
+                const siraNumarasi = i + 1;
+                
+                await updateDoc(doc(db, "podcast-units", unit.id), {
+                    siraNumarasi: siraNumarasi
+                });
+                
+                console.log(`${i + 1}/${sortedUnits.length} - ${unit.name} → Sıra: ${siraNumarasi}`);
+            }
+
+            toast.success(`${sortedUnits.length} üniteye otomatik sıra numarası atandı!`);
+            
+            // Üniteleri yeniden yükle
+            await loadUnits();
+            
+        } catch (error) {
+            console.error('Otomatik numaralandırma hatası:', error);
+            toast.error('Otomatik numaralandırma sırasında hata oluştu!');
+        } finally {
+            setIsAutoNumbering(false);
         }
     };
 
@@ -112,6 +215,21 @@ const PodcastUnitsPage = () => {
         e.preventDefault();
         if (!newUnit.name.trim()) return toast.error("Ünite adı zorunlu");
         try {
+            // Sıra numarası çakışması kontrolü
+            const newSira = newUnit.siraNumarasi || 0;
+            if (newSira > 0) {
+                // Aynı sıra numarasına sahip başka bir ünite var mı kontrol et
+                const conflictingUnit = units.find(u => u.siraNumarasi === newSira);
+                
+                if (conflictingUnit) {
+                    // Çakışan üniteyi 0 yap (sıra numarası yok)
+                    await updateDoc(doc(db, "podcast-units", conflictingUnit.id), {
+                        siraNumarasi: 0
+                    });
+                    console.log(`${conflictingUnit.name} ünitesinin sıra numarası kaldırıldı`);
+                }
+            }
+
             let imageUrl = "";
             if (selectedImageFile) {
                 setUploadingImage(true);
@@ -123,7 +241,8 @@ const PodcastUnitsPage = () => {
                 description: newUnit.description.trim(),
                 imageUrl,
                 createdAt: serverTimestamp(),
-                isActive: true
+                isActive: true,
+                siraNumarasi: newUnit.siraNumarasi
             });
             // doc id'yi kendi içine yaz (unitId)
             await updateDoc(doc(db, "podcast-units", docRef.id), { unitId: docRef.id });
@@ -163,7 +282,7 @@ const PodcastUnitsPage = () => {
     };
 
     const openEdit = async (unit) => {
-        setEditUnit({ id: unit.id, name: unit.name || "", description: unit.description || "", imageUrl: unit.imageUrl || "" });
+        setEditUnit({ id: unit.id, name: unit.name || "", description: unit.description || "", imageUrl: unit.imageUrl || "", siraNumarasi: unit.siraNumarasi || 0 });
         setEditSelectedImageFile(null);
         setEditImagePreview(unit.imageUrl || null);
         // load selected podcasts for this unit
@@ -181,6 +300,25 @@ const PodcastUnitsPage = () => {
         e.preventDefault();
         if (!editUnit.id) return;
         try {
+            // Sıra numarası değişikliği kontrolü
+            const originalUnit = units.find(u => u.id === editUnit.id);
+            const originalSira = originalUnit?.siraNumarasi || 0;
+            const newSira = editUnit.siraNumarasi || 0;
+            
+            // Eğer sıra numarası değiştiyse, yer değiştirme yap
+            if (originalSira !== newSira && newSira > 0) {
+                // Yeni sıra numarasına sahip başka bir ünite var mı kontrol et
+                const conflictingUnit = units.find(u => u.id !== editUnit.id && u.siraNumarasi === newSira);
+                
+                if (conflictingUnit) {
+                    // Çakışan üniteyi eski sıra numarasına taşı
+                    await updateDoc(doc(db, "podcast-units", conflictingUnit.id), {
+                        siraNumarasi: originalSira
+                    });
+                    console.log(`${conflictingUnit.name} ünitesi ${originalSira} numarasına taşındı`);
+                }
+            }
+
             let imageUrl = editUnit.imageUrl || "";
             if (editSelectedImageFile) {
                 setUploadingImage(true);
@@ -189,7 +327,8 @@ const PodcastUnitsPage = () => {
             await updateDoc(doc(db, "podcast-units", editUnit.id), {
                 name: editUnit.name.trim(),
                 description: editUnit.description.trim(),
-                imageUrl
+                imageUrl,
+                siraNumarasi: editUnit.siraNumarasi
             });
 
             // sync podcast mappings
@@ -241,41 +380,39 @@ const PodcastUnitsPage = () => {
         }
     };
 
-    const askDeleteUnit = async (unit) => {
+    const removeUnit = async (unit) => {
+        if (!window.confirm(`${unit.name} ünitesini silmek istediğinize emin misiniz?`)) return;
         try {
-            const pSnap = await getDocs(collection(db, "podcast-units", unit.id, "podcasts"));
-            setUnitDeletePodcastCount(pSnap.size);
-        } catch {
-            setUnitDeletePodcastCount(0);
-        }
-        setUnitToDelete(unit);
-        setShowDeleteModal(true);
-    };
-
-    const confirmDeleteUnit = async (alsoDelete) => {
-        const unit = unitToDelete;
-        setShowDeleteModal(false);
-        if (!unit) return;
-        try {
+            // Fetch all mapped podcasts for this unit
             const pSnap = await getDocs(collection(db, "podcast-units", unit.id, "podcasts"));
             const podcastIds = pSnap.docs.map(d => d.id);
 
+            let alsoDelete = false;
+            if (podcastIds.length > 0) {
+                alsoDelete = window.confirm(`Bu üniteye bağlı ${podcastIds.length} podcast bulundu.\n\nTamam: Podcast'leri de sil\nİptal: Sadece ünite bağlantısını kaldır (podcast'lerde unitId boşaltılır)`);
+            }
+
+            // Process podcasts per user choice
             for (const pid of podcastIds) {
                 try {
                     if (alsoDelete) {
+                        // Delete podcast document
                         await deleteDoc(doc(db, "podcasts", pid));
                     } else {
+                        // Detach podcast from unit (clear unitId)
                         await updateDoc(doc(db, "podcasts", pid), { unitId: "", lastUpdated: serverTimestamp() });
                     }
+                    // Remove mapping doc under the unit
                     await deleteDoc(doc(db, "podcast-units", unit.id, "podcasts", pid));
                 } catch (err) {
                     console.error("Podcast temizleme hatası:", err);
                 }
             }
 
+            // Delete the unit document itself
             await deleteDoc(doc(db, "podcast-units", unit.id));
+
             toast.success("Ünite silindi");
-            setUnitToDelete(null);
             loadUnits();
         } catch (e) {
             console.error(e);
@@ -312,7 +449,12 @@ const PodcastUnitsPage = () => {
                             </div>
                         </div>
                         <button
-                            onClick={() => { setShowAdd(true); setSelectedPodcastIds(new Set()); }}
+                            onClick={() => { 
+                                const nextSira = getNextSiraNumarasi();
+                                setNewUnit({ name: "", description: "", siraNumarasi: nextSira });
+                                setShowAdd(true); 
+                                setSelectedPodcastIds(new Set()); 
+                            }}
                             className="px-5 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center gap-2"
                         >
                             <FaPlus /> Yeni Ünite
@@ -348,13 +490,22 @@ const PodcastUnitsPage = () => {
                                                 </div>
                                                 <span className="text-[10px] px-2 py-1 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 shrink-0">Aktif</span>
                                             </div>
-                                            <div className="mt-3 flex items-center justify-end gap-1.5">
-                                                <button onClick={() => openEdit(u)} className="p-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/30 text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-300 transition-colors">
-                                                    <FaEdit />
-                                                </button>
-                                                <button onClick={() => askDeleteUnit(u)} className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-300 transition-colors">
-                                                    <FaTrash />
-                                                </button>
+                                            <div className="mt-3 flex items-center justify-between">
+                                                <a 
+                                                    href={`/podcast?unitId=${u.id}`}
+                                                    className="px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors flex items-center gap-1"
+                                                >
+                                                    <FaEye />
+                                                    Podcast'leri Gör
+                                                </a>
+                                                <div className="flex items-center gap-1.5">
+                                                    <button onClick={() => openEdit(u)} className="p-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/30 text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-300 transition-colors">
+                                                        <FaEdit />
+                                                    </button>
+                                                    <button onClick={() => removeUnit(u)} className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-300 transition-colors">
+                                                        <FaTrash />
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -363,51 +514,6 @@ const PodcastUnitsPage = () => {
                         )}
                     </div>
                 </div>
-
-                {/* Delete confirmation modal */}
-                {showDeleteModal && unitToDelete && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
-                            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Üniteyi Sil</h3>
-                                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                    "{unitToDelete.name}" ünitesini silmek üzeresiniz.
-                                </p>
-                            </div>
-                            <div className="p-6 space-y-3">
-                                {unitDeletePodcastCount > 0 ? (
-                                    <>
-                                        <p className="text-sm text-gray-700 dark:text-gray-300">
-                                            Bu üniteye bağlı {unitDeletePodcastCount} podcast bulundu. Ne yapmak istersiniz?
-                                        </p>
-                                        <div className="grid sm:grid-cols-2 gap-3">
-                                            <button onClick={() => confirmDeleteUnit(true)} className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold">
-                                                Podcast'leri de sil
-                                            </button>
-                                            <button onClick={() => confirmDeleteUnit(false)} className="px-4 py-3 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 rounded-xl font-semibold">
-                                                Sadece bağlantıyı kaldır
-                                            </button>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <p className="text-sm text-gray-700 dark:text-gray-300">
-                                        Bu üniteye bağlı podcast bulunmuyor. Silmek istiyor musunuz?
-                                    </p>
-                                )}
-                            </div>
-                            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-                                <button onClick={() => { setShowDeleteModal(false); setUnitToDelete(null); }} className="px-5 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold">
-                                    İptal
-                                </button>
-                                {unitDeletePodcastCount === 0 && (
-                                    <button onClick={() => confirmDeleteUnit(false)} className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold">
-                                        Üniteyi Sil
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
 
                 {showAdd && (
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
@@ -422,6 +528,63 @@ const PodcastUnitsPage = () => {
                                             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Ünite Adı *</label>
                                             <input type="text" value={newUnit.name} onChange={(e) => setNewUnit(prev => ({ ...prev, name: e.target.value }))} className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="Örn: Ünite 1 - Temel Kavramlar" required />
                                         </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                                                Sıra Numarası
+                                            </label>
+                                            <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-xl p-4 border border-green-200 dark:border-green-800">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="flex-1">
+                                                        <input
+                                                            type="number"
+                                                            value={newUnit.siraNumarasi}
+                                                            onChange={(e) => setNewUnit(prev => ({ ...prev, siraNumarasi: parseInt(e.target.value) || 0 }))}
+                                                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center text-lg font-semibold"
+                                                            placeholder="0"
+                                                            min="0"
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setNewUnit(prev => ({ ...prev, siraNumarasi: (prev.siraNumarasi || 0) + 1 }))}
+                                                            className="w-10 h-10 flex items-center justify-center bg-green-100 dark:bg-green-800 text-green-600 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-700 rounded-lg transition-colors shadow-sm"
+                                                            title="Artır"
+                                                        >
+                                                            <FaPlus className="text-xs" />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setNewUnit(prev => ({ ...prev, siraNumarasi: Math.max(0, (prev.siraNumarasi || 0) - 1) }))}
+                                                            className="w-10 h-10 flex items-center justify-center bg-green-100 dark:bg-green-800 text-green-600 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-700 rounded-lg transition-colors shadow-sm"
+                                                            title="Azalt"
+                                                        >
+                                                            <FaTimes className="text-xs" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-3 flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={`w-3 h-3 rounded-full ${newUnit.siraNumarasi > 0 ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                                                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                                                            {newUnit.siraNumarasi > 0 ? `Sıra: ${newUnit.siraNumarasi}` : 'Sıra numarası yok'}
+                                                        </span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const nextSira = getNextSiraNumarasi();
+                                                            setNewUnit(prev => ({ ...prev, siraNumarasi: nextSira }));
+                                                        }}
+                                                        className="text-xs px-3 py-1 bg-green-100 dark:bg-green-700 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-600 rounded-full transition-colors"
+                                                    >
+                                                        Otomatik
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div>
                                             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Açıklama</label>
                                             <textarea value={newUnit.description} onChange={(e) => setNewUnit(prev => ({ ...prev, description: e.target.value }))} rows={8} className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="Kısa bir açıklama (opsiyonel)" />
@@ -500,6 +663,63 @@ const PodcastUnitsPage = () => {
                                             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Ünite Adı *</label>
                                             <input type="text" value={editUnit.name} onChange={(e) => setEditUnit(prev => ({ ...prev, name: e.target.value }))} className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg_gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500" required />
                                         </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                                                Sıra Numarası
+                                            </label>
+                                            <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="flex-1">
+                                                        <input
+                                                            type="number"
+                                                            value={editUnit.siraNumarasi}
+                                                            onChange={(e) => setEditUnit(prev => ({ ...prev, siraNumarasi: parseInt(e.target.value) || 0 }))}
+                                                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-center text-lg font-semibold"
+                                                            placeholder="0"
+                                                            min="0"
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setEditUnit(prev => ({ ...prev, siraNumarasi: (prev.siraNumarasi || 0) + 1 }))}
+                                                            className="w-10 h-10 flex items-center justify-center bg-purple-100 dark:bg-purple-800 text-purple-600 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-700 rounded-lg transition-colors shadow-sm"
+                                                            title="Artır"
+                                                        >
+                                                            <FaPlus className="text-xs" />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setEditUnit(prev => ({ ...prev, siraNumarasi: Math.max(0, (prev.siraNumarasi || 0) - 1) }))}
+                                                            className="w-10 h-10 flex items-center justify-center bg-purple-100 dark:bg-purple-800 text-purple-600 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-700 rounded-lg transition-colors shadow-sm"
+                                                            title="Azalt"
+                                                        >
+                                                            <FaTimes className="text-xs" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-3 flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={`w-3 h-3 rounded-full ${editUnit.siraNumarasi > 0 ? 'bg-purple-500' : 'bg-gray-400'}`}></div>
+                                                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                                                            {editUnit.siraNumarasi > 0 ? `Sıra: ${editUnit.siraNumarasi}` : 'Sıra numarası yok'}
+                                                        </span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const nextSira = getNextSiraNumarasi();
+                                                            setEditUnit(prev => ({ ...prev, siraNumarasi: nextSira }));
+                                                        }}
+                                                        className="text-xs px-3 py-1 bg-purple-100 dark:bg-purple-700 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-600 rounded-full transition-colors"
+                                                    >
+                                                        Otomatik
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div>
                                             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Açıklama</label>
                                             <textarea value={editUnit.description} onChange={(e) => setEditUnit(prev => ({ ...prev, description: e.target.value }))} rows={8} className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500" />
@@ -569,6 +789,8 @@ const PodcastUnitsPage = () => {
                         </div>
                     </div>
                 )}
+
+                {/* Podcast'leri Gör artık podcast yönetimine yönlendiriyor */}
             </div>
         </Layout>
     );

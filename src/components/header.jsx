@@ -38,7 +38,7 @@ const Header = () => {
         { path: "/toplanti-arsivi", label: "Toplantı Arşivi", icon: <FaVideo className="inline-block mr-1" /> },
         { path: "/mobile-settings", label: "Mobil Dinamik Ayarlar", icon: <FaMobileAlt className="inline-block mr-1" /> },
         { path: "/app-feedback", label: "Uygulama Geri Bildirimleri", icon: <FaComments className="inline-block mr-1" /> },
-        { path: "/podcast", label: "Podcast Yönetimi", icon: <FaPodcast className="inline-block mr-1" /> },
+        { path: "/podcast-uniteleri", label: "Podcast Yönetimi", icon: <FaPodcast className="inline-block mr-1" /> },
         { path: "/faq", label: "Sıkça Sorulan Sorular", icon: <FaQuestionCircle className="inline-block mr-1" /> },
         { path: "/error-logs", label: "Hata Kayıtları", icon: <FaExclamationTriangle className="inline-block mr-1" /> }
     ];
