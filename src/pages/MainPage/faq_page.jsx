@@ -4,7 +4,44 @@ import { db } from "../../firebase";
 import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, serverTimestamp, orderBy, query } from "firebase/firestore";
 import { FaQuestionCircle, FaPlus, FaSave, FaEdit, FaTrash, FaSearch, FaChevronRight } from "react-icons/fa";
 import { toast } from "react-hot-toast";
-import { Editor } from '@tinymce/tinymce-react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+
+// ReactQuill Editor Component
+const RichTextEditor = ({ value, onChange, placeholder, height = 200 }) => {
+    const modules = {
+        toolbar: [
+            [{ 'header': [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            ['link'],
+            ['clean']
+        ],
+    };
+
+    const formats = [
+        'header', 'bold', 'italic', 'underline', 'strike',
+        'list', 'bullet', 'link'
+    ];
+
+    return (
+        <div className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
+            <ReactQuill
+                theme="snow"
+                value={value}
+                onChange={onChange}
+                placeholder={placeholder}
+                modules={modules}
+                formats={formats}
+                style={{ 
+                    height: height,
+                    backgroundColor: 'white'
+                }}
+                className="dark:bg-gray-900"
+            />
+        </div>
+    );
+};
 
 const FAQPage = () => {
     const [faqs, setFaqs] = useState([]);
@@ -219,30 +256,20 @@ const FAQPage = () => {
                                 <form onSubmit={addFaq} className="space-y-5">
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Soru *</label>
-                                        <Editor
-                                            apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
+                                        <RichTextEditor
                                             value={newFaq.question}
-                                            onEditorChange={(content) => setNewFaq(prev => ({ ...prev, question: content }))}
-                                            init={{
-                                                height: 200,
-                                                menubar: false,
-                                                plugins: ['advlist', 'autolink', 'lists', 'link', 'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen', 'insertdatetime', 'table', 'help', 'wordcount'],
-                                                toolbar: 'undo redo | bold italic underline | bullist numlist | link | removeformat'
-                                            }}
+                                            onChange={(content) => setNewFaq(prev => ({ ...prev, question: content }))}
+                                            placeholder="Sorunuzu buraya yazın..."
+                                            height={200}
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Cevap *</label>
-                                        <Editor
-                                            apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
+                                        <RichTextEditor
                                             value={newFaq.answer}
-                                            onEditorChange={(content) => setNewFaq(prev => ({ ...prev, answer: content }))}
-                                            init={{
-                                                height: 300,
-                                                menubar: false,
-                                                plugins: ['advlist', 'autolink', 'lists', 'link', 'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen', 'insertdatetime', 'table', 'help', 'wordcount'],
-                                                toolbar: 'undo redo | bold italic underline | bullist numlist | link | removeformat'
-                                            }}
+                                            onChange={(content) => setNewFaq(prev => ({ ...prev, answer: content }))}
+                                            placeholder="Cevabınızı buraya yazın..."
+                                            height={300}
                                         />
                                     </div>
                                     <div className="flex gap-3 pt-2">
@@ -254,30 +281,20 @@ const FAQPage = () => {
                                 <form onSubmit={submitEdit} className="space-y-5">
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Soru *</label>
-                                        <Editor
-                                            apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
+                                        <RichTextEditor
                                             value={editFaq.question}
-                                            onEditorChange={(content) => setEditFaq(prev => ({ ...prev, question: content }))}
-                                            init={{
-                                                height: 200,
-                                                menubar: false,
-                                                plugins: ['advlist', 'autolink', 'lists', 'link', 'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen', 'insertdatetime', 'table', 'help', 'wordcount'],
-                                                toolbar: 'undo redo | bold italic underline | bullist numlist | link | removeformat'
-                                            }}
+                                            onChange={(content) => setEditFaq(prev => ({ ...prev, question: content }))}
+                                            placeholder="Sorunuzu buraya yazın..."
+                                            height={200}
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Cevap *</label>
-                                        <Editor
-                                            apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
+                                        <RichTextEditor
                                             value={editFaq.answer}
-                                            onEditorChange={(content) => setEditFaq(prev => ({ ...prev, answer: content }))}
-                                            init={{
-                                                height: 300,
-                                                menubar: false,
-                                                plugins: ['advlist', 'autolink', 'lists', 'link', 'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen', 'insertdatetime', 'table', 'help', 'wordcount'],
-                                                toolbar: 'undo redo | bold italic underline | bullist numlist | link | removeformat'
-                                            }}
+                                            onChange={(content) => setEditFaq(prev => ({ ...prev, answer: content }))}
+                                            placeholder="Cevabınızı buraya yazın..."
+                                            height={300}
                                         />
                                     </div>
                                     <div className="flex items-center gap-2">
