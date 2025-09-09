@@ -60,7 +60,20 @@ const MobileSettingsPage = () => {
         pdfNotesCover: '',
         statisticsCover: '',
         leadershipTableCover: '',
-        contactUsCover: ''
+        contactUsCover: '',
+        // Yeni oyun resimleri
+        topicSelectTestCover: '',
+        practiceExamsCover: '',
+        questionWheelCover: '',
+        sudokuGameCover: '',
+        matchGameCover: '',
+        percentageGameCover: '',
+        hangmanGameCover: '',
+        quickMathCover: '',
+        findGameCover: '',
+        ticTacToeCover: '',
+        tongueTwisterCover: '',
+        loadingScreenCover: ''
     });
     const [uploadingImages, setUploadingImages] = useState({});
     const [imagePreviews, setImagePreviews] = useState({});
@@ -105,7 +118,20 @@ const MobileSettingsPage = () => {
                     pdfNotesCover: '',
                     statisticsCover: '',
                     leadershipTableCover: '',
-                    contactUsCover: ''
+                    contactUsCover: '',
+                    // Yeni oyun resimleri
+                    topicSelectTestCover: '',
+                    practiceExamsCover: '',
+                    questionWheelCover: '',
+                    sudokuGameCover: '',
+                    matchGameCover: '',
+                    percentageGameCover: '',
+                    hangmanGameCover: '',
+                    quickMathCover: '',
+                    findGameCover: '',
+                    ticTacToeCover: '',
+                    tongueTwisterCover: '',
+                    loadingScreenCover: ''
                 };
                 await setDoc(imageSettingsRef, {
                     ...defaultImageSettings,
@@ -318,7 +344,20 @@ const MobileSettingsPage = () => {
         { key: 'pdfNotesCover', label: 'PDF Notları Alanı Kapak Resmi', description: 'PDF notları bölümü için kapak resmi' },
         { key: 'statisticsCover', label: 'İstatistiklerim Sayfa Kapak Resmi', description: 'İstatistikler sayfası için kapak resmi' },
         { key: 'leadershipTableCover', label: 'Liderlik Tablosu Alanı Kapak Resmi', description: 'Liderlik tablosu bölümü için kapak resmi' },
-        { key: 'contactUsCover', label: 'Bize Ulaşın Alanı Kapak Resmi', description: 'Bize ulaşın bölümü için kapak resmi' }
+        { key: 'contactUsCover', label: 'Bize Ulaşın Alanı Kapak Resmi', description: 'Bize ulaşın bölümü için kapak resmi' },
+        // Yeni oyun resimleri
+        { key: 'topicSelectTestCover', label: 'Konu Seç Test Oluştur Kapak Resmi', description: 'Konu seç test oluştur bölümü için kapak resmi' },
+        { key: 'practiceExamsCover', label: 'Deneme Sınavları Kapak Resmi', description: 'Deneme sınavları bölümü için kapak resmi' },
+        { key: 'questionWheelCover', label: 'Soru Çarkı Kapak Resmi', description: 'Soru çarkı bölümü için kapak resmi' },
+        { key: 'sudokuGameCover', label: 'Sudoku Oyun Kapak Resmi', description: 'Sudoku oyun bölümü için kapak resmi' },
+        { key: 'matchGameCover', label: 'Eşleştir Bakalım Kapak Resmi', description: 'Eşleştir bakalım oyun bölümü için kapak resmi' },
+        { key: 'percentageGameCover', label: 'Bil Bakalım Yüzde Oyun Kapak Resmi', description: 'Bil bakalım yüzde oyun bölümü için kapak resmi' },
+        { key: 'hangmanGameCover', label: 'Adam Asmaca Oyun Kapak Resmi', description: 'Adam asmaca oyun bölümü için kapak resmi' },
+        { key: 'quickMathCover', label: 'Hızlı Matematik Kapak Resmi', description: 'Hızlı matematik bölümü için kapak resmi' },
+        { key: 'findGameCover', label: 'Bul Bakalım Oyun Kapak Resmi', description: 'Bul bakalım oyun bölümü için kapak resmi' },
+        { key: 'ticTacToeCover', label: 'Tic Tac Toe Oyun Kapak Resmi', description: 'Tic tac toe oyun bölümü için kapak resmi' },
+        { key: 'tongueTwisterCover', label: 'Tekerleme Oyun Kapak Resmi', description: 'Tekerleme oyun bölümü için kapak resmi' },
+        { key: 'loadingScreenCover', label: 'Loading Ekranı Kapak Resmi', description: 'Loading ekranı için kapak resmi' }
     ];
 
     return (
