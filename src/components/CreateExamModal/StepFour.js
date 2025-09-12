@@ -9,6 +9,7 @@ const StepFour = ({
     selectedDifficulties, 
     automaticDifficultyDistribution,
     manualDifficultyCount,
+    automaticTopicSelections,
     onComplete,
     onViewQuestions
 }) => {
@@ -68,8 +69,12 @@ const StepFour = ({
     // Toplam soru sayısını hesapla
     const getTotalQuestions = () => {
         if (automaticDifficultyDistribution) {
-            // Otomatik zorluk dağılımı - eski kategori sayılarını kullan
-            return Object.values(automaticCategories).reduce((total, category) => total + category.count, 0);
+            // Kullanıcının kategori/konu bazlı adetleri toplamı
+            const byCategory = Object.entries(automaticTopicSelections || {}).reduce((sum, [, topics]) => sum + Object.values(topics || {}).reduce((s, v) => s + (parseInt(v)||0), 0), 0);
+            // Geriye uyumluluk: Eğer kullanıcı hiçbir değer girmediyse eski sabit toplamı kullan
+            return byCategory > 0 
+                ? byCategory 
+                : Object.values(automaticCategories).reduce((total, category) => total + category.count, 0);
         } else {
             // Manuel zorluk dağılımı - manuel zorluk sayılarını kullan
             return Object.entries(manualDifficultyCount)
@@ -373,9 +378,16 @@ const StepFour = ({
                     let categoryCount, percentage;
                     
                     if (automaticDifficultyDistribution) {
-                        // Otomatik zorluk dağılımı - eski sayıları kullan
-                        categoryCount = category.count;
-                        percentage = ((category.count / getTotalQuestions()) * 100).toFixed(0);
+                        // Kullanıcı seçimleri varsa kategori toplamını o kategorideki konuların toplamından al
+                        const selectedSum = Object.values((automaticTopicSelections || {})[categoryName] || {}).reduce((s, v) => s + (parseInt(v)||0), 0);
+                        if (selectedSum > 0) {
+                            categoryCount = selectedSum;
+                            percentage = ((selectedSum / getTotalQuestions()) * 100).toFixed(0);
+                        } else {
+                            // Geriye uyumluluk: eski sabit sayılar
+                            categoryCount = category.count;
+                            percentage = ((category.count / getTotalQuestions()) * 100).toFixed(0);
+                        }
                     } else {
                         // Manuel zorluk dağılımı - orantılı hesaplama yap
                         const totalQuestions = getTotalQuestions();
@@ -460,11 +472,35 @@ const StepFour = ({
                                         );
                                     })()}
                                 </div>
+                                {automaticDifficultyDistribution && Object.keys((automaticTopicSelections || {})[categoryName] || {}).length > 0 && (
+                                    <div className="mt-3 text-xs text-gray-600">
+                                        <div className="font-medium mb-1">Seçilen Konular ve Adetleri:</div>
+                                        <ul className="list-disc list-inside space-y-0.5">
+                                            {Object.entries((automaticTopicSelections || {})[categoryName] || {}).map(([topicId, val]) => (
+                                                <li key={topicId}>{topicId} — {val} soru</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     );
                 })}
             </div>
+
+            {/* Manuel Konular Özeti */}
+            {automaticDifficultyDistribution && Object.keys((automaticTopicSelections || {})['Manuel Konular'] || {}).length > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h4 className="font-medium text-green-900 mb-2">Manuel Konular (Otomatik Seçim)</h4>
+                    <div className="text-sm text-green-700">
+                        <ul className="list-disc list-inside space-y-0.5">
+                            {Object.entries((automaticTopicSelections || {})['Manuel Konular']).map(([topicId, val]) => (
+                                <li key={topicId}>{topicId} — {val} soru</li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            )}
 
             {/* Uyarılar */}
             {availabilityWarnings.length > 0 && (

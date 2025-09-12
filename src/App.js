@@ -15,6 +15,10 @@ import ProtectedRouter from './routes/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import DenemeSinavlariPage from './pages/MainPage/deneme-sinavlari';
 import CreateExamPage from './pages/MainPage/create-exam';
+import CreateExamBuilderPage from './pages/MainPage/create-exam-builder';
+import CreateExamStep2Page from './pages/MainPage/create-exam-step2';
+import CreateExamStep3Page from './pages/MainPage/create-exam-step3';
+import CreateExamStep4Page from './pages/MainPage/create-exam-step4';
 import SoruHavuzuPage from './pages/MainPage/soru-havuzu';
 import QuestionBankPage from './pages/MainPage/question-bank';
 import ExamListPage from './pages/MainPage/exam-list';
@@ -53,6 +57,10 @@ function App() {
                     <Route path='/delete-account' element={<DeleteAccountPage />} />
                     <Route path='/deneme-sinavlari' element={<ProtectedRouter><DenemeSinavlariPage /></ProtectedRouter>} />
                     <Route path='/create-exam' element={<ProtectedRouter><CreateExamPage /></ProtectedRouter>} />
+                    <Route path='/create-exam/new' element={<ProtectedRouter><CreateExamBuilderPage /></ProtectedRouter>} />
+                    <Route path='/create-exam/step2' element={<ProtectedRouter><CreateExamStep2Page /></ProtectedRouter>} />
+                    <Route path='/create-exam/step3' element={<ProtectedRouter><CreateExamStep3Page /></ProtectedRouter>} />
+                    <Route path='/create-exam/step4' element={<ProtectedRouter><CreateExamStep4Page /></ProtectedRouter>} />
                     <Route path='/soru-havuzu' element={<ProtectedRouter><SoruHavuzuPage /></ProtectedRouter>} />
                     <Route path="/deneme-sinavlari/olustur" element={<ProtectedRouter><CreateExamPage /></ProtectedRouter>} />
                     <Route path="/deneme-sinavlari/soru-bankasi" element={<ProtectedRouter><QuestionBankPage /></ProtectedRouter>} />

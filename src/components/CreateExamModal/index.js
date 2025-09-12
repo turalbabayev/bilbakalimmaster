@@ -28,6 +28,11 @@ const CreateExamModal = ({
         hard: 20
     });
     const [selectedQuestions, setSelectedQuestions] = useState({});
+    const [automaticTopicSelections, setAutomaticTopicSelections] = useState({
+        'Genel Bankacılık': {},
+        'Genel Kültür': {},
+        'Genel Yetenek': {}
+    });
 
     // Modal'ı kapat ve sıfırla
     const closeModal = () => {
@@ -38,6 +43,11 @@ const CreateExamModal = ({
         setSelectedTopics([]);
         setAutomaticDifficultyDistribution(true);
         setManualDifficultyCount({ easy: 30, medium: 50, hard: 20 });
+        setAutomaticTopicSelections({
+            'Genel Bankacılık': {},
+            'Genel Kültür': {},
+            'Genel Yetenek': {}
+        });
     };
 
     // Bir sonraki adıma geç
@@ -84,6 +94,13 @@ const CreateExamModal = ({
             }
             
             if (selectionMethod === 'automatic') {
+                // Otomatik seçimde en az 1 konu ve toplam > 0 adet olmalı
+                const totalSelectedTopics = Object.values(automaticTopicSelections).reduce((sum, cat) => sum + Object.keys(cat).length, 0);
+                const totalPlanned = Object.values(automaticTopicSelections).reduce((sum, cat) => sum + Object.values(cat).reduce((s, v) => s + (parseInt(v)||0), 0), 0);
+                if (totalSelectedTopics === 0 || totalPlanned === 0) {
+                    toast.error('Otomatik seçimde her başlık için konuları ve adetleri belirleyin (en az 1).');
+                    return;
+                }
                 // Otomatik seçimde hem otomatik hem manuel dağılım için adım 4'e git
                 console.log('Otomatik seçim - Adım 4\'e geçiliyor');
                 setModalStep(4);
@@ -294,6 +311,8 @@ const CreateExamModal = ({
                                             manualDifficultyCount={manualDifficultyCount}
                                             onSetManualDifficultyCount={setManualDifficultyCount}
                                             konular={konular}
+                                            automaticTopicSelections={automaticTopicSelections}
+                                            onSetAutomaticTopicSelections={setAutomaticTopicSelections}
                                         />
                                     )}
                                     
@@ -302,6 +321,7 @@ const CreateExamModal = ({
                                             selectedDifficulties={selectedDifficulties}
                                             automaticDifficultyDistribution={automaticDifficultyDistribution}
                                             manualDifficultyCount={manualDifficultyCount}
+                                            automaticTopicSelections={automaticTopicSelections}
                                             onViewQuestions={viewQuestions}
                                             onComplete={() => {
                                                 onComplete({
@@ -309,7 +329,8 @@ const CreateExamModal = ({
                                                     topics: selectedTopics,
                                                     difficulties: selectedDifficulties,
                                                     manualCounts: manualDifficultyCount,
-                                                    automaticDifficultyDistribution: automaticDifficultyDistribution
+                                                    automaticDifficultyDistribution: automaticDifficultyDistribution,
+                                                    automaticTopicSelections: automaticTopicSelections
                                                 });
                                                 closeModal();
                                             }}
@@ -323,6 +344,7 @@ const CreateExamModal = ({
                                             selectedDifficulties={selectedDifficulties}
                                             automaticDifficultyDistribution={automaticDifficultyDistribution}
                                             manualDifficultyCount={manualDifficultyCount}
+                                            automaticTopicSelections={automaticTopicSelections}
                                             onBack={previousStep}
                                             onComplete={handleStepFiveComplete}
                                         />

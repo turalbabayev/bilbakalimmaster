@@ -29,6 +29,7 @@ const CreateExamPage = () => {
     const [konuIstatistikleri, setKonuIstatistikleri] = useState({});
     const [loading, setLoading] = useState(false);
     const [selectedTopic, setSelectedTopic] = useState('');
+    const [selectedTopicId, setSelectedTopicId] = useState('');
     const [showJsonInput, setShowJsonInput] = useState(false);
     const [jsonInput, setJsonInput] = useState('');
 
@@ -46,6 +47,7 @@ const CreateExamPage = () => {
             topicName: ''
         });
         setSelectedTopic('');
+        setSelectedTopicId('');
         setShowJsonInput(false);
         setJsonInput('');
     };
@@ -55,7 +57,7 @@ const CreateExamPage = () => {
         
         if (!questionForm.questionText.trim() || !questionForm.optionA.trim() || 
             !questionForm.optionB.trim() || !questionForm.optionC.trim() || 
-            !questionForm.optionD.trim() || !questionForm.optionE.trim() || !selectedTopic) {
+            !questionForm.optionD.trim() || !questionForm.optionE.trim() || !selectedTopic || !selectedTopicId) {
             toast.error('Lütfen tüm zorunlu alanları doldurun!');
             return;
         }
@@ -75,6 +77,7 @@ const CreateExamPage = () => {
                 aciklama: questionForm.explanation.trim(),
                 difficulty: questionForm.difficulty,
                 topicName: selectedTopic,
+                topicId: selectedTopicId, // Konunun Firestore ID'si
                 createdAt: serverTimestamp(),
                 isActive: true
             });
@@ -98,7 +101,7 @@ const CreateExamPage = () => {
     const handleSubmitJson = async (e) => {
         e.preventDefault();
         
-        if (!selectedTopic || !jsonInput.trim()) {
+        if (!selectedTopic || !selectedTopicId || !jsonInput.trim()) {
             toast.error('Lütfen konu seçin ve JSON verisini girin!');
             return;
         }
@@ -121,6 +124,7 @@ const CreateExamPage = () => {
                     aciklama: question.aciklama || '',
                     difficulty: question.difficulty || 'medium',
                     topicName: selectedTopic,
+                    topicId: selectedTopicId, // Konunun Firestore ID'si
                     createdAt: serverTimestamp(),
                     isActive: true
                 });
@@ -266,19 +270,18 @@ const CreateExamPage = () => {
                         <div className="bg-white rounded-lg shadow-md p-6">
                             <h2 className="text-xl font-semibold text-gray-900 mb-4">Sınav Türü Seçin</h2>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {/* Soru Bankasından Seç */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {/* Soru Bankasından Seç - DEVRE DIŞI */}
                                 <div 
-                                    onClick={() => setIsQuestionModalOpen(true)}
-                                    className="p-6 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                                    className="p-6 border-2 border-dashed border-gray-200 rounded-lg cursor-not-allowed opacity-50 bg-gray-100"
                                 >
                                     <div className="text-center">
-                                        <FaPlus className="h-12 w-12 text-gray-400 group-hover:text-blue-500 mx-auto mb-4" />
-                                        <h3 className="text-lg font-medium text-gray-900 group-hover:text-blue-900 mb-2">
+                                        <FaPlus className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                                        <h3 className="text-lg font-medium text-gray-500 mb-2">
                                             Soru Bankasından Seç
                                         </h3>
-                                        <p className="text-sm text-gray-600">
-                                            Mevcut sorulardan seçerek sınav oluşturun
+                                        <p className="text-sm text-gray-400">
+                                            Bu özellik geçici olarak devre dışı bırakılmıştır
                                         </p>
                                     </div>
                                 </div>
@@ -296,6 +299,25 @@ const CreateExamPage = () => {
                                         <p className="text-sm text-gray-600">
                                             Tek tek soru ekleyerek soru havuzunu genişletin
                                         </p>
+                                    </div>
+                                </div>
+
+                                {/* Yeni Akış: Sınav Oluştur - AKTİF */}
+                                <div
+                                    onClick={() => navigate('/create-exam/new')}
+                                    className="p-6 border-2 border-solid border-purple-500 rounded-lg cursor-pointer hover:border-purple-600 hover:bg-purple-50 transition-all group bg-purple-25"
+                                >
+                                    <div className="text-center">
+                                        <FaPlus className="h-12 w-12 text-purple-500 group-hover:text-purple-600 mx-auto mb-4" />
+                                        <h3 className="text-lg font-medium text-purple-900 group-hover:text-purple-800 mb-2">
+                                            Sınav Oluştur
+                                        </h3>
+                                        <p className="text-sm text-purple-700">
+                                            Yeni adım adım sınav oluşturma sistemi
+                                        </p>
+                                        <div className="mt-2 inline-block px-3 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
+                                            ÖNERİLEN
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -413,7 +435,11 @@ const CreateExamPage = () => {
                                     </label>
                                     <select
                                         value={selectedTopic}
-                                        onChange={(e) => setSelectedTopic(e.target.value)}
+                                        onChange={(e) => {
+                                            const selectedKonu = konular.find(k => k.baslik === e.target.value);
+                                            setSelectedTopic(e.target.value);
+                                            setSelectedTopicId(selectedKonu ? selectedKonu.id : '');
+                                        }}
                                         className={`w-full px-4 py-3 rounded-xl border-2 ${!selectedTopic ? 'border-red-400 dark:border-red-600' : 'border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200`}
                                         required
                                     >

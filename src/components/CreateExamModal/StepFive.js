@@ -10,6 +10,7 @@ const StepFive = ({
     selectedDifficulties, 
     automaticDifficultyDistribution,
     manualDifficultyCount,
+    automaticTopicSelections,
     onComplete,
     onBack
 }) => {
@@ -319,12 +320,16 @@ const StepFive = ({
                                     
                                     // SADECE zorluk seviyesi belirli olan soruları dahil et
                                     if (data.difficulty && ['easy', 'medium', 'hard'].includes(data.difficulty)) {
-                                        allQuestionsByCategory[categoryName][data.difficulty].push({
-                                            id: doc.id,
-                                            konuId: konuId,
-                                            topicName: topicMapping[konuId] || konuId,
-                                            ...data
-                                        });
+                                        const selectedTopicsForCategory = Object.keys((automaticTopicSelections || {})[categoryName] || {});
+                                        const topicAllowed = selectedTopicsForCategory.length === 0 || selectedTopicsForCategory.includes(konuId);
+                                        if (topicAllowed) {
+                                            allQuestionsByCategory[categoryName][data.difficulty].push({
+                                                id: doc.id,
+                                                konuId: konuId,
+                                                topicName: topicMapping[konuId] || konuId,
+                                                ...data
+                                            });
+                                        }
                                     }
                                     // Zorluk seviyesi belirtilmemiş soruları TAMAMEN ATLA
                                     break; // Bir kategoriye ait olduktan sonra döngüden çık
@@ -455,7 +460,8 @@ const StepFive = ({
 
                         if (automaticDifficultyDistribution) {
                             // Otomatik zorluk dağılımı
-                            const categoryTotal = categoryInfo.count;
+                            const selectedSum = Object.values((automaticTopicSelections || {})[categoryName] || {}).reduce((s, v) => s + (parseInt(v)||0), 0);
+                            const categoryTotal = selectedSum > 0 ? selectedSum : categoryInfo.count;
                             const difficultyDist = getDifficultyDistribution();
                             
                             const totalDifficultyQuestions = difficultyDist.easy + difficultyDist.medium + difficultyDist.hard;
@@ -484,6 +490,25 @@ const StepFive = ({
                         
                         const selectedHard = selectQuestionsWithFallback(questionsByDifficulty, 'hard', requiredHard, categoryName);
                         selectedQuestions.push(...selectedHard);
+
+                        // Konu kotaları uygulanacaksa uygula (basit filtre)
+                        const topicQuotas = (automaticTopicSelections || {})[categoryName] || {};
+                        if (Object.keys(topicQuotas).length > 0) {
+                            const quotaByTopic = { ...topicQuotas };
+                            const filtered = [];
+                            for (const q of selectedQuestions) {
+                                const tId = q.konuId;
+                                const remaining = parseInt(quotaByTopic[tId] || 0);
+                                if (remaining > 0) {
+                                    filtered.push(q);
+                                    quotaByTopic[tId] = remaining - 1;
+                                }
+                            }
+                            if (filtered.length > 0) {
+                                selectedQuestions.length = 0;
+                                selectedQuestions.push(...filtered);
+                            }
+                        }
 
                         // Soruları gerçek zorluk seviyelerine göre grupla ve temizle
                         const finalQuestions = {

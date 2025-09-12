@@ -14,7 +14,9 @@ const StepThree = ({
     onSetAutomaticDifficultyDistribution,
     manualDifficultyCount,
     onSetManualDifficultyCount,
-    konular
+    konular,
+    automaticTopicSelections,
+    onSetAutomaticTopicSelections
 }) => {
     const navigate = useNavigate();
     const [difficultyStats, setDifficultyStats] = useState({});
@@ -50,6 +52,37 @@ const StepThree = ({
             topicIds: ['-OKw6fKcYGunlY_PbCo3', '-OMBcE1I9DRj8uvlYSmH', '-OMhpwKF1PZ0-QnjyJm8', 'OMlVD6ufbDvCgZhfz8N']
         }
     };
+
+    // Konu ID -> Başlık eşlemesi (görsel için)
+    const topicIdToTitle = (id) => {
+        const topic = (konular || []).find(k => k.id === id);
+        return topic?.baslik || id;
+    };
+
+    // Manuel konuları üç başlık altına yerleştir
+    const normalize = (s = '') => s.toString().toLowerCase().trim();
+    const categorizeManualTopic = (name) => {
+        const n = normalize(name);
+        // Genel Bankacılık örnekleri
+        const bank = ['bankacılık','muhasebe','ekonomi','hukuk','krediler'];
+        const gk = ['genel kültür','genel kultur','kültür','kultur'];
+        const gy = ['matematik','türkçe','turkce','tarih','coğrafya','cografya','mantık','mantik','analitik'];
+        if (bank.some(k => n.includes(k))) return 'Genel Bankacılık';
+        if (gk.some(k => n.includes(k))) return 'Genel Kültür';
+        if (gy.some(k => n.includes(k))) return 'Genel Yetenek';
+        // Varsayılan: Genel Kültür'e düşsün
+        return 'Genel Kültür';
+    };
+
+    const manualTopicsByCategory = (() => {
+        const grouped = { 'Genel Bankacılık': [], 'Genel Kültür': [], 'Genel Yetenek': [] };
+        const names = [...new Set((manualQuestions || []).map(q => q.topicName).filter(Boolean))];
+        names.forEach((name) => {
+            const cat = categorizeManualTopic(name);
+            grouped[cat].push(name);
+        });
+        return grouped;
+    })();
 
     // Otomatik toplam soru sayısını hesapla
     const getTotalAutomaticQuestions = () => {
@@ -337,6 +370,80 @@ const StepThree = ({
                                     </div>
                                 </div>
                             )}
+
+                            {/* Otomatik akış: Başlık başlık konu ve adet seçimi */}
+                            <div className="mt-4 space-y-4">
+                                {Object.entries(automaticCategories).map(([categoryName, cfg]) => (
+                                    <div key={categoryName} className="bg-white rounded-lg border border-blue-200 p-4">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h5 className="text-sm font-semibold text-blue-900">{categoryName} için konuları seçin</h5>
+                                            <span className="text-xs text-blue-700">Hedef: {cfg.count} soru</span>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {/* Normal konular */}
+                                            {cfg.topicIds.map(topicId => {
+                                                const current = automaticTopicSelections?.[categoryName]?.[topicId] || '';
+                                                return (
+                                                    <div key={topicId} className="flex items-center gap-3 p-2 border rounded-lg">
+                                                        <div className="flex-1">
+                                                            <div className="text-sm font-medium text-gray-800">{topicIdToTitle(topicId)}</div>
+                                                            <div className="text-xs text-gray-500">ID: {topicId}</div>
+                                                        </div>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            value={current}
+                                                            onChange={(e) => {
+                                                                const val = Math.max(0, parseInt(e.target.value || '0'));
+                                                                onSetAutomaticTopicSelections(prev => ({
+                                                                    ...prev,
+                                                                    [categoryName]: {
+                                                                        ...(prev?.[categoryName] || {}),
+                                                                        [topicId]: val
+                                                                    }
+                                                                }));
+                                                            }}
+                                                            className="w-24 px-2 py-1 text-sm border rounded-lg"
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                            {/* Manuel konular bu başlık altında */}
+                                            {(manualTopicsByCategory[categoryName] || []).map((topicName) => {
+                                                const topicId = `manual-${topicName}`;
+                                                const current = automaticTopicSelections?.[categoryName]?.[topicId] || '';
+                                                return (
+                                                    <div key={topicId} className="flex items-center gap-3 p-2 border rounded-lg">
+                                                        <div className="flex-1">
+                                                            <div className="text-sm font-medium text-gray-800">{topicName}</div>
+                                                            <div className="text-xs text-gray-500">Manuel</div>
+                                                        </div>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            value={current}
+                                                            onChange={(e) => {
+                                                                const val = Math.max(0, parseInt(e.target.value || '0'));
+                                                                onSetAutomaticTopicSelections(prev => ({
+                                                                    ...prev,
+                                                                    [categoryName]: {
+                                                                        ...(prev?.[categoryName] || {}),
+                                                                        [topicId]: val
+                                                                    }
+                                                                }));
+                                                            }}
+                                                            className="w-24 px-2 py-1 text-sm border rounded-lg"
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="text-xs text-gray-600 mt-2">
+                                            Seçilen toplam: {Object.values(automaticTopicSelections?.[categoryName] || {}).reduce((s, v) => s + (parseInt(v)||0), 0)} soru
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
