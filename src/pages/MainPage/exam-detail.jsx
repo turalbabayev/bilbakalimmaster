@@ -113,22 +113,14 @@ const ExamDetailPage = () => {
         }
     };
 
-    // Sınav durumunu belirle
+    // Sınav durumunu belirle - Sadece aktif/pasif
     const getExamStatus = (exam) => {
-        if (!exam) return 'draft';
-        
-        const now = new Date();
-        const startDate = new Date(exam.startDate);
-        const endDate = exam.endDate ? new Date(exam.endDate) : null;
-        
-        if (exam.status === 'draft') return 'draft';
+        if (!exam) return 'active';
         if (exam.status === 'cancelled') return 'cancelled';
-        if (endDate && now > endDate) return 'expired';
-        if (now >= startDate) return 'active';
-        return 'scheduled';
+        return 'active';
     };
 
-    // Durum badge'i
+    // Durum badge'i - Sadece aktif/pasif
     const getStatusBadge = (status) => {
         const config = {
             active: { 
@@ -136,29 +128,14 @@ const ExamDetailPage = () => {
                 label: 'Aktif',
                 icon: '🟢'
             },
-            draft: { 
-                color: 'bg-gray-100 text-gray-800 border-gray-200', 
-                label: 'Taslak',
-                icon: '📝'
-            },
-            scheduled: { 
-                color: 'bg-blue-100 text-blue-800 border-blue-200', 
-                label: 'Planlandı',
-                icon: '⏰'
-            },
-            expired: { 
-                color: 'bg-red-100 text-red-800 border-red-200', 
-                label: 'Süresi Doldu',
-                icon: '❌'
-            },
             cancelled: { 
-                color: 'bg-yellow-100 text-yellow-800 border-yellow-200', 
-                label: 'İptal Edildi',
-                icon: '⚠️'
+                color: 'bg-red-100 text-red-800 border-red-200', 
+                label: 'Pasif',
+                icon: '⏸️'
             }
         };
 
-        const statusConfig = config[status] || config.draft;
+        const statusConfig = config[status] || config.active;
         return (
             <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border ${statusConfig.color}`}>
                 <span className="text-lg">{statusConfig.icon}</span>
@@ -297,9 +274,9 @@ const ExamDetailPage = () => {
             }));
             
             const statusMessages = {
-                active: `Sınav aktifleştirildi ve ${updateData.endDateTime ? updateData.endDateTime.toLocaleString('tr-TR') : 'belirsiz'} tarihine kadar aktif kalacak`,
+                active: 'Sınav aktifleştirildi',
                 scheduled: 'Sınav zamanlandı ve yayın süresine göre otomatik bitiş tarihi belirlendi',
-                cancelled: 'Sınav iptal edildi',
+                cancelled: 'Sınav pasif edildi',
                 draft: 'Sınav taslak durumuna alındı'
             };
             
@@ -559,82 +536,6 @@ const ExamDetailPage = () => {
                                 </div>
                             </div>
 
-                            {/* Tarih ve Zaman Bilgileri */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                                    <FaCalendarAlt className="text-blue-500" />
-                                    Tarih ve Zaman Bilgileri
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Başlangıç Tarihi</label>
-                                        <div className="p-3 bg-gray-50 rounded-lg">
-                                            <div className="font-medium text-gray-900">
-                                                {exam.startDate.toLocaleDateString('tr-TR', {
-                                                    year: 'numeric',
-                                                    month: 'long',
-                                                    day: 'numeric'
-                                                })}
-                                            </div>
-                                            <div className="text-sm text-gray-600">
-                                                {exam.startDate.toLocaleTimeString('tr-TR', {
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                })}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {exam.endDate && (
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Bitiş Tarihi</label>
-                                            <div className="p-3 bg-gray-50 rounded-lg">
-                                                <div className="font-medium text-gray-900">
-                                                    {exam.endDate.toLocaleDateString('tr-TR', {
-                                                        year: 'numeric',
-                                                        month: 'long',
-                                                        day: 'numeric'
-                                                    })}
-                                                </div>
-                                                <div className="text-sm text-gray-600">
-                                                    {exam.endDate.toLocaleTimeString('tr-TR', {
-                                                        hour: '2-digit',
-                                                        minute: '2-digit'
-                                                    })}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Oluşturulma Tarihi</label>
-                                        <div className="p-3 bg-gray-50 rounded-lg">
-                                            <div className="font-medium text-gray-900">
-                                                {exam.createdAt.toLocaleDateString('tr-TR', {
-                                                    year: 'numeric',
-                                                    month: 'long',
-                                                    day: 'numeric'
-                                                })}
-                                            </div>
-                                            <div className="text-sm text-gray-600">
-                                                {exam.createdAt.toLocaleTimeString('tr-TR', {
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                })}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Yayın Türü</label>
-                                        <div className="p-3 bg-gray-50 rounded-lg">
-                                            <div className="font-medium text-gray-900">
-                                                {exam.publishType === 'immediate' ? 'Hemen Yayınla' : 'Zamanlanmış'}
-                                            </div>
-                                            <div className="text-sm text-gray-600">
-                                                {exam.publishUnit && `${exam.publishDuration} ${exam.publishUnit}`}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
 
                             {/* Sınav Soruları */}
                             {((exam.questions && Object.keys(exam.questions).length > 0) || 
@@ -923,109 +824,26 @@ const ExamDetailPage = () => {
                                     </div>
 
                                     {/* Durum bazlı aksiyonlar */}
-                                    {status === 'draft' && (
-                                        <>
-                                            <button
-                                                onClick={() => handleStatusUpdate('active')}
-                                                disabled={updateLoading}
-                                                className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
-                                            >
-                                                {updateLoading ? <FaSpinner className="animate-spin" /> : <FaPlay />}
-                                                Sınavı Aktifleştir
-                                            </button>
-                                            <button
-                                                onClick={handleScheduleExam}
-                                                disabled={updateLoading}
-                                                className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-                                            >
-                                                {updateLoading ? <FaSpinner className="animate-spin" /> : <FaCalendarAlt />}
-                                                Zamanla
-                                            </button>
-                                        </>
-                                    )}
-                                    
                                     {status === 'active' && (
-                                        <>
+                                        <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                                            <div className="text-sm text-green-700 mb-3">
+                                                ✅ Bu sınav aktif durumda.
+                                            </div>
                                             <button
                                                 onClick={() => handleStatusUpdate('cancelled')}
                                                 disabled={updateLoading}
                                                 className="w-full flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
                                             >
                                                 {updateLoading ? <FaSpinner className="animate-spin" /> : <FaStop />}
-                                                Sınavı Durdur
+                                                Pasif Et
                                             </button>
-                                            <button
-                                                onClick={() => handleStatusUpdate('draft')}
-                                                disabled={updateLoading}
-                                                className="w-full flex items-center justify-center gap-2 bg-gray-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors disabled:opacity-50"
-                                            >
-                                                {updateLoading ? <FaSpinner className="animate-spin" /> : <FaEdit />}
-                                                Taslağa Çevir
-                                            </button>
-                                        </>
-                                    )}
-                                    
-                                    {status === 'scheduled' && (
-                                        <>
-                                            <button
-                                                onClick={() => handleStatusUpdate('active')}
-                                                disabled={updateLoading}
-                                                className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
-                                            >
-                                                {updateLoading ? <FaSpinner className="animate-spin" /> : <FaPlay />}
-                                                Hemen Başlat
-                                            </button>
-                                            <button
-                                                onClick={() => handleStatusUpdate('cancelled')}
-                                                disabled={updateLoading}
-                                                className="w-full flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
-                                            >
-                                                {updateLoading ? <FaSpinner className="animate-spin" /> : <FaTimesCircle />}
-                                                İptal Et
-                                            </button>
-                                            <button
-                                                onClick={() => handleStatusUpdate('draft')}
-                                                disabled={updateLoading}
-                                                className="w-full flex items-center justify-center gap-2 bg-gray-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors disabled:opacity-50"
-                                            >
-                                                {updateLoading ? <FaSpinner className="animate-spin" /> : <FaEdit />}
-                                                Taslağa Çevir
-                                            </button>
-                                        </>
-                                    )}
-                                    
-                                    {status === 'expired' && (
-                                        <>
-                                            <div className="p-3 bg-red-50 rounded-lg border border-red-200">
-                                                <div className="text-sm text-red-700">
-                                                    ⚠️ Bu sınavın süresi dolmuş. Yeni bir sınav oluşturabilir veya süreyi uzatabilirsiniz.
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={() => handleStatusUpdate('active')}
-                                                disabled={updateLoading}
-                                                className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
-                                            >
-                                                {updateLoading ? <FaSpinner className="animate-spin" /> : <FaPlay />}
-                                                Yeniden Aktifleştir
-                                            </button>
-                                            <button
-                                                onClick={() => handleStatusUpdate('draft')}
-                                                disabled={updateLoading}
-                                                className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-                                            >
-                                                {updateLoading ? <FaSpinner className="animate-spin" /> : <FaEdit />}
-                                                Düzenleme Moduna Al
-                                            </button>
-                                        </>
+                                        </div>
                                     )}
                                     
                                     {status === 'cancelled' && (
-                                        <>
-                                            <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                                                <div className="text-sm text-yellow-700">
-                                                    ⚠️ Bu sınav iptal edilmiş. Tekrar aktifleştirebilir veya düzenleyebilirsiniz.
-                                                </div>
+                                        <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                                            <div className="text-sm text-yellow-700 mb-3">
+                                                ⚠️ Bu sınav pasif durumda.
                                             </div>
                                             <button
                                                 onClick={() => handleStatusUpdate('active')}
@@ -1033,17 +851,9 @@ const ExamDetailPage = () => {
                                                 className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
                                             >
                                                 {updateLoading ? <FaSpinner className="animate-spin" /> : <FaPlay />}
-                                                Yeniden Aktifleştir
+                                                Aktif Et
                                             </button>
-                                            <button
-                                                onClick={() => handleStatusUpdate('draft')}
-                                                disabled={updateLoading}
-                                                className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-                                            >
-                                                {updateLoading ? <FaSpinner className="animate-spin" /> : <FaEdit />}
-                                                Düzenleme Moduna Al
-                                            </button>
-                                        </>
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -1058,29 +868,24 @@ const ExamDetailPage = () => {
                                             if (currentStatus === 'active') {
                                                 toast.error('Aktif sınavlar düzenlenemez!');
                                                 return;
-                                            } else if (currentStatus === 'completed') {
-                                                toast.error('Tamamlanmış sınavlar düzenlenemez!');
-                                                return;
                                             }
                                             navigate(`/deneme-sinavlari/duzenle/${exam.id}`);
                                         }}
-                                        disabled={getExamStatus(exam) === 'active' || getExamStatus(exam) === 'completed'}
+                                        disabled={getExamStatus(exam) === 'active'}
                                         className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-                                            getExamStatus(exam) === 'active' || getExamStatus(exam) === 'completed'
+                                            getExamStatus(exam) === 'active'
                                                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                                 : 'bg-blue-600 text-white hover:bg-blue-700'
                                         }`}
                                         title={
                                             getExamStatus(exam) === 'active' 
                                                 ? 'Aktif sınavlar düzenlenemez'
-                                                : getExamStatus(exam) === 'completed'
-                                                ? 'Tamamlanmış sınavlar düzenlenemez'
                                                 : 'Sınavı düzenle'
                                         }
                                     >
                                         <FaEdit />
                                         Düzenle
-                                        {(getExamStatus(exam) === 'active' || getExamStatus(exam) === 'completed') && (
+                                        {getExamStatus(exam) === 'active' && (
                                             <FaExclamationTriangle className="h-4 w-4 text-yellow-500" />
                                         )}
                                     </button>

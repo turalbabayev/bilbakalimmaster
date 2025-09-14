@@ -155,6 +155,8 @@ const ExamStatsPage = () => {
 
     // Soru kategorilerini analiz et
     const categoryStats = [];
+    let actualTotalQuestions = 0;
+    
     if (exam.questions || exam.selectedQuestions) {
         const questionsData = exam.questions || exam.selectedQuestions || {};
         Object.entries(questionsData).forEach(([categoryName, categoryData]) => {
@@ -167,13 +169,21 @@ const ExamStatsPage = () => {
                 if (totalQuestions > 0) {
                     categoryStats.push({
                         name: categoryName,
-                        questionCount: totalQuestions,
-                        percentage: Math.round((totalQuestions / stats.totalQuestions) * 100)
+                        questionCount: totalQuestions
                     });
+                    actualTotalQuestions += totalQuestions;
                 }
             }
         });
+        
+        // Yüzde hesaplamalarını güncelle
+        categoryStats.forEach(category => {
+            category.percentage = Math.round((category.questionCount / actualTotalQuestions) * 100);
+        });
     }
+    
+    // Gerçek toplam soru sayısını güncelle
+    stats.totalQuestions = actualTotalQuestions;
 
     return (
         <Layout>
@@ -281,48 +291,6 @@ const ExamStatsPage = () => {
                         </div>
                     </div>
 
-                    {/* Tarih Bilgileri */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
-                        <h2 className="text-lg font-medium text-gray-900 mb-6 flex items-center gap-2">
-                            <FaCalendarAlt className="text-blue-500" />
-                            Tarih ve Zaman Bilgileri
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="text-center p-4 bg-gray-50 rounded-lg">
-                                <div className="text-sm text-gray-600 mb-2">Oluşturulma Tarihi</div>
-                                <div className="font-medium text-gray-900">
-                                    {formatDate(stats.createdAt)}
-                                </div>
-                                <div className="text-sm text-gray-600">
-                                    {formatTime(stats.createdAt)}
-                                </div>
-                            </div>
-                            
-                            {stats.startDateTime && (
-                                <div className="text-center p-4 bg-green-50 rounded-lg">
-                                    <div className="text-sm text-gray-600 mb-2">Başlangıç Tarihi</div>
-                                    <div className="font-medium text-gray-900">
-                                        {formatDate(stats.startDateTime)}
-                                    </div>
-                                    <div className="text-sm text-gray-600">
-                                        {formatTime(stats.startDateTime)}
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {stats.endDateTime && (
-                                <div className="text-center p-4 bg-red-50 rounded-lg">
-                                    <div className="text-sm text-gray-600 mb-2">Bitiş Tarihi</div>
-                                    <div className="font-medium text-gray-900">
-                                        {formatDate(stats.endDateTime)}
-                                    </div>
-                                    <div className="text-sm text-gray-600">
-                                        {formatTime(stats.endDateTime)}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
 
                     {/* Kategori Soru Dağılımı */}
                     {categoryStats.length > 0 && (

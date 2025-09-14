@@ -107,20 +107,13 @@ const ExamListPage = () => {
         }
     };
 
-    // Sınav durumunu belirle
+    // Sınav durumunu belirle - Sadece aktif/pasif
     const getExamStatus = (exam) => {
-        const now = new Date();
-        const startDate = new Date(exam.startDate);
-        const endDate = exam.endDate ? new Date(exam.endDate) : null;
-        
-        if (exam.status === 'draft') return 'draft';
         if (exam.status === 'cancelled') return 'cancelled';
-        if (endDate && now > endDate) return 'expired';
-        if (now >= startDate) return 'active';
-        return 'scheduled';
+        return 'active';
     };
 
-    // Durum badge'i
+    // Durum badge'i - Sadece aktif/pasif
     const getStatusBadge = (status) => {
         const config = {
             active: { 
@@ -128,29 +121,14 @@ const ExamListPage = () => {
                 label: 'Aktif',
                 icon: '🟢'
             },
-            draft: { 
-                color: 'bg-gray-100 text-gray-800 border-gray-200', 
-                label: 'Taslak',
-                icon: '📝'
-            },
-            scheduled: { 
-                color: 'bg-blue-100 text-blue-800 border-blue-200', 
-                label: 'Planlandı',
-                icon: '⏰'
-            },
-            expired: { 
-                color: 'bg-red-100 text-red-800 border-red-200', 
-                label: 'Süresi Doldu',
-                icon: '❌'
-            },
             cancelled: { 
-                color: 'bg-yellow-100 text-yellow-800 border-yellow-200', 
-                label: 'İptal Edildi',
-                icon: '⚠️'
+                color: 'bg-red-100 text-red-800 border-red-200', 
+                label: 'Pasif',
+                icon: '⏸️'
             }
         };
 
-        const statusConfig = config[status] || config.draft;
+        const statusConfig = config[status] || config.active;
         return (
             <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${statusConfig.color}`}>
                 <span>{statusConfig.icon}</span>
@@ -259,42 +237,24 @@ const ExamListPage = () => {
                         border: 'border-green-200',
                         icon: '🟢'
                     },
-                    draft: { 
-                        gradient: 'from-gray-400 to-slate-500',
-                        bg: 'bg-gray-50',
-                        border: 'border-gray-200',
-                        icon: '📝'
-                    },
-                    scheduled: { 
-                        gradient: 'from-blue-400 to-indigo-500',
-                        bg: 'bg-blue-50',
-                        border: 'border-blue-200',
-                        icon: '⏰'
-                    },
-                    expired: { 
+                    cancelled: { 
                         gradient: 'from-red-400 to-rose-500',
                         bg: 'bg-red-50',
                         border: 'border-red-200',
                         icon: '❌'
-                    },
-                    cancelled: { 
-                        gradient: 'from-amber-400 to-orange-500',
-                        bg: 'bg-amber-50',
-                        border: 'border-amber-200',
-                        icon: '⚠️'
                     }
                 };
                 
-                const currentStatus = statusConfig[status] || statusConfig.draft;
+                const currentStatus = statusConfig[status] || statusConfig.active;
 
     return (
-                    <div key={exam.id} className="group">
-                        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 overflow-hidden">
+                    <div key={exam.id} className="group h-full">
+                        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 overflow-hidden h-full flex flex-col">
                             {/* Gradient Header */}
                             <div className={`h-3 bg-gradient-to-r ${currentStatus.gradient}`}></div>
                             
                             {/* Card Content */}
-                            <div className="p-6">
+                            <div className="p-6 flex flex-col flex-1">
                                 {/* Header Section */}
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex-1 min-w-0">
@@ -303,8 +263,11 @@ const ExamListPage = () => {
                                                 <span className="text-lg">{currentStatus.icon}</span>
                                             </div>
                                             <div className="flex-1">
-                                                <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors cursor-pointer"
-                                                    title={exam.title || 'İsimsiz Sınav'}>
+                                                <h3 
+                                                    onClick={() => navigate(`/deneme-sinavlari/detay/${exam.id}`)}
+                                                    className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors cursor-pointer"
+                                                    title={exam.title || 'İsimsiz Sınav'}
+                                                >
                                                     {(exam.title || 'İsimsiz Sınav').length > 30 
                                                         ? `${(exam.title || 'İsimsiz Sınav').substring(0, 30)}...`
                                                         : (exam.title || 'İsimsiz Sınav')
@@ -312,10 +275,7 @@ const ExamListPage = () => {
                                                 </h3>
                                                 <div className="flex items-center gap-1 mt-1">
                                                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${currentStatus.bg} border ${currentStatus.border}`}>
-                                                        {status === 'active' ? 'Aktif' : 
-                                                         status === 'draft' ? 'Taslak' :
-                                                         status === 'scheduled' ? 'Planlandı' :
-                                                         status === 'expired' ? 'Süresi Doldu' : 'İptal'}
+                                                        {status === 'active' ? 'Aktif' : 'Pasif'}
                                                     </span>
                                                 </div>
                                             </div>
@@ -388,7 +348,7 @@ const ExamListPage = () => {
                                 </div>
                                 
                                 {/* Action Buttons */}
-                                <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center justify-between gap-2 mt-auto">
                                     {/* Primary Actions */}
                                     <div className="flex items-center gap-1">
                                         <button
@@ -416,24 +376,6 @@ const ExamListPage = () => {
                                     
                                     {/* Status & Danger Actions */}
                                     <div className="flex items-center gap-1">
-                                        {status === 'draft' && (
-                                            <button
-                                                onClick={() => handleStatusUpdate(exam.id, 'active')}
-                                                className="p-2.5 bg-emerald-100 text-emerald-600 hover:bg-emerald-200 rounded-xl transition-all duration-200 hover:scale-110"
-                                                title="Aktifleştir"
-                                            >
-                                                <FaPlay className="h-3 w-3" />
-                                            </button>
-                                        )}
-                                        {status === 'active' && (
-                                            <button
-                                                onClick={() => handleStatusUpdate(exam.id, 'cancelled')}
-                                                className="p-2.5 bg-red-100 text-red-600 hover:bg-red-200 rounded-xl transition-all duration-200 hover:scale-110"
-                                                title="Durdur"
-                                            >
-                                                <FaStop className="h-3 w-3" />
-                                            </button>
-                                        )}
                         <button
                                             onClick={() => handleDeleteExam(exam.id)}
                                             className="p-2.5 bg-red-100 text-red-600 hover:bg-red-200 rounded-xl transition-all duration-200 hover:scale-110"
@@ -654,19 +596,16 @@ const ExamListPage = () => {
 
                             {/* Controls */}
                             <div className="flex items-center gap-3">
-                                {/* Status Filter */}
-                                <select
-                                    value={statusFilter}
-                                    onChange={(e) => setStatusFilter(e.target.value)}
-                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                                >
-                                    <option value="all">Tüm Durumlar</option>
-                                    <option value="active">Aktif</option>
-                                    <option value="draft">Taslak</option>
-                                    <option value="scheduled">Planlandı</option>
-                                    <option value="expired">Süresi Doldu</option>
-                                    <option value="cancelled">İptal Edildi</option>
-                                </select>
+                            {/* Status Filter */}
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                            >
+                                <option value="all">Tüm Durumlar</option>
+                                <option value="active">Aktif</option>
+                                <option value="cancelled">Pasif</option>
+                            </select>
 
                                 {/* Sort */}
                                 <select

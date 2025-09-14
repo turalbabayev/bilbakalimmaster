@@ -246,124 +246,143 @@ const CreateExamPage = () => {
 
     return (
         <Layout>
-            <div className="container mx-auto px-4 py-8">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center">
-                        <button 
-                            onClick={() => navigate('/deneme-sinavlari')}
-                            className="mr-4 p-2 text-gray-600 hover:text-gray-800 transition-colors"
-                        >
-                            <FaArrowLeft className="h-5 w-5" />
-                        </button>
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-900">Sınav Oluştur</h1>
-                            <p className="text-gray-600 mt-2">Yeni bir sınav oluşturmak için soruları seçin</p>
+            <div className="min-h-screen bg-white">
+                <div className="container mx-auto px-4 py-12">
+                    <div className="max-w-6xl mx-auto">
+                        {/* Header */}
+                        <div className="text-left mb-8">
+                            <div className="flex items-center mb-4">
+                                <button 
+                                    onClick={() => navigate('/deneme-sinavlari')}
+                                    className="mr-4 p-2 text-gray-600 hover:text-gray-800 transition-colors"
+                                >
+                                    <FaArrowLeft className="h-5 w-5" />
+                                </button>
+                                <h1 className="text-2xl font-semibold text-gray-900">
+                                    Sınav Oluştur
+                                </h1>
+                            </div>
+                            <p className="text-sm text-gray-600">
+                                Yeni bir sınav oluşturmak için yöntem seçin
+                            </p>
                         </div>
-                    </div>
-                </div>
 
-                {/* Ana İçerik */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Sol Panel - Sınav Oluşturma */}
-                    <div className="lg:col-span-2">
-                        <div className="bg-white rounded-lg shadow-md p-6">
-                            <h2 className="text-xl font-semibold text-gray-900 mb-4">Sınav Türü Seçin</h2>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {/* Soru Bankasından Seç - DEVRE DIŞI */}
-                                <div 
-                                    className="p-6 border-2 border-dashed border-gray-200 rounded-lg cursor-not-allowed opacity-50 bg-gray-100"
-                                >
-                                    <div className="text-center">
-                                        <FaPlus className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                                        <h3 className="text-lg font-medium text-gray-500 mb-2">
-                                            Soru Bankasından Seç
-                                        </h3>
-                                        <p className="text-sm text-gray-400">
-                                            Bu özellik geçici olarak devre dışı bırakılmıştır
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Manuel Soru Gir */}
-                                <div 
-                                    onClick={() => setShowManualQuestionModal(true)}
-                                    className="p-6 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-green-500 hover:bg-green-50 transition-all group"
-                                >
-                                    <div className="text-center">
-                                        <FaEdit className="h-12 w-12 text-gray-400 group-hover:text-green-500 mx-auto mb-4" />
-                                        <h3 className="text-lg font-medium text-gray-900 group-hover:text-green-900 mb-2">
-                                            Manuel Soru Gir
-                                        </h3>
-                                        <p className="text-sm text-gray-600">
-                                            Tek tek soru ekleyerek soru havuzunu genişletin
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Yeni Akış: Sınav Oluştur - AKTİF */}
-                                <div
-                                    onClick={() => navigate('/create-exam/new')}
-                                    className="p-6 border-2 border-solid border-purple-500 rounded-lg cursor-pointer hover:border-purple-600 hover:bg-purple-50 transition-all group bg-purple-25"
-                                >
-                                    <div className="text-center">
-                                        <FaPlus className="h-12 w-12 text-purple-500 group-hover:text-purple-600 mx-auto mb-4" />
-                                        <h3 className="text-lg font-medium text-purple-900 group-hover:text-purple-800 mb-2">
-                                            Sınav Oluştur
-                                        </h3>
-                                        <p className="text-sm text-purple-700">
-                                            Yeni adım adım sınav oluşturma sistemi
-                                        </p>
-                                        <div className="mt-2 inline-block px-3 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
-                                            ÖNERİLEN
+                        {/* Ana İçerik */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            {/* Sol Panel - Sınav Oluşturma */}
+                            <div className="lg:col-span-2">
+                                <div className="bg-white rounded-xl shadow-lg p-8">
+                                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Sınav Türü Seçin</h2>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        {/* Soru Bankasından Seç - DEVRE DIŞI */}
+                                        <div className="group relative bg-white rounded-xl shadow-lg border border-gray-100/50 overflow-hidden opacity-50 cursor-not-allowed">
+                                            <div className="h-2 w-full bg-gray-400 rounded-t-xl"></div>
+                                            <div className="p-6">
+                                                <div className="text-center">
+                                                    <div className="w-12 h-12 rounded-xl bg-gray-400 flex items-center justify-center mx-auto mb-4">
+                                                        <FaPlus className="h-6 w-6 text-white" />
+                                                    </div>
+                                                    <h3 className="text-lg font-semibold text-gray-500 mb-2">
+                                                        Soru Bankasından Seç
+                                                    </h3>
+                                                    <p className="text-sm text-gray-400">
+                                                        Bu özellik geçici olarak devre dışı bırakılmıştır
+                                                    </p>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
+
+                                        {/* Manuel Soru Gir */}
+                                        <div 
+                                            onClick={() => setShowManualQuestionModal(true)}
+                                            className="group relative bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-500 hover:-translate-y-1 border border-gray-100/50 overflow-hidden cursor-pointer"
+                                        >
+                                            <div className="h-2 w-full bg-green-500 rounded-t-xl"></div>
+                                            <div className="p-6">
+                                                <div className="text-center">
+                                                    <div className="w-12 h-12 rounded-xl bg-green-500 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                                                        <FaEdit className="h-6 w-6 text-white" />
+                                                    </div>
+                                                    <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-gray-700 transition-colors duration-300">
+                                                        Manuel Soru Gir
+                                                    </h3>
+                                                    <p className="text-sm text-gray-600">
+                                                        Tek tek soru ekleyerek soru havuzunu genişletin
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Yeni Akış: Sınav Oluştur - AKTİF */}
+                                        <div
+                                            onClick={() => navigate('/create-exam/new')}
+                                            className="group relative bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-500 hover:-translate-y-1 border border-gray-100/50 overflow-hidden cursor-pointer"
+                                        >
+                                            <div className="h-2 w-full bg-blue-500 rounded-t-xl"></div>
+                                            <div className="p-6">
+                                                <div className="text-center">
+                                                    <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                                                        <FaPlus className="h-6 w-6 text-white" />
+                                                    </div>
+                                                    <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-gray-700 transition-colors duration-300">
+                                                        Sınav Oluştur
+                                                    </h3>
+                                                    <p className="text-sm text-gray-600">
+                                                        Yeni adım adım sınav oluşturma sistemi
+                                                    </p>
+                                                    <div className="mt-3 inline-block px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                                                        ÖNERİLEN
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Sağ Panel - İstatistikler */}
-                    <div className="space-y-6">
-                        {/* Toplam Konu Sayısı */}
-                        <div className="bg-white rounded-lg shadow-md p-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Konu İstatistikleri</h3>
-                            
-                            <div className="space-y-3">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-600">Toplam Konu:</span>
-                                    <span className="font-semibold text-blue-600">{konular.length}</span>
-                                </div>
-                                
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-600">Toplam Soru:</span>
-                                    <span className="font-semibold text-green-600">
-                                        {Object.values(konuIstatistikleri).reduce((total, stat) => total + stat.soruSayisi, 0)}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* En Çok Soru Olan Konular */}
-                        <div className="bg-white rounded-lg shadow-md p-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">En Çok Soru Olan Konular</h3>
-                            
-                            <div className="space-y-2">
-                                {konular
-                                    .map(konu => ({
-                                        ...konu,
-                                        soruSayisi: konuIstatistikleri[konu.id]?.soruSayisi || 0
-                                    }))
-                                    .sort((a, b) => b.soruSayisi - a.soruSayisi)
-                                    .slice(0, 5)
-                                    .map(konu => (
-                                        <div key={konu.id} className="flex justify-between items-center py-2">
-                                            <span className="text-sm text-gray-600 truncate">{konu.baslik}</span>
-                                            <span className="text-sm font-medium text-blue-600">{konu.soruSayisi}</span>
+                            {/* Sağ Panel - İstatistikler */}
+                            <div className="space-y-6">
+                                {/* Toplam Konu Sayısı */}
+                                <div className="bg-white rounded-xl shadow-lg p-6">
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Konu İstatistikleri</h3>
+                                    
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-gray-600">Toplam Konu:</span>
+                                            <span className="font-semibold text-blue-600">{konular.length}</span>
                                         </div>
-                                    ))
-                                }
+                                        
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-gray-600">Toplam Soru:</span>
+                                            <span className="font-semibold text-green-600">
+                                                {Object.values(konuIstatistikleri).reduce((total, stat) => total + stat.soruSayisi, 0)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* En Çok Soru Olan Konular */}
+                                <div className="bg-white rounded-xl shadow-lg p-6">
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">En Çok Soru Olan Konular</h3>
+                                    
+                                    <div className="space-y-2">
+                                        {konular
+                                            .map(konu => ({
+                                                ...konu,
+                                                soruSayisi: konuIstatistikleri[konu.id]?.soruSayisi || 0
+                                            }))
+                                            .sort((a, b) => b.soruSayisi - a.soruSayisi)
+                                            .slice(0, 5)
+                                            .map(konu => (
+                                                <div key={konu.id} className="flex justify-between items-center py-2">
+                                                    <span className="text-sm text-gray-600 truncate">{konu.baslik}</span>
+                                                    <span className="text-sm font-medium text-blue-600">{konu.soruSayisi}</span>
+                                                </div>
+                                            ))
+                                        }
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
