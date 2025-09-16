@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, lazy, Suspense } from "react";
 import { db, storage } from "../firebase";
-import { doc, getDoc, updateDoc, collection, getDocs, addDoc, deleteDoc, orderBy, query } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { Editor } from '@tinymce/tinymce-react';
 import { toast } from 'react-hot-toast';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+const LazyEditor = lazy(() => import('@tinymce/tinymce-react').then(m => ({ default: m.Editor })));
+const LazyQuill = lazy(() => import('react-quill'));
 
 const UpdateDraftQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpdateComplete }) => {
     const [soru, setSoru] = useState(null);
@@ -14,8 +13,8 @@ const UpdateDraftQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpd
     const [dogruCevap, setDogruCevap] = useState("A");
     const [zenginMetinAktif, setZenginMetinAktif] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [altKonular, setAltKonular] = useState({});
-    const [selectedAltKonu, setSelectedAltKonu] = useState(altKonuId || "");
+    const [showEditors, setShowEditors] = useState(false);
+    // Alt konu değiştirme kaldırıldı
 
     const modules = { toolbar: [[{ 'header': [1, 2, 3, 4, 5, 6, false] }], [{ 'font': [] }], ['bold', 'italic', 'underline', 'strike'], [{ 'color': [] }, { 'background': [] }], [{ 'list': 'ordered'}, { 'list': 'bullet' }], [{ 'align': [] }], ['clean']] };
     const formats = ['header','font','bold','italic','underline','strike','color','background','list','bullet','align'];
@@ -48,14 +47,9 @@ const UpdateDraftQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpd
                 while (arr.length < 5) arr.push("");
                 setCevaplar(arr);
                 setDogruCevap(data.dogruCevap || 'A');
-                // Alt konuları da yükle
-                const altKonularCollectionRef = collection(doc(db, 'konular', konuId), 'altkonular');
-                const altKonularSnapshot = await getDocs(altKonularCollectionRef);
-                const altData = {};
-                altKonularSnapshot.forEach((dc) => { altData[dc.id] = dc.data(); });
-                setAltKonular(altData);
-                setSelectedAltKonu(altKonuId);
                 setLoading(false);
+                // Editörleri ilk paint'ten sonra yükle
+                setTimeout(() => setShowEditors(true), 0);
             } catch (e) {
                 console.error(e);
                 toast.error('Veri yüklenirken hata');
@@ -63,7 +57,7 @@ const UpdateDraftQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpd
             }
         };
         if (isOpen) fetchData();
-    }, [isOpen, konuId, altKonuId, soruId]);
+    }, [isOpen, konuId, altKonuId, soruId, onClose]);
 
     const handleImageUpload = async (blobInfo) => {
         const file = new File([blobInfo.blob()], blobInfo.filename(), { type: blobInfo.blob().type });
@@ -92,26 +86,8 @@ const UpdateDraftQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpd
                 report: soru.report || 0,
                 updatedAt: new Date()
             };
-            if (selectedAltKonu && selectedAltKonu !== altKonuId) {
-                // Hedef alt konudaki normal soruların en büyük soruNumarası bulunur
-                const sorularRefForNum = collection(db, 'konular', konuId, 'altkonular', selectedAltKonu, 'sorular');
-                const qNum = query(sorularRefForNum, orderBy('soruNumarasi', 'desc'));
-                const snapNum = await getDocs(qNum);
-                const lastNum = snapNum.empty ? 0 : (snapNum.docs[0].data().soruNumarasi || 0);
-
-                // Farklı alt konuya taşı: önce yeni yere EKLE (uygun soruNumarası ile), başarılı olursa eskisini SİL
-                const targetCol = collection(db, 'konular', konuId, 'altkonular', selectedAltKonu, 'taslaklar');
-                const payloadWithNumber = { ...payload, soruNumarasi: lastNum + 1, createdAt: new Date() };
-                const newDocRef = await addDoc(targetCol, payloadWithNumber);
-                if (!newDocRef?.id) {
-                    throw new Error('Yeni taslak oluşturulamadı');
-                }
-                await deleteDoc(draftRef);
-                toast.success('Taslak yeni alt konuya taşındı');
-            } else {
-                await updateDoc(draftRef, payload);
-                toast.success('Taslak güncellendi');
-            }
+            await updateDoc(draftRef, payload);
+            toast.success('Taslak güncellendi');
             if (onUpdateComplete) onUpdateComplete(payload);
             onClose();
         } catch (e) {
@@ -137,35 +113,32 @@ const UpdateDraftQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpd
                     <form onSubmit={handleUpdate} className="flex flex-col flex-1 overflow-hidden">
                         <div className="p-8 overflow-y-auto flex-1">
                             <div className="space-y-8">
-                                <div>
-                                    <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">Alt Konu Seçin</label>
-                                    <select
-                                        value={selectedAltKonu}
-                                        onChange={(e)=>setSelectedAltKonu(e.target.value)}
-                                        className={`w-full px-4 py-3 rounded-xl border-2 ${!selectedAltKonu ? 'border-red-400 dark:border-red-600' : 'border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200`}
-                                    >
-                                        <option value="">Alt konu seçin</option>
-                                        {Object.entries(altKonular).map(([key, ak]) => (
-                                            <option key={key} value={key}>{ak.baslik}</option>
-                                        ))}
-                                    </select>
-                                </div>
+                                {/* Alt konu değiştirme kaldırıldı */}
                                 <div>
                                     <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">Soru Metni</label>
                                     <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                        <Editor
-                                            apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
-                                            value={soru?.soruMetni || ''}
-                                            onEditorChange={(content) => setSoru({ ...soru, soruMetni: content })}
-                                            init={{
-                                                height: 300,
-                                                menubar: false,
-                                                plugins: ['advlist','autolink','lists','link','image','charmap','preview','searchreplace','visualblocks','code','fullscreen','insertdatetime','media','table','code','help','wordcount'],
-                                                toolbar: 'undo redo | blocks | bold italic forecolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | image | help',
-                                                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
-                                                images_upload_handler: handleImageUpload
-                                            }}
-                                        />
+                                        {showEditors ? (
+                                            <Suspense fallback={<div className="p-4 text-sm text-gray-500">Editör yükleniyor...</div>}>
+                                                <LazyEditor
+                                                    apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
+                                                    value={soru?.soruMetni || ''}
+                                                    onEditorChange={(content) => setSoru({ ...soru, soruMetni: content })}
+                                                    init={{
+                                                        height: 300,
+                                                        menubar: false,
+                                                        plugins: [
+                                                            'advlist','autolink','lists','link','charmap','preview',
+                                                            'searchreplace','visualblocks','code','fullscreen',
+                                                            'insertdatetime','table','help','wordcount'
+                                                        ],
+                                                        toolbar: 'undo redo | blocks | bold italic forecolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | help',
+                                                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }'
+                                                    }}
+                                                />
+                                            </Suspense>
+                                        ) : (
+                                            <div className="p-4 text-sm text-gray-500">Yükleniyor...</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div>
@@ -182,7 +155,13 @@ const UpdateDraftQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpd
                                                 <div className="flex-1">
                                                     {zenginMetinAktif ? (
                                                         <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                                            <ReactQuill theme="snow" value={cevap} onChange={(val)=>{const arr=[...cevaplar]; arr[index]=val; setCevaplar(arr);}} modules={modules} formats={formats} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                                                            {showEditors ? (
+                                                                <Suspense fallback={<div className="p-2 text-xs text-gray-500">Editör yükleniyor...</div>}>
+                                                                    <LazyQuill theme="snow" value={cevap} onChange={(val)=>{const arr=[...cevaplar]; arr[index]=val; setCevaplar(arr);}} modules={modules} formats={formats} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                                                                </Suspense>
+                                                            ) : (
+                                                                <div className="p-2 text-xs text-gray-500">Yükleniyor...</div>
+                                                            )}
                                                         </div>
                                                     ) : (
                                                         <input type="text" value={cevap} onChange={(e)=>{const arr=[...cevaplar]; arr[index]=e.target.value; setCevaplar(arr);}} placeholder={`${String.fromCharCode(65+index)} şıkkının cevabını girin`} className={`w-full px-4 py-3 rounded-xl border-2 ${dogruCevap===String.fromCharCode(65+index)?'border-green-200 dark:border-green-800':'border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200`} />
@@ -195,7 +174,13 @@ const UpdateDraftQuestion = ({ isOpen, onClose, konuId, altKonuId, soruId, onUpd
                                 <div>
                                     <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">Açıklama</label>
                                     <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                                        <Editor apiKey={process.env.REACT_APP_TINYMCE_API_KEY} value={soru?.aciklama || ''} onEditorChange={(content)=>setSoru({...soru, aciklama: content})} init={{ height: 200, menubar: false, plugins: ['advlist','autolink','lists','link','image','charmap','preview','searchreplace','visualblocks','code','fullscreen','insertdatetime','media','table','code','help','wordcount'], toolbar: 'undo redo | blocks | bold italic forecolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | image | help', content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }', images_upload_handler: handleImageUpload }} />
+                                        {showEditors ? (
+                                            <Suspense fallback={<div className="p-4 text-sm text-gray-500">Editör yükleniyor...</div>}>
+                                                <LazyEditor apiKey={process.env.REACT_APP_TINYMCE_API_KEY} value={soru?.aciklama || ''} onEditorChange={(content)=>setSoru({...soru, aciklama: content})} init={{ height: 200, menubar: false, plugins: ['advlist','autolink','lists','link','charmap','preview','searchreplace','visualblocks','code','fullscreen','insertdatetime','table','help','wordcount'], toolbar: 'undo redo | blocks | bold italic forecolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | help', content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }' }} />
+                                            </Suspense>
+                                        ) : (
+                                            <div className="p-4 text-sm text-gray-500">Yükleniyor...</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div>

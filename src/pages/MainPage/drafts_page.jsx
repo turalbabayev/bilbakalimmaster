@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Layout from '../../components/layout';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase';
-import { collection, onSnapshot, doc, deleteDoc, updateDoc, addDoc, orderBy, query, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, deleteDoc, updateDoc, orderBy, query, getDocs, writeBatch, runTransaction, limit } from 'firebase/firestore';
 import UpdateDraftQuestion from '../../components/updateDraftQuestion';
+import ChangeDraftOrder from '../../components/changeDraftOrder';
+import BulkDownloadDrafts from '../../components/BulkDownloadDrafts';
 import { toast } from 'react-hot-toast';
 
 const DraftsPage = () => {
@@ -12,7 +14,7 @@ const DraftsPage = () => {
     const [altKonular, setAltKonular] = useState({});
     const [loading, setLoading] = useState(true);
     const [draftCounts, setDraftCounts] = useState({});
-    const [countUnsubs, setCountUnsubs] = useState([]);
+    const countUnsubsRef = useRef([]);
 
     useEffect(() => {
         const altkonularRef = collection(db, 'konular', konuId, 'altkonular');
@@ -26,7 +28,7 @@ const DraftsPage = () => {
 
             // Taslak sayacı listener'larını güncelle
             // Eski unsub'ları kapat
-            countUnsubs.forEach((u) => typeof u === 'function' && u());
+            countUnsubsRef.current.forEach((u) => typeof u === 'function' && u());
             const newUnsubs = [];
             Object.keys(data).forEach((altId) => {
                 const draftsRef = collection(db, 'konular', konuId, 'altkonular', altId, 'taslaklar');
@@ -35,14 +37,24 @@ const DraftsPage = () => {
                 });
                 newUnsubs.push(u);
             });
-            setCountUnsubs(newUnsubs);
+            countUnsubsRef.current = newUnsubs;
         });
-        return () => unsub();
+        return () => {
+            unsub();
+            countUnsubsRef.current.forEach((u) => typeof u === 'function' && u());
+            countUnsubsRef.current = [];
+        };
     }, [konuId]);
 
     const [drafts, setDrafts] = useState({});
 
-    const loadDrafts = (altKonuId) => {
+    // Editör bundle'larını önceden ısıt:
+    useEffect(() => {
+        import('@tinymce/tinymce-react');
+        import('react-quill');
+    }, []);
+
+    const loadDrafts = useCallback((altKonuId) => {
         const ref = collection(db, 'konular', konuId, 'altkonular', altKonuId, 'taslaklar');
         const q = query(ref, orderBy('soruNumarasi', 'asc'));
         return onSnapshot(q, (snap) => {
@@ -50,27 +62,121 @@ const DraftsPage = () => {
             snap.forEach((d) => { items[d.id] = { id: d.id, ...d.data() }; });
             setDrafts((prev) => ({ ...prev, [altKonuId]: items }));
         });
-    };
+    }, [konuId]);
 
     const publishDraft = async (altKonuId, draftId) => {
         try {
-            const list = drafts[altKonuId] || {};
-            const d = list[draftId];
-            if (!d) return;
-            const sorularRef = collection(db, 'konular', konuId, 'altkonular', altKonuId, 'sorular');
-            await addDoc(sorularRef, {
-                soruMetni: d.soruMetni || '',
-                cevaplar: d.cevaplar || [],
-                dogruCevap: d.dogruCevap || 'A',
-                aciklama: d.aciklama || '',
-                difficulty: d.difficulty || 'medium',
-                liked: 0, unliked: 0, report: 0, soruNumarasi: null, soruResmi: null
+            const draftsColRef = collection(db, 'konular', konuId, 'altkonular', altKonuId, 'taslaklar');
+            const draftRef = doc(draftsColRef, draftId);
+            const sorularColRef = collection(db, 'konular', konuId, 'altkonular', altKonuId, 'sorular');
+
+            await runTransaction(db, async (tx) => {
+                // 1) Draft'ı oku (transaction içinde)
+                const draftSnap = await tx.get(draftRef);
+                if (!draftSnap.exists()) {
+                    throw new Error('Taslak bulunamadı');
+                }
+                const d = draftSnap.data();
+
+                // 2) Yayınlanan sorularda mevcut en büyük soruNumarasi'ni bul
+                const maxQ = query(sorularColRef, orderBy('soruNumarasi', 'desc'), limit(1));
+                const maxSnap = await getDocs(maxQ);
+                const currentMax = maxSnap.empty ? 0 : (maxSnap.docs[0].data().soruNumarasi || 0);
+                const nextNumber = currentMax + 1;
+
+                // 3) Yeni soru dokümanını oluştur ve yaz
+                const newSoruRef = doc(sorularColRef);
+                const yeniSoru = {
+                    soruMetni: d.soruMetni || '',
+                    cevaplar: Array.isArray(d.cevaplar) ? d.cevaplar : [],
+                    dogruCevap: d.dogruCevap || 'A',
+                    aciklama: d.aciklama || '',
+                    difficulty: d.difficulty || 'medium',
+                    liked: d.liked || 0,
+                    unliked: d.unliked || 0,
+                    report: d.report || 0,
+                    soruResmi: d.soruResmi || null,
+                    soruNumarasi: nextNumber,
+                    createdFromDraft: true,
+                };
+                tx.set(newSoruRef, yeniSoru);
+
+                // 4) Draft'ı sil (yalnızca yukarıdaki yazım başarılıysa)
+                tx.delete(draftRef);
             });
-            await deleteDoc(doc(db, 'konular', konuId, 'altkonular', altKonuId, 'taslaklar', draftId));
-            toast.success('Taslak yayınlandı');
+
+            toast.success('Taslak başarıyla yayınlandı');
         } catch (e) {
             console.error(e);
             toast.error('Taslak yayınlanırken hata');
+        }
+    };
+
+    const bulkDeleteDrafts = async (altKonuId) => {
+        try {
+            if (!window.confirm('Bu alt konudaki TÜM taslaklar silinecek. Devam edilsin mi?')) return;
+            const draftsRef = collection(db, 'konular', konuId, 'altkonular', altKonuId, 'taslaklar');
+            const snap = await getDocs(draftsRef);
+            if (snap.empty) {
+                toast('Silinecek taslak bulunamadı');
+                return;
+            }
+            const batch = writeBatch(db);
+            snap.forEach((d) => {
+                batch.delete(doc(db, 'konular', konuId, 'altkonular', altKonuId, 'taslaklar', d.id));
+            });
+            await batch.commit();
+            toast.success('Tüm taslaklar silindi');
+        } catch (e) {
+            console.error(e);
+            toast.error('Toplu silme sırasında hata');
+        }
+    };
+
+    const bulkPublishDrafts = async (altKonuId) => {
+        try {
+            if (!window.confirm('Bu alt konudaki TÜM taslaklar yayınlanacak. Devam edilsin mi?')) return;
+            const draftsRef = collection(db, 'konular', konuId, 'altkonular', altKonuId, 'taslaklar');
+            const snap = await getDocs(draftsRef);
+            if (snap.empty) {
+                toast('Yayınlanacak taslak bulunamadı');
+                return;
+            }
+            // Sırayla işlem yaparak numaralandırma yarışını önle
+            const draftDocs = snap.docs;
+            for (const dSnap of draftDocs) {
+                const draftId = dSnap.id;
+                const draftRef = doc(db, 'konular', konuId, 'altkonular', altKonuId, 'taslaklar', draftId);
+                const sorularColRef = collection(db, 'konular', konuId, 'altkonular', altKonuId, 'sorular');
+                await runTransaction(db, async (tx) => {
+                    const ds = await tx.get(draftRef);
+                    if (!ds.exists()) return; // atlanır
+                    const d = ds.data();
+                    const maxQ = query(sorularColRef, orderBy('soruNumarasi', 'desc'), limit(1));
+                    const maxSnap = await getDocs(maxQ);
+                    const currentMax = maxSnap.empty ? 0 : (maxSnap.docs[0].data().soruNumarasi || 0);
+                    const nextNumber = currentMax + 1;
+                    const newRef = doc(sorularColRef);
+                    tx.set(newRef, {
+                        soruMetni: d.soruMetni || '',
+                        cevaplar: Array.isArray(d.cevaplar) ? d.cevaplar : [],
+                        dogruCevap: d.dogruCevap || 'A',
+                        aciklama: d.aciklama || '',
+                        difficulty: d.difficulty || 'medium',
+                        liked: d.liked || 0,
+                        unliked: d.unliked || 0,
+                        report: d.report || 0,
+                        soruResmi: d.soruResmi || null,
+                        soruNumarasi: nextNumber,
+                        createdFromDraft: true,
+                    });
+                    tx.delete(draftRef);
+                });
+            }
+            toast.success('Tüm taslaklar yayınlandı');
+        } catch (e) {
+            console.error(e);
+            toast.error('Toplu yayınlama sırasında hata');
         }
     };
 
@@ -110,6 +216,8 @@ const DraftsPage = () => {
                                         count={draftCounts[altId] || 0}
                                         onPublish={publishDraft}
                                         onDelete={deleteDraft}
+                                        onBulkDelete={bulkDeleteDrafts}
+                                        onBulkPublish={bulkPublishDrafts}
                                     />
                                 ))}
                             </div>
@@ -121,10 +229,12 @@ const DraftsPage = () => {
     );
 };
 
-const AltKonuDrafts = ({ konuId, altKonuId, altBaslik, loadDrafts, drafts, count = 0, onPublish, onDelete }) => {
+const AltKonuDrafts = ({ konuId, altKonuId, altBaslik, loadDrafts, drafts, count = 0, onPublish, onDelete, onBulkDelete, onBulkPublish }) => {
     const [editing, setEditing] = useState(null); // draft id
-    const [editForm, setEditForm] = useState({ soruMetni: '', cevaplar: ['', '', '', '', ''], dogruCevap: 'A', aciklama: '', difficulty: 'medium' });
     const [expanded, setExpanded] = useState(false);
+    const [orderOpen, setOrderOpen] = useState(false);
+    const [orderDraftId, setOrderDraftId] = useState(null);
+    const [downloadOpen, setDownloadOpen] = useState(false);
     useEffect(() => {
         const unsub = loadDrafts(altKonuId);
         return () => { if (typeof unsub === 'function') unsub(); };
@@ -149,44 +259,16 @@ const AltKonuDrafts = ({ konuId, altKonuId, altBaslik, loadDrafts, drafts, count
         }
     };
 
-    const openEdit = async (id) => {
-        try {
-            const snap = await getDoc(doc(db, 'konular', konuId, 'altkonular', altKonuId, 'taslaklar', id));
-            if (snap.exists()) {
-                const d = snap.data();
-                const cevaplar = Array.isArray(d.cevaplar) ? [...d.cevaplar] : ['', '', '', '', ''];
-                while (cevaplar.length < 5) cevaplar.push('');
-                setEditForm({
-                    soruMetni: d.soruMetni || '',
-                    cevaplar,
-                    dogruCevap: d.dogruCevap || 'A',
-                    aciklama: d.aciklama || '',
-                    difficulty: d.difficulty || 'medium'
-                });
-                setEditing(id);
-            }
-        } catch (e) {
-            console.error(e);
-            toast.error('Düzenleme açılırken hata');
-        }
+    const openEdit = (id) => {
+        setEditing(id);
     };
 
-    const saveEdit = async () => {
-        try {
-            await updateDoc(doc(db, 'konular', konuId, 'altkonular', altKonuId, 'taslaklar', editing), editForm);
-            toast.success('Taslak güncellendi');
-            setEditing(null);
-        } catch (e) {
-            console.error(e);
-            toast.error('Taslak güncellenemedi');
-        }
-    };
+    // kullanılmayan saveEdit kaldırıldı
     return (
         <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
-            <button
-                type="button"
+            <div
                 onClick={() => setExpanded(!expanded)}
-                className="w-full p-5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors"
+                className="w-full p-5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors cursor-pointer"
             >
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-amber-500/90 flex items-center justify-center text-white font-bold">{altBaslik?.[0] || 'A'}</div>
@@ -200,8 +282,31 @@ const AltKonuDrafts = ({ konuId, altKonuId, altBaslik, loadDrafts, drafts, count
                         </div>
                     </div>
                 </div>
-                <svg className={`w-5 h-5 text-gray-500 transition-transform ${expanded ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd"/></svg>
-            </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onBulkPublish(altKonuId); }}
+                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+                    >
+                        Toplu Yayınla
+                    </button>
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onBulkDelete(altKonuId); }}
+                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+                    >
+                        Toplu Sil
+                    </button>
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setDownloadOpen(true); }}
+                        className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+                    >
+                        Toplu İndir
+                    </button>
+                    <svg className={`w-5 h-5 text-gray-500 transition-transform ${expanded ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd"/></svg>
+                </div>
+            </div>
             {expanded && (
                 <div className="p-6 border-t border-gray-100 dark:border-gray-700">
             {items.length === 0 ? (
@@ -282,6 +387,7 @@ const AltKonuDrafts = ({ konuId, altKonuId, altBaslik, loadDrafts, drafts, count
                                 </div>
                                 <div className="flex flex-col space-y-2 ml-4">
                                     <button onClick={()=>openEdit(id)} className="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200">Düzenle</button>
+                                    <button onClick={()=>{setOrderDraftId(id); setOrderOpen(true);}} className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200">Takas Et</button>
                                     <button onClick={()=>onPublish(altKonuId, id)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200">Yayınla</button>
                                     <button onClick={()=>onDelete(altKonuId, id)} className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all duration-200">Sil</button>
                                 </div>
@@ -300,6 +406,23 @@ const AltKonuDrafts = ({ konuId, altKonuId, altBaslik, loadDrafts, drafts, count
                     altKonuId={altKonuId}
                     soruId={editing}
                     onUpdateComplete={()=>setEditing(null)}
+                />
+            )}
+            {orderOpen && orderDraftId && (
+                <ChangeDraftOrder
+                    isOpen={orderOpen}
+                    onClose={()=>{setOrderOpen(false); setOrderDraftId(null);}}
+                    konuId={konuId}
+                    altKonuId={altKonuId}
+                    draftId={orderDraftId}
+                />
+            )}
+            {downloadOpen && (
+                <BulkDownloadDrafts
+                    isOpen={downloadOpen}
+                    onClose={()=>setDownloadOpen(false)}
+                    konuId={konuId}
+                    altKonuId={altKonuId}
                 />
             )}
         </div>
