@@ -6,6 +6,7 @@ import { db } from '../../firebase';
 import { FaArrowLeft, FaExclamationTriangle, FaPlay, FaTimes } from 'react-icons/fa';
 import MaxLimitModal from '../../components/MaxLimitModal';
 import ExamConfirmationModal from '../../components/ExamConfirmationModal';
+import AutoFillExamModal from '../../components/AutoFillExamModal';
 import { toast } from 'react-hot-toast';
 
 const CreateExamStep2Page = () => {
@@ -19,6 +20,9 @@ const CreateExamStep2Page = () => {
     const [showMaxLimitModal, setShowMaxLimitModal] = useState(false);
     const [maxLimitInfo, setMaxLimitInfo] = useState({ title: '', message: '' });
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+    const [showAutoFillModal, setShowAutoFillModal] = useState(false);
+    const [autoFillCategory, setAutoFillCategory] = useState('');
+    const [isFillingAll, setIsFillingAll] = useState(false);
 
     // URL'den seçilen konuları al
     const selectedTopics = location.state?.selectedTopics || [];
@@ -283,8 +287,453 @@ const CreateExamStep2Page = () => {
         return { status: 'over', color: 'text-red-600', bgColor: 'bg-red-100' };
     };
 
-    // Kategoride kalan hakkı zorluklara ve konulara dengeli dağıtarak otomatik doldur
-    const autoFillCategory = (category) => {
+    // Otomatik doldurma modal'ını aç
+    const handleAutoFillClick = (category) => {
+        setAutoFillCategory(category);
+        setShowAutoFillModal(true);
+    };
+
+    // Tüm kategorileri otomatik doldur
+    const handleAutoFillAll = () => {
+        setIsFillingAll(true);
+        setShowAutoFillModal(true);
+    };
+
+    // Tüm kategorileri seçilen seçenekle doldur
+    const fillAllCategories = (option) => {
+        const groupedTopics = getGroupedTopics();
+        const newCounts = { ...questionCounts };
+        
+        // Zorluk dağılımını seçeneğe göre belirle
+        const difficultyDistribution = option === 'servis' 
+            ? { hard: 0.4, medium: 0.3, easy: 0.3 }  // Servis: %40 zor, %30 orta, %30 kolay
+            : { hard: 0.7, medium: 0.2, easy: 0.1 }; // Yönetim: %70 zor, %20 orta, %10 kolay
+        
+        CATEGORIES.forEach(category => {
+            const topicsInCategory = groupedTopics[category] || [];
+            if (topicsInCategory.length === 0) return;
+
+            if (category === 'Genel Bankacılık' || category === 'Genel Kültür') {
+                // Toplam 50 soru (Genel Bankacılık) veya 25 soru (Genel Kültür) konular arasında eşit böl
+                const totalQuestionsForCategory = category === 'Genel Bankacılık' ? 50 : 25;
+                
+                // Konuları grupla (aynı isimdeki normal ve manuel konuları birleştir)
+                const topicGroups = {};
+                topicsInCategory.forEach(topic => {
+                    const baseName = topic.name.replace(' (Manuel)', '').replace(' (Normal)', '');
+                    if (!topicGroups[baseName]) {
+                        topicGroups[baseName] = [];
+                    }
+                    topicGroups[baseName].push(topic);
+                });
+                
+                const uniqueTopicCount = Object.keys(topicGroups).length;
+                const questionsPerUniqueTopic = Math.floor(totalQuestionsForCategory / uniqueTopicCount);
+                const remainingQuestions = totalQuestionsForCategory - (questionsPerUniqueTopic * uniqueTopicCount);
+                
+                let extraQuestionCount = 0;
+                Object.values(topicGroups).forEach(topicGroup => {
+                    const extraQuestion = extraQuestionCount < remainingQuestions ? 1 : 0;
+                    extraQuestionCount += extraQuestion;
+                    
+                    const totalQuestionsForGroup = questionsPerUniqueTopic + extraQuestion;
+                    const questionsPerTopic = Math.floor(totalQuestionsForGroup / topicGroup.length);
+                    const remainingInGroup = totalQuestionsForGroup - (questionsPerTopic * topicGroup.length);
+                    
+                    let topicIndex = 0;
+                    topicGroup.forEach((topic) => {
+                        const extraForThisTopic = topicIndex < remainingInGroup ? 1 : 0;
+                        const finalQuestionsForTopic = questionsPerTopic + extraForThisTopic;
+                        topicIndex++;
+                        
+                        const hardCount = Math.round(finalQuestionsForTopic * difficultyDistribution.hard);
+                        const mediumCount = Math.round(finalQuestionsForTopic * difficultyDistribution.medium);
+                        const easyCount = finalQuestionsForTopic - hardCount - mediumCount;
+                        
+                        const available = {
+                            easy: Math.max(0, (topic.difficultyStats.easy || 0) - (newCounts[topic.id]?.easy || 0)),
+                            medium: Math.max(0, (topic.difficultyStats.medium || 0) - (newCounts[topic.id]?.medium || 0)),
+                            hard: Math.max(0, (topic.difficultyStats.hard || 0) - (newCounts[topic.id]?.hard || 0))
+                        };
+                        
+                        const actualHard = Math.min(hardCount, available.hard);
+                        const actualMedium = Math.min(mediumCount, available.medium);
+                        const actualEasy = Math.min(easyCount, available.easy);
+                        
+                        newCounts[topic.id] = {
+                            ...newCounts[topic.id],
+                            easy: actualEasy,
+                            medium: actualMedium,
+                            hard: actualHard
+                        };
+                    });
+                });
+            } else if (category === 'Genel Yetenek') {
+                // Genel Yetenek için özel mapping
+                const topicMapping = {
+                    'TÜRKÇE': 11,
+                    'MATEMATİK': 12,
+                    'TARİH': 1,
+                    'COĞRAFYA': 1
+                };
+                
+                // Konuları grupla (aynı isimdeki normal ve manuel konuları birleştir)
+                const topicGroups = {};
+                topicsInCategory.forEach(topic => {
+                    const baseName = topic.name.replace(' (Manuel)', '').replace(' (Normal)', '');
+                    if (!topicGroups[baseName]) {
+                        topicGroups[baseName] = [];
+                    }
+                    topicGroups[baseName].push(topic);
+                });
+                
+                Object.entries(topicGroups).forEach(([baseName, topicGroup]) => {
+                    const cleanId = baseName.replace('konu:', '');
+                    const totalCount = topicMapping[cleanId];
+                    if (!totalCount) return;
+                    
+                    const questionsPerTopic = Math.floor(totalCount / topicGroup.length);
+                    const remainingInGroup = totalCount - (questionsPerTopic * topicGroup.length);
+                    
+                    let topicIndex = 0;
+                    topicGroup.forEach((topic) => {
+                        const extraForThisTopic = topicIndex < remainingInGroup ? 1 : 0;
+                        const finalQuestionsForTopic = questionsPerTopic + extraForThisTopic;
+                        topicIndex++;
+                        
+                        const hardCount = Math.round(finalQuestionsForTopic * difficultyDistribution.hard);
+                        const mediumCount = Math.round(finalQuestionsForTopic * difficultyDistribution.medium);
+                        const easyCount = finalQuestionsForTopic - hardCount - mediumCount;
+                        
+                        const available = {
+                            easy: Math.max(0, (topic.difficultyStats.easy || 0) - (newCounts[topic.id]?.easy || 0)),
+                            medium: Math.max(0, (topic.difficultyStats.medium || 0) - (newCounts[topic.id]?.medium || 0)),
+                            hard: Math.max(0, (topic.difficultyStats.hard || 0) - (newCounts[topic.id]?.hard || 0))
+                        };
+                        
+                        const actualHard = Math.min(hardCount, available.hard);
+                        const actualMedium = Math.min(mediumCount, available.medium);
+                        const actualEasy = Math.min(easyCount, available.easy);
+                        
+                        newCounts[topic.id] = {
+                            ...newCounts[topic.id],
+                            easy: actualEasy,
+                            medium: actualMedium,
+                            hard: actualHard
+                        };
+                    });
+                });
+            }
+        });
+        
+        setQuestionCounts(newCounts);
+        setIsFillingAll(false);
+        setShowAutoFillModal(false);
+        toast.success('Tüm kategoriler otomatik dolduruldu!');
+    };
+
+    // Yönetim için otomatik doldurma
+    const autoFillForYonetim = (category) => {
+        const limit = CATEGORY_LIMITS[category];
+        const current = getCategoryQuestions(category);
+        const remaining = Math.max(0, limit - current);
+        if (remaining === 0) {
+            toast.success(`${category} zaten dolu.`);
+            return;
+        }
+
+        const groupedTopics = getGroupedTopics();
+        const topicsInCategory = groupedTopics[category] || [];
+        if (topicsInCategory.length === 0) return;
+
+        const newCounts = { ...questionCounts };
+
+        if (category === 'Genel Bankacılık' || category === 'Genel Kültür') {
+            // Toplam 50 soru (Genel Bankacılık) veya 25 soru (Genel Kültür) konular arasında eşit böl
+            const totalQuestionsForCategory = category === 'Genel Bankacılık' ? 50 : 25;
+            
+            // Konuları grupla (aynı isimdeki normal ve manuel konuları birleştir)
+            const topicGroups = {};
+            topicsInCategory.forEach(topic => {
+                const baseName = topic.name.replace(' (Manuel)', '').replace(' (Normal)', '');
+                if (!topicGroups[baseName]) {
+                    topicGroups[baseName] = [];
+                }
+                topicGroups[baseName].push(topic);
+            });
+            
+            const uniqueTopicCount = Object.keys(topicGroups).length;
+            const questionsPerUniqueTopic = Math.floor(totalQuestionsForCategory / uniqueTopicCount);
+            const remainingQuestions = totalQuestionsForCategory - (questionsPerUniqueTopic * uniqueTopicCount);
+            
+            let extraQuestionCount = 0;
+            Object.values(topicGroups).forEach(topicGroup => {
+                const extraQuestion = extraQuestionCount < remainingQuestions ? 1 : 0;
+                extraQuestionCount += extraQuestion;
+                
+                const totalQuestionsForGroup = questionsPerUniqueTopic + extraQuestion;
+                const questionsPerTopic = Math.floor(totalQuestionsForGroup / topicGroup.length);
+                const remainingInGroup = totalQuestionsForGroup - (questionsPerTopic * topicGroup.length);
+                
+                let topicIndex = 0;
+                topicGroup.forEach((topic) => {
+                    const extraForThisTopic = topicIndex < remainingInGroup ? 1 : 0;
+                    const finalQuestionsForTopic = questionsPerTopic + extraForThisTopic;
+                    topicIndex++;
+                    
+                    const hardCount = Math.round(finalQuestionsForTopic * 0.7);
+                    const mediumCount = Math.round(finalQuestionsForTopic * 0.2);
+                    const easyCount = finalQuestionsForTopic - hardCount - mediumCount;
+                    const available = {
+                        easy: Math.max(0, (topic.difficultyStats.easy || 0) - (questionCounts[topic.id]?.easy || 0)),
+                        medium: Math.max(0, (topic.difficultyStats.medium || 0) - (questionCounts[topic.id]?.medium || 0)),
+                        hard: Math.max(0, (topic.difficultyStats.hard || 0) - (questionCounts[topic.id]?.hard || 0))
+                    };
+
+                    const counts = questionCounts[topic.id] || { easy: 0, medium: 0, hard: 0 };
+                    newCounts[topic.id] = {
+                        ...counts,
+                        easy: Math.min(counts.easy + easyCount, counts.easy + available.easy),
+                        medium: Math.min(counts.medium + mediumCount, counts.medium + available.medium),
+                        hard: Math.min(counts.hard + hardCount, counts.hard + available.hard)
+                    };
+                });
+            });
+        } else if (category === 'Genel Yetenek') {
+            // Türkçe 11, Matematik 12, Tarih 1, Coğrafya 1 soru - %70 zor, %20 orta, %10 kolay - aynı konular kendi aralarında bölünsün
+            const topicMapping = {
+                '-OKw6fKcYGunlY_PbCo3': { name: 'Matematik', count: 12 },
+                '-OMBcE1I9DRj8uvlYSmH': { name: 'Türkçe', count: 11 },
+                '-OMhpwKF1PZ0-QnjyJm8': { name: 'Tarih', count: 1 },
+                '-OMlVD6ufbDvCgZhfz8N': { name: 'Coğrafya', count: 1 }
+            };
+
+            // Konuları grupla (aynı isimdeki normal ve manuel konuları birleştir)
+            const topicGroups = {};
+            topicsInCategory.forEach(topic => {
+                const cleanId = topic.id.replace('konu:', '');
+                const mapping = topicMapping[cleanId];
+                
+                // Manuel konular için topicName'den kontrol et
+                let baseName = null;
+                if (mapping) {
+                    baseName = mapping.name;
+                } else if (topic.source === 'manual') {
+                    // Manuel konularda topicName'den eşleştir
+                    const topicName = topic.name.toLowerCase();
+                    if (topicName.includes('türkçe')) baseName = 'Türkçe';
+                    else if (topicName.includes('matematik')) baseName = 'Matematik';
+                    else if (topicName.includes('tarih')) baseName = 'Tarih';
+                    else if (topicName.includes('coğrafya')) baseName = 'Coğrafya';
+                }
+                
+                if (baseName) {
+                    if (!topicGroups[baseName]) {
+                        topicGroups[baseName] = [];
+                    }
+                    const count = mapping ? mapping.count : 
+                        (baseName === 'Türkçe' ? 11 : 
+                         baseName === 'Matematik' ? 12 : 
+                         baseName === 'Tarih' ? 1 : 1);
+                    topicGroups[baseName].push({ ...topic, mapping: { name: baseName, count } });
+                }
+            });
+
+            Object.values(topicGroups).forEach(topicGroup => {
+                const totalCount = topicGroup[0].mapping.count;
+                const questionsPerTopic = Math.floor(totalCount / topicGroup.length);
+                const remainingInGroup = totalCount - (questionsPerTopic * topicGroup.length);
+                
+                let topicIndex = 0;
+                topicGroup.forEach((topic) => {
+                    const extraForThisTopic = topicIndex < remainingInGroup ? 1 : 0;
+                    const finalQuestionsForTopic = questionsPerTopic + extraForThisTopic;
+                    topicIndex++;
+                    
+                    let hardCount = Math.round(finalQuestionsForTopic * 0.7);
+                    let mediumCount = Math.round(finalQuestionsForTopic * 0.2);
+                    let easyCount = finalQuestionsForTopic - hardCount - mediumCount;
+                    
+                    // Eğer toplam 1-2 soru varsa, öncelik zor seviyeye
+                    if (finalQuestionsForTopic <= 2) {
+                        hardCount = Math.min(finalQuestionsForTopic, 1);
+                        mediumCount = finalQuestionsForTopic > 1 ? 1 : 0;
+                        easyCount = 0;
+                    }
+
+                    const available = {
+                        easy: Math.max(0, (topic.difficultyStats.easy || 0) - (questionCounts[topic.id]?.easy || 0)),
+                        medium: Math.max(0, (topic.difficultyStats.medium || 0) - (questionCounts[topic.id]?.medium || 0)),
+                        hard: Math.max(0, (topic.difficultyStats.hard || 0) - (questionCounts[topic.id]?.hard || 0))
+                    };
+
+                    const counts = questionCounts[topic.id] || { easy: 0, medium: 0, hard: 0 };
+                    newCounts[topic.id] = {
+                        ...counts,
+                        easy: Math.min(counts.easy + easyCount, counts.easy + available.easy),
+                        medium: Math.min(counts.medium + mediumCount, counts.medium + available.medium),
+                        hard: Math.min(counts.hard + hardCount, counts.hard + available.hard)
+                    };
+                });
+            });
+        }
+
+        setQuestionCounts(newCounts);
+        toast.success(`${category} yönetim için otomatik dolduruldu.`);
+    };
+
+    // Servis görevlileri için otomatik doldurma
+    const autoFillForServis = (category) => {
+        const limit = CATEGORY_LIMITS[category];
+        const current = getCategoryQuestions(category);
+        const remaining = Math.max(0, limit - current);
+        if (remaining === 0) {
+            toast.success(`${category} zaten dolu.`);
+            return;
+        }
+
+        const groupedTopics = getGroupedTopics();
+        const topicsInCategory = groupedTopics[category] || [];
+        if (topicsInCategory.length === 0) return;
+
+        const newCounts = { ...questionCounts };
+
+        if (category === 'Genel Bankacılık' || category === 'Genel Kültür') {
+            // Toplam 50 soru (Genel Bankacılık) veya 25 soru (Genel Kültür) konular arasında eşit böl
+            const totalQuestionsForCategory = category === 'Genel Bankacılık' ? 50 : 25;
+            
+            // Konuları grupla (aynı isimdeki normal ve manuel konuları birleştir)
+            const topicGroups = {};
+            topicsInCategory.forEach(topic => {
+                const baseName = topic.name.replace(' (Manuel)', '').replace(' (Normal)', '');
+                if (!topicGroups[baseName]) {
+                    topicGroups[baseName] = [];
+                }
+                topicGroups[baseName].push(topic);
+            });
+            
+            const uniqueTopicCount = Object.keys(topicGroups).length;
+            const questionsPerUniqueTopic = Math.floor(totalQuestionsForCategory / uniqueTopicCount);
+            const remainingQuestions = totalQuestionsForCategory - (questionsPerUniqueTopic * uniqueTopicCount);
+            
+            let extraQuestionCount = 0;
+            Object.values(topicGroups).forEach(topicGroup => {
+                const extraQuestion = extraQuestionCount < remainingQuestions ? 1 : 0;
+                extraQuestionCount += extraQuestion;
+                
+                const totalQuestionsForGroup = questionsPerUniqueTopic + extraQuestion;
+                const questionsPerTopic = Math.floor(totalQuestionsForGroup / topicGroup.length);
+                const remainingInGroup = totalQuestionsForGroup - (questionsPerTopic * topicGroup.length);
+                
+                let topicIndex = 0;
+                topicGroup.forEach((topic) => {
+                    const extraForThisTopic = topicIndex < remainingInGroup ? 1 : 0;
+                    const finalQuestionsForTopic = questionsPerTopic + extraForThisTopic;
+                    topicIndex++;
+                    
+                    const hardCount = Math.round(finalQuestionsForTopic * 0.4);
+                    const mediumCount = Math.round(finalQuestionsForTopic * 0.3);
+                    const easyCount = finalQuestionsForTopic - hardCount - mediumCount;
+                    const available = {
+                        easy: Math.max(0, (topic.difficultyStats.easy || 0) - (questionCounts[topic.id]?.easy || 0)),
+                        medium: Math.max(0, (topic.difficultyStats.medium || 0) - (questionCounts[topic.id]?.medium || 0)),
+                        hard: Math.max(0, (topic.difficultyStats.hard || 0) - (questionCounts[topic.id]?.hard || 0))
+                    };
+
+                    const counts = questionCounts[topic.id] || { easy: 0, medium: 0, hard: 0 };
+                    newCounts[topic.id] = {
+                        ...counts,
+                        easy: Math.min(counts.easy + easyCount, counts.easy + available.easy),
+                        medium: Math.min(counts.medium + mediumCount, counts.medium + available.medium),
+                        hard: Math.min(counts.hard + hardCount, counts.hard + available.hard)
+                    };
+                });
+            });
+        } else if (category === 'Genel Yetenek') {
+            // Türkçe 11, Matematik 12, Tarih 1, Coğrafya 1 soru - aynı konular kendi aralarında bölünsün
+            const topicMapping = {
+                '-OKw6fKcYGunlY_PbCo3': { name: 'Matematik', count: 12 },
+                '-OMBcE1I9DRj8uvlYSmH': { name: 'Türkçe', count: 11 },
+                '-OMhpwKF1PZ0-QnjyJm8': { name: 'Tarih', count: 1 },
+                '-OMlVD6ufbDvCgZhfz8N': { name: 'Coğrafya', count: 1 }
+            };
+
+            // Konuları grupla (aynı isimdeki normal ve manuel konuları birleştir)
+            const topicGroups = {};
+            topicsInCategory.forEach(topic => {
+                const cleanId = topic.id.replace('konu:', '');
+                const mapping = topicMapping[cleanId];
+                
+                // Manuel konular için topicName'den kontrol et
+                let baseName = null;
+                if (mapping) {
+                    baseName = mapping.name;
+                } else if (topic.source === 'manual') {
+                    // Manuel konularda topicName'den eşleştir
+                    const topicName = topic.name.toLowerCase();
+                    if (topicName.includes('türkçe')) baseName = 'Türkçe';
+                    else if (topicName.includes('matematik')) baseName = 'Matematik';
+                    else if (topicName.includes('tarih')) baseName = 'Tarih';
+                    else if (topicName.includes('coğrafya')) baseName = 'Coğrafya';
+                }
+                
+                if (baseName) {
+                    if (!topicGroups[baseName]) {
+                        topicGroups[baseName] = [];
+                    }
+                    const count = mapping ? mapping.count : 
+                        (baseName === 'Türkçe' ? 11 : 
+                         baseName === 'Matematik' ? 12 : 
+                         baseName === 'Tarih' ? 1 : 1);
+                    topicGroups[baseName].push({ ...topic, mapping: { name: baseName, count } });
+                }
+            });
+
+            Object.values(topicGroups).forEach(topicGroup => {
+                const totalCount = topicGroup[0].mapping.count;
+                const questionsPerTopic = Math.floor(totalCount / topicGroup.length);
+                const remainingInGroup = totalCount - (questionsPerTopic * topicGroup.length);
+                
+                let topicIndex = 0;
+                topicGroup.forEach((topic) => {
+                    const extraForThisTopic = topicIndex < remainingInGroup ? 1 : 0;
+                    const finalQuestionsForTopic = questionsPerTopic + extraForThisTopic;
+                    topicIndex++;
+                    
+                    let hardCount = Math.round(finalQuestionsForTopic * 0.4);
+                    let mediumCount = Math.round(finalQuestionsForTopic * 0.3);
+                    let easyCount = finalQuestionsForTopic - hardCount - mediumCount;
+                    
+                    // Eğer toplam 1-2 soru varsa, öncelik zor seviyeye
+                    if (finalQuestionsForTopic <= 2) {
+                        hardCount = Math.min(finalQuestionsForTopic, 1);
+                        mediumCount = finalQuestionsForTopic > 1 ? 1 : 0;
+                        easyCount = 0;
+                    }
+
+                    const available = {
+                        easy: Math.max(0, (topic.difficultyStats.easy || 0) - (questionCounts[topic.id]?.easy || 0)),
+                        medium: Math.max(0, (topic.difficultyStats.medium || 0) - (questionCounts[topic.id]?.medium || 0)),
+                        hard: Math.max(0, (topic.difficultyStats.hard || 0) - (questionCounts[topic.id]?.hard || 0))
+                    };
+
+                    const counts = questionCounts[topic.id] || { easy: 0, medium: 0, hard: 0 };
+                    newCounts[topic.id] = {
+                        ...counts,
+                        easy: Math.min(counts.easy + easyCount, counts.easy + available.easy),
+                        medium: Math.min(counts.medium + mediumCount, counts.medium + available.medium),
+                        hard: Math.min(counts.hard + hardCount, counts.hard + available.hard)
+                    };
+                });
+            });
+        }
+
+        setQuestionCounts(newCounts);
+        toast.success(`${category} servis görevlileri için otomatik dolduruldu.`);
+    };
+
+    // Kategoride kalan hakkı zorluklara ve konulara dengeli dağıtarak otomatik doldur (eski yöntem)
+    const autoFillCategoryOld = (category) => {
         const limit = CATEGORY_LIMITS[category];
         const current = getCategoryQuestions(category);
         const remaining = Math.max(0, limit - current);
@@ -807,14 +1256,14 @@ const CreateExamStep2Page = () => {
                                     <div key={category} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                                         <div className="flex justify-between items-center mb-4">
                                             <h2 className="text-lg font-semibold text-gray-900">{category}</h2>
-                                            <button
+                                            {/* <button
                                                 type="button"
-                                                onClick={() => autoFillCategory(category)}
+                                                onClick={() => handleAutoFillClick(category)}
                                                 className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 border border-blue-200 hover:bg-blue-200 transition-colors"
                                                 title="Kategoriyi otomatik doldur"
                                             >
                                                 <FaPlay className="text-xs" />
-                                            </button>
+                                            </button> */}
                                         </div>
                                         
                                         <div className="space-y-4">
@@ -912,6 +1361,20 @@ const CreateExamStep2Page = () => {
                     {/* Sağ: Özet panel */}
                     <div className="lg:col-span-4">
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:sticky lg:top-6">
+                            {/* Otomatik Doldur Butonu */}
+                            <div className="mb-6">
+                                <button
+                                    onClick={handleAutoFillAll}
+                                    className="w-full px-4 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                                >
+                                    <FaPlay className="text-sm" />
+                                    Tüm Kategorileri Otomatik Doldur
+                                </button>
+                                <p className="text-xs text-gray-500 mt-2 text-center">
+                                    Servis Görevlileri veya Yönetim için tüm kategorileri otomatik doldurur
+                                </p>
+                            </div>
+
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">Seçim Özeti</h3>
                             
                             {/* Toplam seçilen soru sayısı */}
@@ -1025,6 +1488,26 @@ const CreateExamStep2Page = () => {
                 CATEGORIES={CATEGORIES}
                 CATEGORY_LIMITS={CATEGORY_LIMITS}
                 TOTAL_EXAM_QUESTIONS={TOTAL_EXAM_QUESTIONS}
+            />
+
+            {/* Otomatik Doldurma Modal */}
+            <AutoFillExamModal
+                isOpen={showAutoFillModal}
+                onClose={() => {
+                    setShowAutoFillModal(false);
+                    setIsFillingAll(false);
+                }}
+                onConfirm={(option) => {
+                    if (isFillingAll) {
+                        fillAllCategories(option);
+                    } else {
+                        if (option === 'servis') {
+                            autoFillForServis(autoFillCategory);
+                        } else if (option === 'yonetim') {
+                            autoFillForYonetim(autoFillCategory);
+                        }
+                    }
+                }}
             />
         </Layout>
     );

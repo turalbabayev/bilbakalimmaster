@@ -78,6 +78,43 @@ const BulkDownloadDrafts = ({ isOpen, onClose, konuId, altKonuId }) => {
         return taslaklar.filter(d => selected[d.id]);
     };
 
+    const getDisplayedItems = () => {
+        if (indirmeMiktari === 'tumu') return taslaklar;
+        if (indirmeMiktari === 'ilk10') return taslaklar.slice(0, 10);
+        if (indirmeMiktari === 'ilk20') return taslaklar.slice(0, 20);
+        if (indirmeMiktari === 'ilk30') return taslaklar.slice(0, 30);
+        // secili - tüm taslakları göster ama sadece seçili olanları işaretle
+        return taslaklar;
+    };
+
+    // Miktar değiştiğinde otomatik seçim yap
+    useEffect(() => {
+        if (indirmeMiktari === 'tumu') {
+            const all = {};
+            taslaklar.forEach(d => { all[d.id] = true; });
+            setSelected(all);
+            setHepsiSecili(true);
+        } else if (indirmeMiktari === 'ilk10') {
+            const first10 = {};
+            taslaklar.slice(0, 10).forEach(d => { first10[d.id] = true; });
+            setSelected(first10);
+            setHepsiSecili(taslaklar.length <= 10);
+        } else if (indirmeMiktari === 'ilk20') {
+            const first20 = {};
+            taslaklar.slice(0, 20).forEach(d => { first20[d.id] = true; });
+            setSelected(first20);
+            setHepsiSecili(taslaklar.length <= 20);
+        } else if (indirmeMiktari === 'ilk30') {
+            const first30 = {};
+            taslaklar.slice(0, 30).forEach(d => { first30[d.id] = true; });
+            setSelected(first30);
+            setHepsiSecili(taslaklar.length <= 30);
+        } else if (indirmeMiktari === 'secili') {
+            // Seçili modunda mevcut seçimleri koru
+            setHepsiSecili(Object.keys(selected).length === taslaklar.length && taslaklar.length > 0);
+        }
+    }, [indirmeMiktari, taslaklar]);
+
     const stripHtml = (html) => {
         if (!html) return "";
         const docp = new DOMParser().parseFromString(html, 'text/html');
@@ -91,6 +128,33 @@ const BulkDownloadDrafts = ({ isOpen, onClose, konuId, altKonuId }) => {
                 toast('İndirilecek taslak yok');
                 return;
             }
+            // Sadece sorular ise şıklar için custom mini modal
+            let includeOptions = false;
+            if (indirmeTipi === 'sadeceSorular') {
+                includeOptions = await new Promise((resolve) => {
+                    const backdrop = document.createElement('div');
+                    backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+                    const box = document.createElement('div');
+                    box.style.cssText = 'background:#fff;color:#111;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.2);width:100%;max-width:420px;padding:20px;font-family:ui-sans-serif,system-ui;';
+                    box.innerHTML = '<div style="font-weight:700;font-size:16px;margin-bottom:6px">DOCX için şıklar eklensin mi?</div><div style="font-size:13px;color:#555;margin-bottom:16px">Doğru cevap işaretlenmeyecek.</div>';
+                    const actions = document.createElement('div');
+                    actions.style.cssText = 'display:flex;gap:8px;justify-content:flex-end';
+                    const cancel = document.createElement('button');
+                    cancel.textContent = 'Hayır';
+                    cancel.style.cssText = 'padding:8px 12px;border-radius:10px;background:#f3f4f6;color:#111;border:none;cursor:pointer';
+                    const ok = document.createElement('button');
+                    ok.textContent = 'Evet';
+                    ok.style.cssText = 'padding:8px 12px;border-radius:10px;background:#4f46e5;color:#fff;border:none;cursor:pointer';
+                    cancel.onclick = () => { document.body.removeChild(backdrop); resolve(false); };
+                    ok.onclick = () => { document.body.removeChild(backdrop); resolve(true); };
+                    actions.appendChild(cancel);
+                    actions.appendChild(ok);
+                    box.appendChild(actions);
+                    backdrop.appendChild(box);
+                    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) { document.body.removeChild(backdrop); resolve(false); } });
+                    document.body.appendChild(backdrop);
+                });
+            }
             const children = [];
             items.forEach((soru, idx) => {
                 children.push(new Paragraph({
@@ -100,15 +164,17 @@ const BulkDownloadDrafts = ({ isOpen, onClose, konuId, altKonuId }) => {
                 }));
                 const qText = stripHtml(soru.soruMetni || '').trim() || '(Boş)';
                 children.push(new Paragraph({ children: [ new TextRun(qText) ] }));
-                if (Array.isArray(soru.cevaplar)) {
+                // Şıklar: tum modunda her zaman; sadeceSorular modunda kullanıcı evet derse
+                const shouldIncludeOptions = indirmeTipi !== 'sadeceSorular' || includeOptions;
+                if (shouldIncludeOptions && Array.isArray(soru.cevaplar)) {
                     soru.cevaplar.forEach((c, i) => {
                         const label = String.fromCharCode(65 + i);
-                        const isCorrect = soru.dogruCevap === label;
                         const ans = stripHtml(c || '').trim();
-                        children.push(new Paragraph({ children: [ new TextRun({ text: `${label}) ${ans}`, bold: isCorrect }) ] }));
+                        const boldThis = indirmeTipi !== 'sadeceSorular' && (soru.dogruCevap === label);
+                        children.push(new Paragraph({ children: [ new TextRun({ text: `${label}) ${ans}`, bold: boldThis }) ] }));
                     });
                 }
-                if (soru.aciklama) {
+                if (indirmeTipi !== 'sadeceSorular' && soru.aciklama) {
                     children.push(new Paragraph({ children: [ new TextRun({ text: `Açıklama: ${stripHtml(soru.aciklama)}`, italics: true }) ] }));
                 }
                 children.push(new Paragraph({}));
@@ -132,15 +198,59 @@ const BulkDownloadDrafts = ({ isOpen, onClose, konuId, altKonuId }) => {
                 setJsonLoading(false);
                 return;
             }
-            const exportItems = items.map((q) => ({
-                konuId,
-                altKonuId,
-                soruMetni: q.soruMetni || '',
-                cevaplar: Array.isArray(q.cevaplar) ? q.cevaplar : [],
-                dogruCevap: q.dogruCevap || 'A',
-                aciklama: q.aciklama || '',
-                difficulty: q.difficulty || 'medium',
-            }));
+            let includeOptionsJSON = false;
+            if (indirmeTipi === 'sadeceSorular') {
+                includeOptionsJSON = await new Promise((resolve) => {
+                    const backdrop = document.createElement('div');
+                    backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+                    const box = document.createElement('div');
+                    box.style.cssText = 'background:#fff;color:#111;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.2);width:100%;max-width:420px;padding:20px;font-family:ui-sans-serif,system-ui;';
+                    box.innerHTML = '<div style="font-weight:700;font-size:16px;margin-bottom:6px">JSON için şıklar eklensin mi?</div>';
+                    const actions = document.createElement('div');
+                    actions.style.cssText = 'display:flex;gap:8px;justify-content:flex-end';
+                    const cancel = document.createElement('button');
+                    cancel.textContent = 'Hayır';
+                    cancel.style.cssText = 'padding:8px 12px;border-radius:10px;background:#f3f4f6;color:#111;border:none;cursor:pointer';
+                    const ok = document.createElement('button');
+                    ok.textContent = 'Evet';
+                    ok.style.cssText = 'padding:8px 12px;border-radius:10px;background:#4f46e5;color:#fff;border:none;cursor:pointer';
+                    cancel.onclick = () => { document.body.removeChild(backdrop); resolve(false); };
+                    ok.onclick = () => { document.body.removeChild(backdrop); resolve(true); };
+                    actions.appendChild(cancel);
+                    actions.appendChild(ok);
+                    box.appendChild(actions);
+                    backdrop.appendChild(box);
+                    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) { document.body.removeChild(backdrop); resolve(false); } });
+                    document.body.appendChild(backdrop);
+                });
+            }
+            const exportItems = items.map((q) => {
+                if (indirmeTipi === 'sadeceSorular') {
+                    const base = {
+                        konuId,
+                        altKonuId,
+                        soruMetni: q.soruMetni || '',
+                        difficulty: q.difficulty || 'medium',
+                    };
+                    if (includeOptionsJSON) {
+                        return {
+                            ...base,
+                            cevaplar: Array.isArray(q.cevaplar) ? q.cevaplar : [],
+                            // dogruCevap bilerek eklenmiyor
+                        };
+                    }
+                    return base;
+                }
+                return {
+                    konuId,
+                    altKonuId,
+                    soruMetni: q.soruMetni || '',
+                    cevaplar: Array.isArray(q.cevaplar) ? q.cevaplar : [],
+                    dogruCevap: q.dogruCevap || 'A',
+                    aciklama: q.aciklama || '',
+                    difficulty: q.difficulty || 'medium',
+                };
+            });
             const blob = new Blob([JSON.stringify(exportItems, null, 2)], { type: 'application/json' });
             saveAs(blob, `taslaklar_${altKonuId}.json`);
             toast.success('JSON indirildi');
@@ -185,9 +295,13 @@ const BulkDownloadDrafts = ({ isOpen, onClose, konuId, altKonuId }) => {
                             <div className="p-6 text-center text-gray-500">Yükleniyor...</div>
                         ) : (
                             <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-                                {taslaklar.map((soru) => (
+                                {getDisplayedItems().map((soru) => (
                                     <li key={soru.id} className="p-3 flex items-center gap-3">
-                                        <input type="checkbox" checked={!!selected[soru.id]} onChange={(e)=>setSelected(prev=>({ ...prev, [soru.id]: e.target.checked }))} />
+                                        <input 
+                                            type="checkbox" 
+                                            checked={!!selected[soru.id]} 
+                                            onChange={(e)=>setSelected(prev=>({ ...prev, [soru.id]: e.target.checked }))}
+                                        />
                                         <span className="text-sm text-gray-500 w-16">#{soru.soruNumarasi || '-'}</span>
                                         <span className="text-sm">{difficultyEmoji(soru)}</span>
                                         <div className="text-sm text-gray-800 dark:text-gray-200 truncate">{stripHtml(soru.soruMetni || '').slice(0,120)}</div>

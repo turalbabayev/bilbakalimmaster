@@ -20,6 +20,7 @@ const CreateExamStep3Page = () => {
     const [replaceTarget, setReplaceTarget] = useState(null); // { question }
     const [replaceOptions, setReplaceOptions] = useState([]);
     const [replaceLoading, setReplaceLoading] = useState(false);
+    const [recentlyChangedQuestionIndex, setRecentlyChangedQuestionIndex] = useState(null);
     
     const { selectedQuestions, totalQuestions, questionCounts, topicStats } = location.state || {};
 
@@ -301,12 +302,67 @@ const CreateExamStep3Page = () => {
     const applyReplacement = (newQuestion) => {
         if (!replaceTarget) return;
         const normalizedNew = { ...newQuestion, difficulty: normalizeDifficulty(newQuestion.difficulty) };
+        
+        // Eski sorunun index'ini bul
+        const oldIndex = shuffledQuestions.findIndex(q => q.id === replaceTarget.id);
+        
         const replaced = shuffledQuestions.map(q => q.id === replaceTarget.id ? normalizedNew : q);
         setShuffledQuestions(replaced);
+        
+        // Yeni sorunun index'ini işaretle (aynı pozisyonda)
+        setRecentlyChangedQuestionIndex(oldIndex);
+        
+        // 5 saniye sonra işareti kaldır
+        setTimeout(() => {
+            setRecentlyChangedQuestionIndex(null);
+        }, 5000);
+        
         setReplaceTarget(null);
         setReplaceOptions([]);
         setShowReplaceModal(false);
         toast.success('Soru değiştirildi');
+        
+        // Scroll to the changed question
+        setTimeout(() => {
+            const questionElement = document.querySelector(`[data-question-index="${oldIndex}"]`);
+            if (questionElement) {
+                // Kategori ve konu durumlarını kontrol et ve gerekirse aç
+                const categoryElement = questionElement.closest('.bg-white.rounded-xl.shadow-sm');
+                const topicElement = questionElement.closest('.border.border-gray-100');
+                
+                if (categoryElement) {
+                    const categoryHeader = categoryElement.querySelector('.bg-gray-50.px-6.py-4');
+                    const categoryName = categoryHeader?.querySelector('h3')?.textContent;
+                    
+                    if (categoryName && collapsedCategories.has(categoryName)) {
+                        // Kategori kapalıysa aç
+                        toggleCategory(categoryName);
+                    }
+                }
+                
+                if (topicElement) {
+                    const topicHeader = topicElement.querySelector('.bg-gray-50.px-4.py-3');
+                    const topicName = topicHeader?.querySelector('h4')?.textContent;
+                    const categoryName = categoryElement?.querySelector('h3')?.textContent;
+                    
+                    if (topicName && categoryName) {
+                        const topicKey = `${categoryName}-${topicName}`;
+                        if (collapsedTopics.has(topicKey)) {
+                            // Konu kapalıysa aç
+                            toggleTopic(topicKey);
+                        }
+                    }
+                }
+                
+                // Son olarak scroll yap
+                setTimeout(() => {
+                    questionElement.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center' 
+                    });
+                }, 300);
+            }
+        }, 100);
     };
 
     const cleanHtml = (text) => {
@@ -539,8 +595,19 @@ const CreateExamStep3Page = () => {
                                                         {/* Sorular - Collapsible */}
                                                         {!isTopicCollapsed && (
                                                             <div className="p-4 space-y-4">
-                                                                {questions.map((question, qIndex) => (
-                                                                    <div key={question.id} className="bg-gray-50 rounded-lg p-4">
+                                                                {questions.map((question, qIndex) => {
+                                                                    const globalIndex = shuffledQuestions.findIndex(q => q.id === question.id);
+                                                                    const isRecentlyChanged = recentlyChangedQuestionIndex === globalIndex;
+                                                                    return (
+                                                                    <div 
+                                                                        key={question.id} 
+                                                                        data-question-index={globalIndex}
+                                                                        className={`bg-gray-50 rounded-lg p-4 transition-all duration-300 ${
+                                                                            isRecentlyChanged 
+                                                                                ? 'ring-2 ring-green-400 ring-opacity-80 bg-green-50 border-2 border-green-400 shadow-lg animate-pulse' 
+                                                                                : ''
+                                                                        }`}
+                                                                    >
                                                         {/* Soru Başlığı */}
                                                         <div className="flex items-center justify-between mb-3">
                                                             <div className="flex items-center gap-3">
@@ -607,7 +674,8 @@ const CreateExamStep3Page = () => {
                                                                             </div>
                                                                         )}
                                                                     </div>
-                                                                ))}
+                                                                    );
+                                                                })}
                                                             </div>
                                                         )}
                                                     </div>
