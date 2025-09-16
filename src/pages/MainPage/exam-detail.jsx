@@ -48,6 +48,7 @@ const ExamDetailPage = () => {
     const [expandedCategories, setExpandedCategories] = useState({});
     const [expandedDifficulties, setExpandedDifficulties] = useState({});
     const [showAllQuestions, setShowAllQuestions] = useState(false);
+    const [showAllInDifficulty, setShowAllInDifficulty] = useState({});
 
     // Zamanla modal state'i
     const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -632,29 +633,61 @@ const ExamDetailPage = () => {
                                                                 return (
                                                                     <div key={difficulty} className="border border-gray-200 rounded-lg overflow-hidden">
                                                                         <div 
-                                                                            className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
+                                                                            className="p-3 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
                                                                             onClick={() => toggleDifficulty(categoryName, difficulty)}
                                                                         >
-                                                                            <div className="flex items-center gap-2">
-                                                                                {isDifficultyExpanded ? (
-                                                                                    <FaChevronDown className="h-3 w-3 text-gray-500" />
-                                                                                ) : (
-                                                                                    <FaChevronRight className="h-3 w-3 text-gray-500" />
-                                                                                )}
-                                                                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border ${config.color}`}>
-                                                                                    {config.icon} {config.label}
-                                                                                </span>
-                                                                                <span className="text-sm text-gray-600">{questions.length} soru</span>
+                                                                            <div className="flex items-center justify-between">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    {isDifficultyExpanded ? (
+                                                                                        <FaChevronDown className="h-3 w-3 text-gray-500" />
+                                                                                    ) : (
+                                                                                        <FaChevronRight className="h-3 w-3 text-gray-500" />
+                                                                                    )}
+                                                                                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border ${config.color}`}>
+                                                                                        {config.icon} {config.label}
+                                                                                    </span>
+                                                                                    <span className="text-sm text-gray-600">{questions.length} soru</span>
+                                                                                </div>
                                                                             </div>
+                                                                            {/* Konu bazında dağılım */}
+                                                                            {(() => {
+                                                                                const counts = {};
+                                                                                questions.forEach(q => {
+                                                                                    const t = (q.topicName || 'Diğer').toString();
+                                                                                    counts[t] = (counts[t] || 0) + 1;
+                                                                                });
+                                                                                const entries = Object.entries(counts);
+                                                                                if (entries.length <= 1) return null;
+                                                                                return (
+                                                                                    <div className="mt-2 flex flex-wrap gap-2 pl-6">
+                                                                                        {entries.map(([t, c]) => (
+                                                                                            <span key={t} className="text-[11px] px-2 py-0.5 rounded-full bg-white border text-gray-700">
+                                                                                                {t}: {c}
+                                                                                            </span>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                );
+                                                                            })()}
                                                                         </div>
                                                                         
                                                                         {isDifficultyExpanded && (
                                                                             <div className="p-3 space-y-3 bg-white">
-                                                                                {questions.slice(0, 5).map((question, index) => (
+                                                                                {(() => {
+                                                                                    const sortedQuestions = [...questions].sort((a, b) => {
+                                                                                        const an = typeof a.soruNumarasi === 'number' ? a.soruNumarasi : Number.POSITIVE_INFINITY;
+                                                                                        const bn = typeof b.soruNumarasi === 'number' ? b.soruNumarasi : Number.POSITIVE_INFINITY;
+                                                                                        if (an !== bn) return an - bn;
+                                                                                        // fallback: stable by id/text
+                                                                                        return String(a.id || '').localeCompare(String(b.id || ''));
+                                                                                    });
+                                                                                    const key = `${categoryName}-${difficulty}`;
+                                                                                    const isExpandedAll = !!showAllInDifficulty[key];
+                                                                                    const visible = isExpandedAll ? sortedQuestions : sortedQuestions.slice(0, 5);
+                                                                                    return visible.map((question, index) => (
                                                                                     <div key={question.id || index} className="bg-gray-50 rounded-lg p-4 border">
                                                                                         <div className="flex items-start justify-between mb-3">
                                                                                             <span className="text-sm font-medium text-gray-700">
-                                                                                                Soru {index + 1}
+                                                                                                Soru {question.soruNumarasi || (index + 1)}
                                                                                             </span>
                                                                                             <button
                                                                                                 onClick={() => handleCopyToClipboard(question.id)}
@@ -664,6 +697,13 @@ const ExamDetailPage = () => {
                                                                                                 <FaCopy className="h-3 w-3" />
                                                                                             </button>
                                                                                         </div>
+                                                                                        {question.topicName && (
+                                                                                            <div className="mb-2">
+                                                                                                <span className="inline-block text-[11px] px-2 py-1 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                                                                                                    {question.topicName}
+                                                                                                </span>
+                                                                                            </div>
+                                                                                        )}
                                                                                         
                                                                                         {/* Soru Metni */}
                                                                                         <div className="text-sm text-gray-900 mb-4 font-medium">
@@ -757,11 +797,21 @@ const ExamDetailPage = () => {
                                                                                             </span>
                                                                                         </div>
                                                                                     </div>
-                                                                                ))}
+                                                                                    ));
+                                                                                })()}
                                                                                 {questions.length > 5 && (
-                                                                                    <div className="text-center p-3 text-gray-500 text-sm">
-                                                                                        +{questions.length - 5} soru daha...
-                                                                                    </div>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => setShowAllInDifficulty(prev => ({
+                                                                                            ...prev,
+                                                                                            [`${categoryName}-${difficulty}`]: !prev[`${categoryName}-${difficulty}`]
+                                                                                        }))}
+                                                                                        className="w-full text-center p-3 text-gray-600 text-sm hover:text-blue-700 hover:bg-blue-50 rounded"
+                                                                                    >
+                                                                                        {showAllInDifficulty[`${categoryName}-${difficulty}`]
+                                                                                            ? 'Daha az göster'
+                                                                                            : `+${Math.max(0, questions.length - 5)} soru daha...`}
+                                                                                    </button>
                                                                                 )}
                                                                             </div>
                                                                         )}

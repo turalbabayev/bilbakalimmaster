@@ -27,8 +27,8 @@ const CreateExamStep2Page = () => {
     
     // Kategori bazında soru limitleri
     const CATEGORY_LIMITS = {
-        'Genel Bankacılık': 60,
-        'Genel Kültür': 15,
+        'Genel Bankacılık': 50,
+        'Genel Kültür': 25,
         'Genel Yetenek': 25
     };
     

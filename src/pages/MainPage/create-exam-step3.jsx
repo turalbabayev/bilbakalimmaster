@@ -134,6 +134,58 @@ const CreateExamStep3Page = () => {
         return 'Diğer';
     };
 
+    // Belirtilen kategori/konu sırasına göre soruNumarasi ataması yap
+    // Sabit başlangıçlar: GK -> 1, GY -> en az 26, GB -> en az 51
+    const assignQuestionNumbers = (questions) => {
+        const normalizeTopic = (t) => (t || '').toString().trim().toLocaleUpperCase('tr-TR');
+
+        // Sıra:
+        // 1) Genel Kültür (GENEL KÜLTÜR)
+        // 2) Genel Yetenek: TÜRKÇE, TARİH, COĞRAFYA, MATEMATİK
+        // 3) Genel Bankacılık: BANKACILIK, HUKUK, KREDİLER, EKONOMİ, MUHASEBE
+        const genelYetenekOrder = ['TÜRKÇE', 'TARİH', 'COĞRAFYA', 'MATEMATİK'];
+        const genelBankacilikOrder = ['BANKACILIK', 'HUKUK', 'KREDİLER', 'EKONOMİ', 'MUHASEBE'];
+
+        // Grupları oluştur (tekilleştirerek)
+        const seen = new Set();
+        const gk = [];
+        const gy = [];
+        const gb = [];
+        const other = [];
+        for (const q of questions) {
+            if (!q?.id || seen.has(q.id)) continue;
+            seen.add(q.id);
+            const cat = getCategoryLabel(q.topicName);
+            if (cat === 'Genel Kültür') gk.push(q);
+            else if (cat === 'Genel Yetenek') gy.push(q);
+            else if (cat === 'Genel Bankacılık') gb.push(q);
+            else other.push(q);
+        }
+
+        // Yetenek ve Bankacılık alt konu sıralarına göre düzenle
+        const sortByOrder = (arr, order) => {
+            const upper = (t) => normalizeTopic(t);
+            return order.flatMap(topic => arr.filter(q => upper(q.topicName) === topic));
+        };
+        const gyOrdered = sortByOrder(gy, genelYetenekOrder);
+        const gbOrdered = sortByOrder(gb, genelBankacilikOrder);
+
+        // Numara atama
+        const idToNumber = new Map();
+        let num = 1;
+        for (const q of gk) idToNumber.set(q.id, num++);
+        // Genel Yetenek en az 26'dan devam etsin
+        if (num < 26) num = 26;
+        for (const q of gyOrdered) idToNumber.set(q.id, num++);
+        // Genel Bankacılık en az 51'den başlasın
+        if (num < 51) num = 51;
+        for (const q of gbOrdered) idToNumber.set(q.id, num++);
+        // Diğerleri en sona
+        for (const q of other) if (!idToNumber.has(q.id)) idToNumber.set(q.id, num++);
+
+        return questions.map(q => ({ ...q, soruNumarasi: idToNumber.get(q.id) || null }));
+    };
+
     const exportToPDF = () => {
         toast.success('PDF export özelliği yakında eklenecek!');
     };
@@ -493,7 +545,7 @@ const CreateExamStep3Page = () => {
                                                         <div className="flex items-center justify-between mb-3">
                                                             <div className="flex items-center gap-3">
                                                                 <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                                                                    {shuffledQuestions.indexOf(question) + 1}
+                                                                    {question.soruNumarasi || (shuffledQuestions.indexOf(question) + 1)}
                                                                 </div>
                                                                 <span className={`text-xs px-2 py-1 rounded-full ${getDifficultyColor(question.difficulty)}`}>
                                                                     {getDifficultyLabel(question.difficulty)}
@@ -629,13 +681,15 @@ const CreateExamStep3Page = () => {
                         </button>
                         <button
                             onClick={() => {
+                                // soruNumarasi ata ve kaydetmeden önce hazırla
+                                const numbered = assignQuestionNumbers(shuffledQuestions);
                                 // Kullanılmış soru ID'lerini güncelle
                                 const used = getUsedIds();
-                                const next = used.concat(shuffledQuestions.map(q => q.id).filter(Boolean));
+                                const next = used.concat(numbered.map(q => q.id).filter(Boolean));
                                 setUsedIds(next);
                                 navigate('/create-exam/step4', { 
                                     state: { 
-                                        selectedQuestions: shuffledQuestions, 
+                                        selectedQuestions: numbered, 
                                         totalQuestions,
                                         questionCounts: location.state?.questionCounts,
                                         topicStats: location.state?.topicStats
@@ -720,7 +774,7 @@ const CreateExamStep3Page = () => {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                                        {shuffledQuestions.indexOf(selectedQuestion) + 1}
+                                        {selectedQuestion.soruNumarasi || (shuffledQuestions.indexOf(selectedQuestion) + 1)}
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-semibold text-gray-900">Soru Detayı</h3>

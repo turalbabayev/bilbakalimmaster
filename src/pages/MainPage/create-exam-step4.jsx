@@ -61,23 +61,24 @@ const CreateExamStep4Page = () => {
         return total;
     };
 
-    // Kategori belirleme fonksiyonu (step3'ten kopyalandı)
+    // Kategori belirleme (step3 ile birebir uyumlu, kesin eşleşmeler)
     const getCategoryLabel = (topicName) => {
         if (!topicName) return 'Genel Bankacılık';
-        
-        const topic = topicName.toLowerCase();
-        
-        // Genel Kültür
-        if (topic.includes('genel kültür')) return 'Genel Kültür';
-        
-        // Genel Yetenek
-        if (topic.includes('matematik') || topic.includes('türkçe') || 
-            topic.includes('tarih') || topic.includes('coğrafya')) {
-            return 'Genel Yetenek';
-        }
-        
-        // Genel Bankacılık (default)
+        const t = topicName.toString().trim().toLocaleUpperCase('tr-TR');
+        if (t === 'GENEL KÜLTÜR') return 'Genel Kültür';
+        if (['MATEMATİK', 'TÜRKÇE', 'TARİH', 'COĞRAFYA'].includes(t)) return 'Genel Yetenek';
+        if (['BANKACILIK', 'HUKUK', 'KREDİLER', 'EKONOMİ', 'MUHASEBE'].includes(t)) return 'Genel Bankacılık';
         return 'Genel Bankacılık';
+    };
+
+    // Zorluk normalizasyonu (step3 ile tutarlı: bilinmeyenleri 'easy' kabul et)
+    const normalizeDifficulty = (value) => {
+        if (!value) return 'easy';
+        const v = String(value).toLowerCase().trim();
+        if (v === 'easy' || v === 'kolay') return 'easy';
+        if (v === 'medium' || v === 'orta') return 'medium';
+        if (v === 'hard' || v === 'zor') return 'hard';
+        return 'easy';
     };
 
 
@@ -120,11 +121,23 @@ const CreateExamStep4Page = () => {
                         };
                     }
                     
-                    const difficulty = question.difficulty || 'medium';
-                    if (tempGrouped[category].questions[difficulty]) {
-                        tempGrouped[category].questions[difficulty].push(question);
-                    }
+                    const difficulty = normalizeDifficulty(question.difficulty);
+                    tempGrouped[category].questions[difficulty].push(question);
                 });
+
+                // Debug: kaydedilecek dağılımı logla
+                try {
+                    const dbg = {};
+                    Object.entries(tempGrouped).forEach(([cat, data]) => {
+                        const q = data.questions;
+                        dbg[cat] = {
+                            easy: q.easy.length,
+                            medium: q.medium.length,
+                            hard: q.hard.length
+                        };
+                    });
+                    console.log('Step4 - Firestore kaydı dağılımı:', dbg);
+                } catch {}
                 
                 // Manuel olarak sıralı obje oluştur - her kategorinin sırasını garanti et
                 const orderedQuestions = {};
