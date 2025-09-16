@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../../components/layout';
 import { FaArrowLeft, FaEdit, FaTrash, FaBookReader, FaChevronDown, FaChevronRight, FaTrashAlt } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, deleteDoc, doc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { toast } from 'react-hot-toast';
 
@@ -26,14 +26,17 @@ const SoruHavuzuPage = () => {
     useEffect(() => {
         setLoading(true);
         
-        // Manuel soruları yükle
-        const unsubscribeQuestions = onSnapshot(collection(db, 'manual-questions'), (snapshot) => {
-            const questions = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setManualQuestions(questions.sort((a, b) => b.createdAt?.toDate() - a.createdAt?.toDate()));
-        });
+        // Manuel soruları yükle (createdAt DESC)
+        const unsubscribeQuestions = onSnapshot(
+            query(collection(db, 'manual-questions'), orderBy('createdAt', 'asc')),
+            (snapshot) => {
+                const questions = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setManualQuestions(questions);
+            }
+        );
 
         // Konuları yükle
         const unsubscribeKonular = onSnapshot(collection(db, 'konular'), (snapshot) => {

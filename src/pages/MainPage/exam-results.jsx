@@ -356,7 +356,7 @@ const ExamResultsPage = () => {
                                                     >
                                                         <FaTrash className="h-4 w-4" />
                                                         <span className="text-sm font-medium">Sil</span>
-                                                    </button>
+                            </button>
                         </div>
                     </div>
 
@@ -662,7 +662,7 @@ const ExamResultsPage = () => {
                                         Sonraki
                                     </button>
                                 </div>
-                            </div>
+                        </div>
                         )}
                     </div>
                 </div>

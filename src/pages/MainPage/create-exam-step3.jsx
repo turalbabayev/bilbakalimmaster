@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/layout';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaArrowLeft, FaCheck, FaPlay, FaEye, FaEyeSlash, FaRandom, FaDownload, FaChevronDown, FaChevronRight, FaInfoCircle, FaTimes } from 'react-icons/fa';
+import { FaArrowLeft, FaCheck, FaPlay, FaEye, FaEyeSlash, FaRandom, FaDownload, FaChevronDown, FaChevronRight, FaInfoCircle, FaTimes, FaExchangeAlt } from 'react-icons/fa';
+import { collection, collectionGroup, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { toast } from 'react-hot-toast';
 
 const CreateExamStep3Page = () => {
@@ -9,10 +11,15 @@ const CreateExamStep3Page = () => {
     const location = useLocation();
     const [showAnswers, setShowAnswers] = useState(false);
     const [shuffledQuestions, setShuffledQuestions] = useState([]);
+    const [avoidRepeats, setAvoidRepeats] = useState(true);
     const [collapsedCategories, setCollapsedCategories] = useState(new Set());
     const [collapsedTopics, setCollapsedTopics] = useState(new Set());
     const [selectedQuestion, setSelectedQuestion] = useState(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
+    const [showReplaceModal, setShowReplaceModal] = useState(false);
+    const [replaceTarget, setReplaceTarget] = useState(null); // { question }
+    const [replaceOptions, setReplaceOptions] = useState([]);
+    const [replaceLoading, setReplaceLoading] = useState(false);
     
     const { selectedQuestions, totalQuestions, questionCounts, topicStats } = location.state || {};
 
@@ -20,22 +27,59 @@ const CreateExamStep3Page = () => {
     console.log('Step3 - questionCounts:', questionCounts);
     console.log('Step3 - topicStats:', topicStats);
 
+    // Kullanılmış soruları saklamak için anahtar (akışa özel)
+    const USED_KEY = 'examBuilder:usedQuestionIds';
+
+    const getUsedIds = () => {
+        try {
+            const raw = localStorage.getItem(USED_KEY);
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    };
+
+    const setUsedIds = (ids) => {
+        try {
+            // Listeyi makul boyutta tut (son 2000 kaydı koru)
+            const unique = Array.from(new Set(ids)).slice(-2000);
+            localStorage.setItem(USED_KEY, JSON.stringify(unique));
+        } catch {}
+    };
+
+    const buildShuffled = (baseQuestions, excludeUsed) => {
+        const used = excludeUsed ? new Set(getUsedIds()) : new Set();
+        const nonRepeated = [];
+        const repeated = [];
+        for (const q of baseQuestions) {
+            if (q?.id && used.has(q.id)) repeated.push(q); else nonRepeated.push(q);
+        }
+        // Önce tekrarsızları al, gerekirse tekrar edenlerle doldur
+        const targetLen = baseQuestions.length;
+        const combined = nonRepeated.concat(repeated).slice(0, targetLen);
+        // Karıştır
+        return combined.sort(() => Math.random() - 0.5);
+    };
+
     useEffect(() => {
         if (!selectedQuestions || selectedQuestions.length === 0) {
             toast.error('Seçilen soru bulunamadı');
             navigate('/create-exam/new');
             return;
         }
-        
-        // İlk yüklemede soruları karıştır
-        const shuffled = [...selectedQuestions].sort(() => Math.random() - 0.5);
-        setShuffledQuestions(shuffled);
+        const normalized = (selectedQuestions || []).map(q => ({
+            ...q,
+            difficulty: normalizeDifficulty(q.difficulty)
+        }));
+        setShuffledQuestions(buildShuffled(normalized, true));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedQuestions, navigate]);
 
     const shuffleQuestions = () => {
-        const shuffled = [...selectedQuestions].sort(() => Math.random() - 0.5);
+        const shuffled = buildShuffled(selectedQuestions, avoidRepeats);
         setShuffledQuestions(shuffled);
-        toast.success('Sorular karıştırıldı!');
+        toast.success(avoidRepeats ? 'Tekrarlar hariç karıştırıldı!' : 'Sorular karıştırıldı!');
     };
 
     const getDifficultyColor = (difficulty) => {
@@ -54,6 +98,17 @@ const CreateExamStep3Page = () => {
             case 'hard': return 'Zor';
             default: return 'Belirsiz';
         }
+    };
+
+    // Zorluk değerlerini normalize et
+    const normalizeDifficulty = (value) => {
+        if (!value) return 'easy';
+        const v = String(value).toLowerCase().trim();
+        if (v === 'easy' || v === 'kolay') return 'easy';
+        if (v === 'medium' || v === 'orta') return 'medium';
+        if (v === 'hard' || v === 'zor') return 'hard';
+        if (v === 'unspecified' || v === 'belirsiz' || v === '') return 'easy';
+        return 'easy';
     };
 
     const getCategoryColor = (topicName) => {
@@ -115,6 +170,91 @@ const CreateExamStep3Page = () => {
     const closeDetailModal = () => {
         setSelectedQuestion(null);
         setShowDetailModal(false);
+    };
+
+    const openReplaceModal = async (question) => {
+        setReplaceTarget(question);
+        setShowReplaceModal(true);
+        setReplaceLoading(true);
+        try {
+            const topicName = question.topicName;
+            const source = question.source; // 'konular' | 'manual' (Step2'den geliyor)
+            const topicId = question.topicId || question.konuId; // her iki isimlendirme için destek
+
+            const options = [];
+            if (source === 'manual') {
+                const manualRef = collection(db, 'manual-questions');
+                let qRef;
+                if (topicId) {
+                    qRef = query(manualRef, where('topicId', '==', String(topicId).replace('konu:', '')));
+                } else {
+                    qRef = query(manualRef, where('topicName', '==', topicName));
+                }
+                const snap = await getDocs(qRef);
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    if (!data?.soruMetni || !String(data.soruMetni).trim()) return; // boş metinleri alma
+                    options.push({
+                        id: doc.id,
+                        topicName,
+                        topicId: data.topicId || topicId,
+                        source: 'manual',
+                        soruMetni: data.soruMetni,
+                        cevaplar: data.cevaplar,
+                        difficulty: normalizeDifficulty(data.difficulty || question.difficulty),
+                        dogruCevap: data.dogruCevap,
+                        aciklama: data.aciklama
+                    });
+                });
+            } else {
+                // konular koleksiyonundan ilgili konuya ait tüm sorular
+                const sorularRef = collectionGroup(db, 'sorular');
+                const snap = await getDocs(sorularRef);
+                snap.forEach(doc => {
+                    const konuIdFromPath = doc.ref.parent.parent.parent.parent.id;
+                    if (topicId && String(konuIdFromPath) === String(String(topicId).replace('konu:', ''))) {
+                        const data = doc.data();
+                        if (!data?.soruMetni || !String(data.soruMetni).trim()) return; // boş metinleri alma
+                        options.push({
+                            id: doc.id,
+                            topicName,
+                            topicId: topicId,
+                            source: 'konular',
+                            soruMetni: data.soruMetni,
+                            cevaplar: data.cevaplar || data.secenekler || data.siklar || [data.a, data.b, data.c, data.d, data.e].filter(Boolean),
+                            difficulty: normalizeDifficulty(data.difficulty || question.difficulty),
+                            dogruCevap: data.dogruCevap,
+                            aciklama: data.aciklama
+                        });
+                    }
+                });
+            }
+
+            // Mevcuttaki soruyu en üste koymamak için aynı id'yi sonda tutalım
+            const filtered = options.filter(o => o.id !== question.id && o.soruMetni && String(o.soruMetni).trim());
+            setReplaceOptions(filtered);
+        } catch (e) {
+            console.error('Sorular yüklenemedi:', e);
+        } finally {
+            setReplaceLoading(false);
+        }
+    };
+
+    const closeReplaceModal = () => {
+        setReplaceTarget(null);
+        setReplaceOptions([]);
+        setShowReplaceModal(false);
+    };
+
+    const applyReplacement = (newQuestion) => {
+        if (!replaceTarget) return;
+        const normalizedNew = { ...newQuestion, difficulty: normalizeDifficulty(newQuestion.difficulty) };
+        const replaced = shuffledQuestions.map(q => q.id === replaceTarget.id ? normalizedNew : q);
+        setShuffledQuestions(replaced);
+        setReplaceTarget(null);
+        setReplaceOptions([]);
+        setShowReplaceModal(false);
+        toast.success('Soru değiştirildi');
     };
 
     const cleanHtml = (text) => {
@@ -186,6 +326,15 @@ const CreateExamStep3Page = () => {
                     
                     {/* Kontroller - Üstte */}
                     <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-2 text-sm text-gray-600 mr-2">
+                            <input
+                                type="checkbox"
+                                checked={avoidRepeats}
+                                onChange={(e) => setAvoidRepeats(e.target.checked)}
+                                className="rounded"
+                            />
+                            Tekrarları hariç tut
+                        </label>
                         <button
                             onClick={shuffleQuestions}
                             className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
@@ -350,13 +499,22 @@ const CreateExamStep3Page = () => {
                                                                     {getDifficultyLabel(question.difficulty)}
                                                                 </span>
                                                             </div>
-                                                            <button
-                                                                onClick={() => openDetailModal(question)}
-                                                                className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                            >
-                                                                <FaInfoCircle className="w-3 h-3" />
-                                                                Detaylı Gör
-                                                            </button>
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={() => openDetailModal(question)}
+                                                                    className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                >
+                                                                    <FaInfoCircle className="w-3 h-3" />
+                                                                    Detaylı Gör
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => openReplaceModal(question)}
+                                                                    className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                                                                >
+                                                                    <FaExchangeAlt className="w-3 h-3" />
+                                                                    Soruyu Değiştir
+                                                                </button>
+                                                            </div>
                                                         </div>
 
                                                                         {/* Soru Metni */}
@@ -470,14 +628,20 @@ const CreateExamStep3Page = () => {
                             Geri Dön
                         </button>
                         <button
-                            onClick={() => navigate('/create-exam/step4', { 
-                                state: { 
-                                    selectedQuestions: shuffledQuestions, 
-                                    totalQuestions,
-                                    questionCounts: location.state?.questionCounts,
-                                    topicStats: location.state?.topicStats
-                                } 
-                            })}
+                            onClick={() => {
+                                // Kullanılmış soru ID'lerini güncelle
+                                const used = getUsedIds();
+                                const next = used.concat(shuffledQuestions.map(q => q.id).filter(Boolean));
+                                setUsedIds(next);
+                                navigate('/create-exam/step4', { 
+                                    state: { 
+                                        selectedQuestions: shuffledQuestions, 
+                                        totalQuestions,
+                                        questionCounts: location.state?.questionCounts,
+                                        topicStats: location.state?.topicStats
+                                    } 
+                                });
+                            }}
                             className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
                         >
                             <FaPlay className="w-4 h-4" />
@@ -486,6 +650,66 @@ const CreateExamStep3Page = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Soruyu Değiştir Modal */}
+            {showReplaceModal && replaceTarget && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+                        {/* Header */}
+                        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-gray-900">Soruyu Değiştir</h3>
+                                    <p className="text-sm text-gray-600">Konu: {replaceTarget.topicName}</p>
+                                </div>
+                                <button
+                                    onClick={closeReplaceModal}
+                                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                    <FaTimes className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                            {replaceLoading ? (
+                                <div className="flex justify-center py-12">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                                </div>
+                            ) : replaceOptions.length === 0 ? (
+                                <div className="text-center py-12 text-gray-600">Bu konuda alternatif soru bulunamadı.</div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {replaceOptions.map((q) => (
+                                        <div key={q.id} className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className={`text-xs px-2 py-1 rounded-full ${getDifficultyColor(q.difficulty)}`}>
+                                                    {getDifficultyLabel(q.difficulty)}
+                                                </span>
+                                                <button
+                                                    onClick={() => applyReplacement(q)}
+                                                    className="text-xs px-2 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+                                                >
+                                                    Bu Soruyu Seç
+                                                </button>
+                                            </div>
+                                            <div className="text-sm text-gray-800 mb-2 line-clamp-4">{cleanHtml(q.soruMetni)}</div>
+                                            {q.cevaplar && Array.isArray(q.cevaplar) && (
+                                                <div className="space-y-1">
+                                                    {q.cevaplar.slice(0,5).map((cevap, idx) => (
+                                                        <div key={idx} className="text-xs text-gray-600">{String.fromCharCode(65+idx)}) {cleanHtml(cevap)}</div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Detay Modal */}
             {showDetailModal && selectedQuestion && (
@@ -602,3 +826,9 @@ const CreateExamStep3Page = () => {
 };
 
 export default CreateExamStep3Page;
+
+// Replace Modal UI
+// Component return'ünün hemen üstünde modalı koşullu render edelim
+// (Bu dosyanın sonunda olması render sırası açısından sorun yaratmaz)
+// Modal: showReplaceModal && replaceTarget
+//#region ReplaceModalRender
