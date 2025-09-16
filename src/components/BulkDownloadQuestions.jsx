@@ -14,6 +14,31 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
     const [indirmeTipi, setIndirmeTipi] = useState("tum");
     const [indirmeMiktari, setIndirmeMiktari] = useState("secili");
 
+    // Zorluk normalizasyonu ve emoji eşleşmesi
+    const normalizeDifficulty = (raw) => {
+        if (!raw) return 'medium';
+        const s = String(raw).toLowerCase().trim();
+        if ([
+            'kolay','easy','e','k','1','low','basit','easy-peasy'
+        ].includes(s)) return 'easy';
+        if ([
+            'zor','hard','z','h','3','difficult','high'
+        ].includes(s)) return 'hard';
+        // orta/varsayılan
+        if ([
+            'orta','medium','m','2','mid','normal'
+        ].includes(s)) return 'medium';
+        return 'medium';
+    };
+
+    const difficultyEmoji = (soru) => {
+        const raw = soru?.zorluk || soru?.difficulty || soru?.level;
+        const norm = normalizeDifficulty(raw);
+        if (norm === 'easy') return '🟢';
+        if (norm === 'hard') return '🔴';
+        return '🟡';
+    };
+
     React.useEffect(() => {
         const fetchQuestions = async () => {
             if (!isOpen) return;
@@ -153,7 +178,7 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                         new Paragraph({
                             children: [
                                 new TextRun({
-                                    text: `Soru ${soru.soruNumarasi || ""}`,
+                                    text: `${difficultyEmoji(soru)} Soru ${soru.soruNumarasi || ""}`,
                                     bold: true,
                                     size: 28
                                 })
