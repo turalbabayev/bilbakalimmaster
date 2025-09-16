@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/layout';
-import { FaArrowLeft, FaEdit, FaTrash, FaBookReader, FaChevronDown, FaChevronRight, FaTrashAlt } from 'react-icons/fa';
+import { FaArrowLeft, FaEdit, FaTrash, FaBookReader, FaChevronDown, FaChevronRight, FaTrashAlt, FaDownload } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, deleteDoc, doc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { toast } from 'react-hot-toast';
+import { saveAs } from 'file-saver';
 
 const SoruHavuzuPage = () => {
     const navigate = useNavigate();
@@ -13,6 +14,48 @@ const SoruHavuzuPage = () => {
     const [loading, setLoading] = useState(false);
     const [editingQuestion, setEditingQuestion] = useState(null);
     const [expandedTopics, setExpandedTopics] = useState({});
+    // Toplu indir modal durumları
+    const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false);
+    const [bulkTopicName, setBulkTopicName] = useState("");
+    const [bulkQuestions, setBulkQuestions] = useState([]);
+    const [selectedForDownload, setSelectedForDownload] = useState({});
+    const [downloadType, setDownloadType] = useState("tum"); // tum | sadeceSorular
+    const [amountType, setAmountType] = useState("all"); // all | 10 | 20 | 30 | custom | secili
+    const [customAmount, setCustomAmount] = useState("");
+
+    // Yardımcı: ilk N soruyu seçili yap
+    const setFirstNSelected = (n) => {
+        const next = {};
+        const limit = Math.max(0, Math.min(n, bulkQuestions.length));
+        bulkQuestions.forEach((q, idx) => {
+            next[q.id] = idx < limit;
+        });
+        setSelectedForDownload(next);
+    };
+
+    const setAllSelected = () => {
+        const next = {};
+        bulkQuestions.forEach(q => { next[q.id] = true; });
+        setSelectedForDownload(next);
+    };
+
+    const handleAmountTypeChange = (opt) => {
+        setAmountType(opt);
+        if (opt === 'all') {
+            setAllSelected();
+        } else if (opt === '10' || opt === '20' || opt === '30') {
+            setFirstNSelected(parseInt(opt, 10));
+        } else if (opt === 'custom') {
+            const n = parseInt(customAmount || '0', 10);
+            if (!isNaN(n) && n > 0) {
+                setFirstNSelected(n);
+            } else {
+                setFirstNSelected(0);
+            }
+        } else if (opt === 'secili') {
+            // Kullanıcı manuel yönetecek; seçimlere dokunma
+        }
+    };
     const [editForm, setEditForm] = useState({
         soruMetni: '',
         cevaplar: ['', '', '', '', ''],
@@ -94,6 +137,88 @@ const SoruHavuzuPage = () => {
             toast.error('Sorular silinirken bir hata oluştu!');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Konuyu JSON olarak indir (sorular sayfasının beklediği format)
+    const handleDownloadTopicAsJSON = (topicName, questions) => {
+        try {
+            if (!questions || questions.length === 0) {
+                toast.error('İndirilecek soru bulunamadı.');
+                return;
+            }
+
+            // Modal için başlangıç state'leri hazırla ve aç
+            setBulkTopicName(topicName);
+            setBulkQuestions(questions);
+            // Varsayılan: hepsi seçili
+            const initialSel = {};
+            questions.forEach(q => { initialSel[q.id] = true; });
+            setSelectedForDownload(initialSel);
+            setDownloadType("tum");
+            setAmountType("all");
+            setCustomAmount("");
+            setIsBulkDownloadOpen(true);
+        } catch (error) {
+            console.error('JSON indirme hatası:', error);
+            toast.error('JSON indirme sırasında bir hata oluştu!');
+        }
+    };
+
+    // Modal içindeki JSON oluşturma ve indirme
+    const performDownloadFromModal = () => {
+        try {
+            let baseList = [...bulkQuestions];
+            // Miktara göre filtreleme
+            if (amountType === '10' || amountType === '20' || amountType === '30') {
+                baseList = baseList.slice(0, parseInt(amountType));
+            } else if (amountType === 'custom') {
+                const n = Math.min(parseInt(customAmount || '0', 10) || 0, bulkQuestions.length);
+                if (n <= 0) {
+                    toast.error('Geçerli bir sayı girin.');
+                    return;
+                }
+                baseList = baseList.slice(0, n);
+            } else if (amountType === 'secili') {
+                const selectedIds = Object.entries(selectedForDownload).filter(([_, v]) => v).map(([id]) => id);
+                if (selectedIds.length === 0) {
+                    toast.error('En az bir soru seçin.');
+                    return;
+                }
+                baseList = baseList.filter(q => selectedIds.includes(q.id));
+            } // all -> hiçbir değişiklik yok
+
+            const toOptionsObject = (cevaplar = []) => ({
+                A: cevaplar?.[0] || '',
+                B: cevaplar?.[1] || '',
+                C: cevaplar?.[2] || '',
+                D: cevaplar?.[3] || '',
+                E: cevaplar?.[4] || ''
+            });
+
+            const payload = baseList.map(q => {
+                const item = {
+                    question: q.soruMetni || '',
+                    options: toOptionsObject(q.cevaplar || [])
+                };
+                if (downloadType === 'tum') {
+                    item.answer = (q.dogruCevap || 'A').toString().toUpperCase();
+                    item.explanation = q.aciklama || '';
+                    item.difficulty = q.difficulty || 'medium';
+                }
+                return item;
+            });
+
+            const jsonStr = JSON.stringify(payload, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const safeName = (bulkTopicName || 'konu').toString().toLowerCase().replace(/[^a-z0-9-_]+/gi, '_');
+            const fileName = `manual_${safeName}_sorular.json`;
+            saveAs(blob, fileName);
+            toast.success(`${payload.length} soru JSON olarak indirildi`);
+            setIsBulkDownloadOpen(false);
+        } catch (error) {
+            console.error('JSON oluşturma/indirme hatası:', error);
+            toast.error('JSON indirme sırasında bir hata oluştu!');
         }
     };
 
@@ -208,6 +333,16 @@ const SoruHavuzuPage = () => {
                                                         {questions.filter(q => q.difficulty === 'hard').length} Zor
                                                     </div>
                                                     <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDownloadTopicAsJSON(topicName, questions);
+                                                            }}
+                                                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors duration-200"
+                                                            title="Toplu JSON indir"
+                                                        >
+                                                            <FaDownload className="h-4 w-4" />
+                                                        </button>
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -476,6 +611,69 @@ const SoruHavuzuPage = () => {
                     </div>
                 </div>
             </div>
+            {isBulkDownloadOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-11/12 max-w-5xl max-h-[calc(100vh-40px)] overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col">
+                        <div className="p-6 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Toplu İndir - {bulkTopicName}</h2>
+                        </div>
+                        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <h3 className="text-sm font-semibold mb-2 text-gray-900 dark:text-white">İndirme Tipi</h3>
+                                    <div className="space-y-2">
+                                        <label className="flex items-center gap-2 text-sm">
+                                            <input type="radio" className="form-radio" checked={downloadType === 'tum'} onChange={() => setDownloadType('tum')} />
+                                            <span>Tüm İçerik (cevap + açıklama + zorluk)</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 text-sm">
+                                            <input type="radio" className="form-radio" checked={downloadType === 'sadeceSorular'} onChange={() => setDownloadType('sadeceSorular')} />
+                                            <span>Sadece Sorular (question + options)</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-semibold mb-2 text-gray-900 dark:text-white">İndirme Miktarı</h3>
+                                    <div className="flex flex-wrap gap-2 items-center">
+                                        {['all','10','20','30','custom','secili'].map(opt => (
+                                            <button key={opt} onClick={() => handleAmountTypeChange(opt)} className={`px-3 py-1 rounded-lg text-sm border ${amountType===opt ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600'}`}>
+                                                {opt === 'all' ? 'Tüm sorular' : opt === 'custom' ? 'Özel' : opt === 'secili' ? 'Seçili' : `İlk ${opt}`}
+                                            </button>
+                                        ))}
+                                        {amountType === 'custom' && (
+                                            <input type="number" min={1} max={bulkQuestions.length} value={customAmount} onChange={(e)=>{ const raw=e.target.value; const parsed=parseInt(raw||'0',10); if(isNaN(parsed)){ setCustomAmount(''); setFirstNSelected(0); return; } const clamped=Math.min(Math.max(parsed,1), bulkQuestions.length); setCustomAmount(String(clamped)); setFirstNSelected(clamped); }} className="ml-2 w-24 px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800" placeholder={`1-${bulkQuestions.length}`} />
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Sorular ({bulkQuestions.length})</h3>
+                                    <div className="text-sm text-gray-600 dark:text-gray-300">Seçili: {Object.values(selectedForDownload).filter(Boolean).length}</div>
+                                </div>
+                                <div className="space-y-3 max-h-[50vh] overflow-auto pr-1">
+                                    {bulkQuestions.map((q, idx) => (
+                                        <label key={q.id} className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                                            <input type="checkbox" className="mt-1" checked={!!selectedForDownload[q.id]} onChange={(e)=>{ setSelectedForDownload(prev=>({ ...prev, [q.id]: e.target.checked })); if(amountType !== 'secili'){ setAmountType('secili'); } }} />
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 text-sm mb-1">
+                                                    <span className="inline-flex items-center justify-center bg-blue-600 text-white font-semibold rounded-full w-6 h-6">{q.soruNumarasi || idx+1}</span>
+                                                    <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700">{q.difficulty || 'medium'}</span>
+                                                </div>
+                                                <div className="text-sm text-gray-800 dark:text-gray-200" dangerouslySetInnerHTML={{ __html: q.soruMetni }} />
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex justify-end gap-3">
+                            <button onClick={()=>setIsBulkDownloadOpen(false)} className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">İptal</button>
+                            <button onClick={performDownloadFromModal} className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white">JSON İndir</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </Layout>
     );
 };

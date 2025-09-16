@@ -37,6 +37,7 @@ import AppFeedbackPage from './pages/MainPage/app_feedback_page';
 import PodcastPage from './pages/MainPage/podcast_page';
 import PodcastUnitsPage from './pages/MainPage/podcast_units';
 import FAQPage from './pages/MainPage/faq_page';
+import DraftsPage from './pages/MainPage/drafts_page';
 
 function App() {
     return (
@@ -79,6 +80,7 @@ function App() {
                     <Route path='/podcast' element={<ProtectedRouter><PodcastPage /></ProtectedRouter>} />
                     <Route path='/faq' element={<ProtectedRouter><FAQPage /></ProtectedRouter>} />
                     <Route path='/podcast-uniteleri' element={<ProtectedRouter><PodcastUnitsPage /></ProtectedRouter>} />
+                    <Route path='/taslaklar/:id' element={<ProtectedRouter><DraftsPage /></ProtectedRouter>} />
                 </Routes>
             </Router>
         </AuthProvider>

@@ -10,6 +10,23 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
     const [importProgress, setImportProgress] = useState(0);
     const [importSummary, setImportSummary] = useState(null);
     const [parseErrors, setParseErrors] = useState([]);
+    const [saveAsDraft, setSaveAsDraft] = useState(false);
+
+    // Zorluk normalizasyonu
+    const normalizeDifficulty = (raw) => {
+        if (!raw && raw !== 0) return 'medium';
+        const s = String(raw).toLowerCase().trim();
+        if ([
+            'kolay','easy','e','k','1','low','basit'
+        ].includes(s)) return 'easy';
+        if ([
+            'zor','hard','z','h','3','difficult','high'
+        ].includes(s)) return 'hard';
+        if ([
+            'orta','medium','m','2','mid','normal'
+        ].includes(s)) return 'medium';
+        return 'medium';
+    };
 
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
@@ -191,12 +208,17 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
                                 // Açıklamayı al
                                 const explanation = processText(q.explanation || q.correct_explanation || q.correctExplanation || "");
                                 
+                                // Difficulty oku ve normalize et
+                                const difficultyRaw = q.difficulty || q.zorluk || q.level;
+                                const difficulty = normalizeDifficulty(difficultyRaw);
+
                                 // Soruyu hazırla
                                 validQuestions.push({
                                     soruMetni: processText(q.question),
                                     cevaplar: options,
                                     dogruCevap: correctAnswer,
-                                    aciklama: explanation
+                                    aciklama: explanation,
+                                    difficulty
                                 });
                                 
                             } catch (validationError) {
@@ -217,11 +239,15 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
                             throw new Error("Geçerli soru bulunamadı. JSON formatını kontrol edin.");
                         }
                         
-                        // Firestore'dan mevcut soru sayısını al
-                        const soruRef = collection(db, "konular", currentKonuId, "altkonular", selectedAltKonu, "sorular");
-                        const q = query(soruRef, orderBy("soruNumarasi", "desc"));
-                        const querySnapshot = await getDocs(q);
-                        const mevcutSoruSayisi = querySnapshot.empty ? 0 : (querySnapshot.docs[0].data().soruNumarasi || 0);
+                        // Hedef koleksiyon adı ve ref'i
+                        const hedefKoleksiyonAdi = saveAsDraft ? "taslaklar" : "sorular";
+                        const hedefRef = collection(db, "konular", currentKonuId, "altkonular", selectedAltKonu, hedefKoleksiyonAdi);
+
+                        // Soru numarasını her zaman normal "sorular" koleksiyonundaki en büyük numaradan devam ettir
+                        const sorularRefForNum = collection(db, "konular", currentKonuId, "altkonular", selectedAltKonu, "sorular");
+                        const numQ = query(sorularRefForNum, orderBy("soruNumarasi", "desc"));
+                        const numSnap = await getDocs(numQ);
+                        const mevcutSoruSayisi = numSnap.empty ? 0 : (numSnap.docs[0].data().soruNumarasi || 0);
                         
                         // Başarıyla eklenen soru sayısı
                         let basariliEklenen = 0;
@@ -237,14 +263,16 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
                                     cevaplar: question.cevaplar,
                                     dogruCevap: question.dogruCevap,
                                     aciklama: question.aciklama,
+                                    difficulty: question.difficulty || 'medium',
                                     liked: 0,
                                     unliked: 0,
                                     report: 0,
-                                    soruNumarasi: mevcutSoruSayisi + i + 1,
+                                    // Taslak da olsa, numara sorular koleksiyonunun son numarasından devam etsin
+                                    soruNumarasi: (mevcutSoruSayisi + i + 1),
                                     soruResmi: null
                                 };
                                 
-                                await addDoc(soruRef, newQuestion);
+                                await addDoc(hedefRef, newQuestion);
                                 basariliEklenen++;
                             } catch (error) {
                                 console.error(`Soru #${i + 1} eklenirken hata:`, error);
@@ -308,6 +336,18 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
                 
                 <div className="p-8 overflow-y-auto flex-1">
                     <div className="space-y-8">
+                        <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                            <label className="flex items-center gap-3 text-sm font-medium text-gray-800 dark:text-gray-200">
+                                <input
+                                    type="checkbox"
+                                    checked={saveAsDraft}
+                                    onChange={(e)=>setSaveAsDraft(e.target.checked)}
+                                    className="form-checkbox text-blue-600"
+                                />
+                                Soruları taslak olarak ekle (yayınlamadan kaydet)
+                            </label>
+                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Taslaklar ayrı bir koleksiyonda saklanır ve daha sonra yayınlayabilirsiniz.</p>
+                        </div>
                         <div>
                             <label className="block text-base font-semibold text-gray-900 dark:text-white mb-3">
                                 Alt Konu Seçin
@@ -343,7 +383,7 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
                                 </div>
                             </div>
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                JSON dosyanızda sorular aşağıdaki formatta olmalıdır:
+                                JSON dosyanızda sorular aşağıdaki formatta olmalıdır (difficulty: "easy" | "medium" | "hard"):
                             </p>
                             <div className="mt-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
 {`[
@@ -357,13 +397,15 @@ const ImportQuestionsFromJSON = ({ isOpen, onClose, currentKonuId, altKonular })
       "E": "Linyit"
     },
     "answer": "A",
-    "explanation": "Türkiye, dünya bor rezervlerinin yaklaşık %70'ine sahiptir ve bu alanda liderdir."
+    "explanation": "Türkiye, dünya bor rezervlerinin yaklaşık %70'ine sahiptir ve bu alanda liderdir.",
+    "difficulty": "easy"
   },
   {
     "question": "Diğer soru...",
     "options": {...},
     "answer": "B",
-    "explanation": "Açıklama metni..."
+    "explanation": "Açıklama metni...",
+    "difficulty": "medium"
   }
 ]`}
                             </div>

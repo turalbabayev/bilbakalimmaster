@@ -451,6 +451,15 @@ function QuestionContent() {
                                 DOCX'ten İçe Aktar
                             </button>
                             <button
+                                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium shadow-md transition-all duration-200 flex items-center"
+                                onClick={() => navigate(`/taslaklar/${id}`)}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6M7 8h10M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                                </svg>
+                                Taslak Alanı
+                            </button>
+                            <button
                                 className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium shadow-md transition-all duration-200 flex items-center"
                                 onClick={() => setIsImportJSONModalOpen(true)}
                             >
@@ -488,13 +497,16 @@ function QuestionContent() {
                                                 {altKonu.baslik || "Alt konu yok."}
                                             </h2>
                                             <div className="flex items-center space-x-4">
-                                                <span className="text-gray-500 dark:text-gray-400 text-sm font-medium bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
-                                                    {altKonu.sorular && altKonu.sorular !== true 
-                                                        ? Object.keys(altKonu.sorular).length 
-                                                        : '?'} Soru
-                                                </span>
+                                                
                                                 {altKonu.sorular && (
                                                     <>
+                                                        <span className="text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-lg">
+                                                            Soru sayısı: {(
+                                                                altKonu.sorular && altKonu.sorular !== true
+                                                                    ? Object.values(altKonu.sorular).filter((s) => (stripHtml(s?.soruMetni || '').trim().length > 0)).length
+                                                                    : 0
+                                                            )}
+                                                        </span>
                                                         <button
                                                             onClick={() => {
                                                                 // Önce soruları yükle, sonra modali aç
@@ -581,7 +593,9 @@ function QuestionContent() {
                                                     <ul className="space-y-5 mt-6">
                                                         {altKonu.sorular && altKonu.sorular !== true ? (
                                                             Object.keys(altKonu.sorular).length > 0 ? (
-                                                                sortedQuestions(altKonu.sorular).map(([soruKey, soru], index) => (
+                                                                sortedQuestions(altKonu.sorular)
+                                                                    .filter(([_, soru]) => (stripHtml(soru?.soruMetni || '').trim().length > 0))
+                                                                    .map(([soruKey, soru], index) => (
                                                                     <li key={soruKey} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg shadow-sm flex flex-col transition-all duration-200 hover:shadow-md">
                                                                         <div className="flex justify-between items-start">
                                                                             <div className="flex-1 min-w-0">
