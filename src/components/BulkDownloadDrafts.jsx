@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db, storage } from "../firebase";
-import { ref, getDownloadURL } from "firebase/storage";
+import { ref, getBytes } from "firebase/storage";
 import { collection, getDocs } from "firebase/firestore";
 import { saveAs } from "file-saver";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun } from "docx";
@@ -52,10 +52,9 @@ const BulkDownloadDrafts = ({ isOpen, onClose, konuId, altKonuId }) => {
             const filePath = decodeURIComponent(pathMatch[1]);
             const storageRef = ref(storage, filePath);
             
-            // Firebase Storage'dan resmi indir
-            const downloadURL = await getDownloadURL(storageRef);
-            const response = await fetch(downloadURL);
-            const blob = await response.blob();
+            // Firebase Storage'dan resmi indir - getBytes kullan
+            const bytes = await getBytes(storageRef);
+            const blob = new Blob([bytes]);
             
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
