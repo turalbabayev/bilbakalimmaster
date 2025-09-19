@@ -668,7 +668,7 @@ const SoruHavuzuPage = () => {
                                                                                         : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
                                                                                 }`}
                                                                             >
-                                                                                <div className="flex items-center gap-3">
+                                                                                <div className="flex items-start gap-3">
                                                                                     <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                                                                                         question.dogruCevap === String.fromCharCode(65 + cevapIndex)
                                                                                             ? "bg-green-500 text-white"
@@ -676,7 +676,7 @@ const SoruHavuzuPage = () => {
                                                                                     }`}>
                                                                                         {String.fromCharCode(65 + cevapIndex)}
                                                                                     </div>
-                                                                                    <span className="text-sm">{cevap}</span>
+                                                                                    <div className="text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: cevap || '' }} />
                                                                                 </div>
                                                                             </div>
                                                                         ))}
