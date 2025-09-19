@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Editor } from '@tinymce/tinymce-react';
+import { db, storage } from '../../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Layout from '../../components/layout';
 import { FaArrowLeft, FaEdit, FaTrash, FaBookReader, FaChevronDown, FaChevronRight, FaTrashAlt, FaDownload } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, deleteDoc, doc, updateDoc, query, orderBy } from 'firebase/firestore';
-import { db } from '../../firebase';
 import { toast } from 'react-hot-toast';
 import { saveAs } from 'file-saver';
 
@@ -23,6 +24,21 @@ const SoruHavuzuPage = () => {
     const [downloadType, setDownloadType] = useState("tum"); // tum | sadeceSorular
     const [amountType, setAmountType] = useState("all"); // all | 10 | 20 | 30 | custom | secili
     const [customAmount, setCustomAmount] = useState("");
+
+    // TinyMCE için resim upload handler: Firebase Storage'a yükler ve URL döner
+    const handleTinyImageUpload = async (blobInfo) => {
+        try {
+            const fileName = blobInfo.filename() || `image_${Date.now()}.png`;
+            const file = new File([blobInfo.blob()], fileName, { type: blobInfo.blob().type });
+            const storageRef = ref(storage, `manual-question-images/${Date.now()}_${fileName}`);
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+            return downloadURL;
+        } catch (err) {
+            console.error('TinyMCE resim yükleme hatası:', err);
+            throw err;
+        }
+    };
 
     // Yardımcı: ilk N soruyu seçili yap
     const setFirstNSelected = (n) => {
@@ -400,13 +416,14 @@ const SoruHavuzuPage = () => {
                                                                                         plugins: [
                                                                                             'advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
                                                                                             'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                                                                                            'insertdatetime', 'table', 'code', 'help', 'wordcount'
+                                                                                            'insertdatetime', 'image', 'media', 'table', 'code', 'help', 'wordcount'
                                                                                         ],
                                                                                         toolbar: 'undo redo | blocks | ' +
                                                                                             'bold italic underline forecolor | alignleft aligncenter ' +
                                                                                             'alignright alignjustify | bullist numlist outdent indent | ' +
-                                                                                            'removeformat | help',
+                                                                                            'image media | removeformat | help',
                                                                                         content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }'
+                                                                                        ,images_upload_handler: handleTinyImageUpload
                                                                                     }}
                                                                                 />
                                                                             </div>
