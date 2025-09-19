@@ -24,6 +24,7 @@ const SoruHavuzuPage = () => {
     const [downloadType, setDownloadType] = useState("tum"); // tum | sadeceSorular
     const [amountType, setAmountType] = useState("all"); // all | 10 | 20 | 30 | custom | secili
     const [customAmount, setCustomAmount] = useState("");
+    const [zenginSecenekAktif, setZenginSecenekAktif] = useState(false);
 
     // TinyMCE için resim upload handler: Firebase Storage'a yükler ve URL döner
     const handleTinyImageUpload = async (blobInfo) => {
@@ -54,6 +55,13 @@ const SoruHavuzuPage = () => {
         const next = {};
         bulkQuestions.forEach(q => { next[q.id] = true; });
         setSelectedForDownload(next);
+    };
+
+    // Basit HTML temizleyici (zengin > normal geçişte kullanılabilir)
+    const stripHtml = (html = '') => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(String(html), 'text/html');
+        return doc.body.textContent || '';
     };
 
     const handleAmountTypeChange = (opt) => {
@@ -431,27 +439,74 @@ const SoruHavuzuPage = () => {
                                                                         
                                                                         {/* Seçenekler */}
                                                                         <div>
-                                                                            <label className="block text-sm font-semibold text-gray-700 mb-3">Seçenekler *</label>
+                                                                            <div className="flex items-center justify-between mb-3">
+                                                                                <label className="block text-sm font-semibold text-gray-700">Seçenekler *</label>
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.preventDefault();
+                                                                                        setZenginSecenekAktif(prev => {
+                                                                                            const next = !prev;
+                                                                                            if (!next) {
+                                                                                                // Zengin'den normale geçişte HTML etiketlerini temizle
+                                                                                                const temiz = (editForm.cevaplar || []).map(c => stripHtml(c));
+                                                                                                setEditForm(prevForm => ({ ...prevForm, cevaplar: temiz }));
+                                                                                            }
+                                                                                            return next;
+                                                                                        });
+                                                                                    }}
+                                                                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${zenginSecenekAktif ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}
+                                                                                >
+                                                                                    {zenginSecenekAktif ? 'Normal editörde kal' : 'Zengin metin editörüne geç'}
+                                                                                </button>
+                                                                            </div>
                                                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                                                 {editForm.cevaplar.map((cevap, index) => (
                                                                                     <div key={index} className="relative">
-                                                                                        <div className="flex items-center gap-3">
-                                                                                            <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                                        <div className="flex items-start gap-3">
+                                                                                            <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0 mt-2">
                                                                                                 <span className="text-gray-600 font-bold text-sm">
                                                                                                     {String.fromCharCode(65 + index)}
                                                                                                 </span>
                                                                                             </div>
-                                                                                            <input
-                                                                                                type="text"
-                                                                                                value={cevap}
-                                                                                                onChange={(e) => {
-                                                                                                    const newCevaplar = [...editForm.cevaplar];
-                                                                                                    newCevaplar[index] = e.target.value;
-                                                                                                    setEditForm(prev => ({ ...prev, cevaplar: newCevaplar }));
-                                                                                                }}
-                                                                                                className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                                                                                                placeholder={`${String.fromCharCode(65 + index)} seçeneğini girin...`}
-                                                                                            />
+                                                                                            <div className="flex-1">
+                                                                                                {zenginSecenekAktif ? (
+                                                                                                    <div className="rounded-xl overflow-hidden border-2 border-gray-300">
+                                                                                                        <Editor
+                                                                                                            apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
+                                                                                                            value={cevap}
+                                                                                                            onEditorChange={(content) => {
+                                                                                                                const newCevaplar = [...editForm.cevaplar];
+                                                                                                                newCevaplar[index] = content;
+                                                                                                                setEditForm(prev => ({ ...prev, cevaplar: newCevaplar }));
+                                                                                                            }}
+                                                                                                            init={{
+                                                                                                                height: 180,
+                                                                                                                menubar: false,
+                                                                                                                plugins: [
+                                                                                                                    'advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                                                                                                                    'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                                                                                                                    'insertdatetime', 'image', 'media', 'table', 'help', 'wordcount'
+                                                                                                                ],
+                                                                                                                toolbar: 'bold italic underline | bullist numlist | alignleft aligncenter alignright | image media | removeformat',
+                                                                                                                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                                                                                                                images_upload_handler: handleTinyImageUpload
+                                                                                                            }}
+                                                                                                        />
+                                                                                                    </div>
+                                                                                                ) : (
+                                                                                                    <input
+                                                                                                        type="text"
+                                                                                                        value={cevap}
+                                                                                                        onChange={(e) => {
+                                                                                                            const newCevaplar = [...editForm.cevaplar];
+                                                                                                            newCevaplar[index] = e.target.value;
+                                                                                                            setEditForm(prev => ({ ...prev, cevaplar: newCevaplar }));
+                                                                                                        }}
+                                                                                                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                                                                                        placeholder={`${String.fromCharCode(65 + index)} seçeneğini girin...`}
+                                                                                                    />
+                                                                                                )}
+                                                                                            </div>
                                                                                         </div>
                                                                                     </div>
                                                                                 ))}
@@ -514,13 +569,25 @@ const SoruHavuzuPage = () => {
                                                                             <label className="block text-sm font-semibold text-gray-700 mb-2">
                                                                                 Açıklama
                                                                             </label>
-                                                                            <textarea
-                                                                                value={editForm.aciklama}
-                                                                                onChange={(e) => setEditForm(prev => ({ ...prev, aciklama: e.target.value }))}
-                                                                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none"
-                                                                                rows="3"
-                                                                                placeholder="Soru açıklamasını buraya yazın (isteğe bağlı)..."
-                                                                            />
+                                                                            <div className="rounded-xl overflow-hidden border-2 border-gray-300">
+                                                                                <Editor
+                                                                                    apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
+                                                                                    value={editForm.aciklama}
+                                                                                    onEditorChange={(content) => setEditForm(prev => ({ ...prev, aciklama: content }))}
+                                                                                    init={{
+                                                                                        height: 240,
+                                                                                        menubar: false,
+                                                                                        plugins: [
+                                                                                            'advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                                                                                            'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                                                                                            'insertdatetime', 'image', 'media', 'table', 'help', 'wordcount'
+                                                                                        ],
+                                                                                        toolbar: 'undo redo | bold italic underline | bullist numlist | alignleft aligncenter alignright | image media | removeformat',
+                                                                                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                                                                                        images_upload_handler: handleTinyImageUpload
+                                                                                    }}
+                                                                                />
+                                                                            </div>
                                                                         </div>
 
                                                                         {/* Butonlar */}
