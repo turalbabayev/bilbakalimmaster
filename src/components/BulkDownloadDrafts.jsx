@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { saveAs } from "file-saver";
-import { Document, Packer, Paragraph, TextRun } from "docx";
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun } from "docx";
 import { toast } from 'react-hot-toast';
 
 const BulkDownloadDrafts = ({ isOpen, onClose, konuId, altKonuId }) => {
@@ -13,6 +13,43 @@ const BulkDownloadDrafts = ({ isOpen, onClose, konuId, altKonuId }) => {
     const [hepsiSecili, setHepsiSecili] = useState(false);
     const [indirmeTipi, setIndirmeTipi] = useState("tum"); // tum | sadeceSorular
     const [indirmeMiktari, setIndirmeMiktari] = useState("secili"); // tumu | ilk10 | ilk20 | ilk30 | secili
+
+    // HTML entity'leri düzgün karakterlere çevir
+    const decodeHtmlEntities = (text) => {
+        if (!text) return '';
+        const textarea = document.createElement('textarea');
+        textarea.innerHTML = text;
+        return textarea.value;
+    };
+
+    // Resim URL'lerini HTML'den çıkar
+    const extractImageUrls = (html) => {
+        if (!html) return [];
+        const imgRegex = /<img[^>]+src="([^"]+)"/g;
+        const urls = [];
+        let match;
+        while ((match = imgRegex.exec(html)) !== null) {
+            urls.push(match[1]);
+        }
+        return urls;
+    };
+
+    // Resmi base64'e çevir
+    const imageToBase64 = async (url) => {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        } catch (error) {
+            console.error('Resim yüklenirken hata:', error);
+            return null;
+        }
+    };
 
     const normalizeDifficulty = (raw) => {
         if (!raw && raw !== 0) return 'medium';
@@ -156,30 +193,75 @@ const BulkDownloadDrafts = ({ isOpen, onClose, konuId, altKonuId }) => {
                 });
             }
             const children = [];
-            items.forEach((soru, idx) => {
+            for (const [idx, soru] of items.entries()) {
                 children.push(new Paragraph({
                     children: [
-                        new TextRun({ text: `${difficultyEmoji(soru)} Soru ${soru.soruNumarasi || ""}`, bold: true, size: 28 })
+                        new TextRun({ text: `${difficultyEmoji(soru)} Soru ${soru.soruNumarasi || ""}`, bold: true, size: 28, font: "Calibri" })
                     ]
                 }));
-                const qText = stripHtml(soru.soruMetni || '').trim() || '(Boş)';
-                children.push(new Paragraph({ children: [ new TextRun(qText) ] }));
+                // Soru metnini işle
+                const soruMetni = soru.soruMetni || "";
+                const cleanText = decodeHtmlEntities(stripHtml(soruMetni).trim()) || '(Boş)';
+                const imageUrls = extractImageUrls(soruMetni);
+                
+                // Metin paragrafı
+                if (cleanText && cleanText !== '(Boş)') {
+                    children.push(new Paragraph({ children: [ new TextRun({ text: cleanText, font: "Calibri" }) ] }));
+                }
+                
+                // Resimleri ekle
+                for (const imageUrl of imageUrls) {
+                    try {
+                        const base64Image = await imageToBase64(imageUrl);
+                        if (base64Image) {
+                            const base64Data = base64Image.split(',')[1];
+                            children.push(
+                                new Paragraph({
+                                    children: [
+                                        new ImageRun({
+                                            data: base64Data,
+                                            transformation: {
+                                                width: 400,
+                                                height: 300,
+                                            },
+                                        }),
+                                    ],
+                                    spacing: { after: 200 }
+                                })
+                            );
+                        }
+                    } catch (error) {
+                        console.error('Resim eklenirken hata:', error);
+                    }
+                }
                 // Şıklar: tum modunda her zaman; sadeceSorular modunda kullanıcı evet derse
                 const shouldIncludeOptions = indirmeTipi !== 'sadeceSorular' || includeOptions;
                 if (shouldIncludeOptions && Array.isArray(soru.cevaplar)) {
                     soru.cevaplar.forEach((c, i) => {
                         const label = String.fromCharCode(65 + i);
-                        const ans = stripHtml(c || '').trim();
+                        const ans = decodeHtmlEntities(stripHtml(c || '').trim());
                         const boldThis = indirmeTipi !== 'sadeceSorular' && (soru.dogruCevap === label);
-                        children.push(new Paragraph({ children: [ new TextRun({ text: `${label}) ${ans}`, bold: boldThis }) ] }));
+                        children.push(new Paragraph({ children: [ new TextRun({ text: `${label}) ${ans}`, bold: boldThis, font: "Calibri" }) ] }));
                     });
                 }
                 if (indirmeTipi !== 'sadeceSorular' && soru.aciklama) {
-                    children.push(new Paragraph({ children: [ new TextRun({ text: `Açıklama: ${stripHtml(soru.aciklama)}`, italics: true }) ] }));
+                    children.push(new Paragraph({ children: [ new TextRun({ text: `Açıklama: ${decodeHtmlEntities(stripHtml(soru.aciklama))}`, italics: true, font: "Calibri" }) ] }));
                 }
                 children.push(new Paragraph({}));
+            }
+            const docx = new Document({ 
+                sections: [{ properties: {}, children }],
+                styles: {
+                    default: {
+                        document: {
+                            run: {
+                                font: "Calibri",
+                                size: 24
+                            }
+                        }
+                    }
+                }
             });
-            const docx = new Document({ sections: [{ properties: {}, children }] });
             const blob = await Packer.toBlob(docx);
             saveAs(blob, `taslaklar_${altKonuId}.docx`);
             toast.success('DOCX indirildi');

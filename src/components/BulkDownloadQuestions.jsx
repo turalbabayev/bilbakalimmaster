@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { db } from "../firebase";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { saveAs } from "file-saver";
-import { Document, Packer, Paragraph, TextRun } from "docx";
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun } from "docx";
 import { toast } from 'react-hot-toast';
 
 const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) => {
@@ -13,6 +13,43 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
     const [hepsiSecili, setHepsiSecili] = useState(false);
     const [indirmeTipi, setIndirmeTipi] = useState("tum");
     const [indirmeMiktari, setIndirmeMiktari] = useState("secili");
+
+    // HTML entity'leri düzgün karakterlere çevir
+    const decodeHtmlEntities = (text) => {
+        if (!text) return '';
+        const textarea = document.createElement('textarea');
+        textarea.innerHTML = text;
+        return textarea.value;
+    };
+
+    // Resim URL'lerini HTML'den çıkar
+    const extractImageUrls = (html) => {
+        if (!html) return [];
+        const imgRegex = /<img[^>]+src="([^"]+)"/g;
+        const urls = [];
+        let match;
+        while ((match = imgRegex.exec(html)) !== null) {
+            urls.push(match[1]);
+        }
+        return urls;
+    };
+
+    // Resmi base64'e çevir
+    const imageToBase64 = async (url) => {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        } catch (error) {
+            console.error('Resim yüklenirken hata:', error);
+            return null;
+        }
+    };
 
     // Zorluk normalizasyonu ve emoji eşleşmesi
     const normalizeDifficulty = (raw) => {
@@ -163,7 +200,8 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                         new TextRun({
                             text: "Soru Listesi",
                             bold: true,
-                            size: 32
+                            size: 32,
+                            font: "Calibri"
                         })
                     ],
                     spacing: { after: 400 }
@@ -180,23 +218,59 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                                 new TextRun({
                                     text: `${difficultyEmoji(soru)} Soru ${soru.soruNumarasi || ""}`,
                                     bold: true,
-                                    size: 28
+                                    size: 28,
+                                    font: "Calibri"
                                 })
                             ],
                             spacing: { before: 400, after: 200 }
                         })
                     );
 
-                    children.push(
-                        new Paragraph({
-                            children: [
-                                new TextRun({
-                                    text: soru.soruMetni ? soru.soruMetni.replace(/<[^>]*>/g, '') : "",
-                                })
-                            ],
-                            spacing: { after: 200 }
-                        })
-                    );
+                    // Soru metnini işle
+                    const soruMetni = soru.soruMetni || "";
+                    const cleanText = decodeHtmlEntities(soruMetni.replace(/<[^>]*>/g, ''));
+                    const imageUrls = extractImageUrls(soruMetni);
+                    
+                    // Metin paragrafı
+                    if (cleanText.trim()) {
+                        children.push(
+                            new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: cleanText,
+                                        font: "Calibri"
+                                    })
+                                ],
+                                spacing: { after: 200 }
+                            })
+                        );
+                    }
+                    
+                    // Resimleri ekle
+                    for (const imageUrl of imageUrls) {
+                        try {
+                            const base64Image = await imageToBase64(imageUrl);
+                            if (base64Image) {
+                                const base64Data = base64Image.split(',')[1];
+                                children.push(
+                                    new Paragraph({
+                                        children: [
+                                            new ImageRun({
+                                                data: base64Data,
+                                                transformation: {
+                                                    width: 400,
+                                                    height: 300,
+                                                },
+                                            }),
+                                        ],
+                                        spacing: { after: 200 }
+                                    })
+                                );
+                            }
+                        } catch (error) {
+                            console.error('Resim eklenirken hata:', error);
+                        }
+                    }
 
                     // Şıklar
                     if (soru.cevaplar && Array.isArray(soru.cevaplar)) {
@@ -205,8 +279,9 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                                 new Paragraph({
                                     children: [
                                         new TextRun({
-                                            text: `${String.fromCharCode(65 + i)}) ${soru.cevaplar[i] || ""}`,
-                                            bold: String.fromCharCode(65 + i) === soru.dogruCevap
+                                            text: `${String.fromCharCode(65 + i)}) ${decodeHtmlEntities(soru.cevaplar[i] || "")}`,
+                                            bold: String.fromCharCode(65 + i) === soru.dogruCevap,
+                                            font: "Calibri"
                                         })
                                     ],
                                     spacing: { after: 100 }
@@ -227,7 +302,8 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                                     new TextRun({
                                         text: `Doğru Cevap: ${dogruCevapSik} - ${soru.dogruCevap || ""}`,
                                         bold: true,
-                                        color: "2b5797"
+                                        color: "2b5797",
+                                        font: "Calibri"
                                     })
                                 ],
                                 spacing: { before: 200, after: 100 }
@@ -240,10 +316,12 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                                     children: [
                                         new TextRun({
                                             text: "Açıklama: ",
-                                            bold: true
+                                            bold: true,
+                                            font: "Calibri"
                                         }),
                                         new TextRun({
-                                            text: soru.aciklama.replace(/<[^>]*>/g, '')
+                                            text: decodeHtmlEntities(soru.aciklama.replace(/<[^>]*>/g, '')),
+                                            font: "Calibri"
                                         })
                                     ],
                                     spacing: { before: 100, after: 400 }
@@ -264,7 +342,17 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                 sections: [{
                     properties: {},
                     children: children
-                }]
+                }],
+                styles: {
+                    default: {
+                        document: {
+                            run: {
+                                font: "Calibri",
+                                size: 24
+                            }
+                        }
+                    }
+                }
             });
 
             console.log("Doküman oluşturuldu, blob'a dönüştürülüyor...");
