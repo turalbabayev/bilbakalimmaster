@@ -1,6 +1,6 @@
 [
   {
-    "origin": ["https://bilbakalimmaster.vercel.app", "http://localhost:3000"],
+    "origin": ["https://bilbakalimmaster.vercel.app", "http://localhost:3000", "https://bilbakalimmaster.com"],
     "method": ["GET", "POST", "PUT", "DELETE", "HEAD"],
     "maxAgeSeconds": 3600,
     "responseHeader": ["Content-Type", "Authorization", "Content-Length", "User-Agent", "x-goog-resumable"]
