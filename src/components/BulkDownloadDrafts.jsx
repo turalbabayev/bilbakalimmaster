@@ -193,47 +193,14 @@ const BulkDownloadDrafts = ({ isOpen, onClose, konuId, altKonuId }) => {
                 });
             }
             const children = [];
-            for (const [idx, soru] of items.entries()) {
+            items.forEach((soru, idx) => {
                 children.push(new Paragraph({
                     children: [
                         new TextRun({ text: `${difficultyEmoji(soru)} Soru ${soru.soruNumarasi || ""}`, bold: true, size: 28, font: "Calibri" })
                     ]
                 }));
-                // Soru metnini işle
-                const soruMetni = soru.soruMetni || "";
-                const cleanText = decodeHtmlEntities(stripHtml(soruMetni).trim()) || '(Boş)';
-                const imageUrls = extractImageUrls(soruMetni);
-                
-                // Metin paragrafı
-                if (cleanText && cleanText !== '(Boş)') {
-                    children.push(new Paragraph({ children: [ new TextRun({ text: cleanText, font: "Calibri" }) ] }));
-                }
-                
-                // Resimleri ekle
-                for (const imageUrl of imageUrls) {
-                    try {
-                        const base64Image = await imageToBase64(imageUrl);
-                        if (base64Image) {
-                            const base64Data = base64Image.split(',')[1];
-                            children.push(
-                                new Paragraph({
-                                    children: [
-                                        new ImageRun({
-                                            data: base64Data,
-                                            transformation: {
-                                                width: 400,
-                                                height: 300,
-                                            },
-                                        }),
-                                    ],
-                                    spacing: { after: 200 }
-                                })
-                            );
-                        }
-                    } catch (error) {
-                        console.error('Resim eklenirken hata:', error);
-                    }
-                }
+                const qText = decodeHtmlEntities(stripHtml(soru.soruMetni || '').trim()) || '(Boş)';
+                children.push(new Paragraph({ children: [ new TextRun({ text: qText, font: "Calibri" }) ] }));
                 // Şıklar: tum modunda her zaman; sadeceSorular modunda kullanıcı evet derse
                 const shouldIncludeOptions = indirmeTipi !== 'sadeceSorular' || includeOptions;
                 if (shouldIncludeOptions && Array.isArray(soru.cevaplar)) {
@@ -248,7 +215,7 @@ const BulkDownloadDrafts = ({ isOpen, onClose, konuId, altKonuId }) => {
                     children.push(new Paragraph({ children: [ new TextRun({ text: `Açıklama: ${decodeHtmlEntities(stripHtml(soru.aciklama))}`, italics: true, font: "Calibri" }) ] }));
                 }
                 children.push(new Paragraph({}));
-            }
+            });
             const docx = new Document({ 
                 sections: [{ properties: {}, children }],
                 styles: {
