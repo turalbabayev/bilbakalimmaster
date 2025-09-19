@@ -38,11 +38,12 @@ const BulkDownloadDrafts = ({ isOpen, onClose, konuId, altKonuId }) => {
     // Resmi base64'e çevir (Firebase Storage SDK ile)
     const imageToBase64 = async (url) => {
         try {
-            // Firebase Storage URL'sini parse et
-            const urlObj = new URL(url);
+            // HTML entity'leri düzelt
+            const cleanUrl = url.replace(/&amp;/g, '&');
+            const urlObj = new URL(cleanUrl);
             const pathMatch = urlObj.pathname.match(/\/o\/(.+)\?/);
             if (!pathMatch) {
-                console.error('Geçersiz Firebase Storage URL:', url);
+                console.error('Geçersiz Firebase Storage URL:', cleanUrl);
                 return null;
             }
             
