@@ -41,7 +41,9 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
             // HTML entity'leri düzelt
             const cleanUrl = url.replace(/&amp;/g, '&');
             const urlObj = new URL(cleanUrl);
-            const pathMatch = urlObj.pathname.match(/\/o\/(.+)\?/);
+            
+            // URL'den dosya yolunu çıkar - daha esnek regex
+            const pathMatch = urlObj.pathname.match(/\/o\/(.+?)(\?|$)/);
             if (!pathMatch) {
                 console.error('Geçersiz Firebase Storage URL:', cleanUrl);
                 return null;
