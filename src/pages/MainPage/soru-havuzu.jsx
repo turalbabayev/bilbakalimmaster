@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Editor } from '@tinymce/tinymce-react';
 import Layout from '../../components/layout';
 import { FaArrowLeft, FaEdit, FaTrash, FaBookReader, FaChevronDown, FaChevronRight, FaTrashAlt, FaDownload } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
@@ -388,13 +389,27 @@ const SoruHavuzuPage = () => {
                                                                             <label className="block text-sm font-semibold text-gray-700 mb-2">
                                                                                 Soru Metni *
                                                                             </label>
-                                                                            <textarea
-                                                                                value={editForm.soruMetni}
-                                                                                onChange={(e) => setEditForm(prev => ({ ...prev, soruMetni: e.target.value }))}
-                                                                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none"
-                                                                                rows="4"
-                                                                                placeholder="Sorunuzu buraya yazın..."
-                                                                            />
+                                                                            <div className="rounded-xl overflow-hidden border-2 border-gray-300">
+                                                                                <Editor
+                                                                                    apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
+                                                                                    value={editForm.soruMetni}
+                                                                                    onEditorChange={(content) => setEditForm(prev => ({ ...prev, soruMetni: content }))}
+                                                                                    init={{
+                                                                                        height: 300,
+                                                                                        menubar: false,
+                                                                                        plugins: [
+                                                                                            'advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                                                                                            'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                                                                                            'insertdatetime', 'table', 'code', 'help', 'wordcount'
+                                                                                        ],
+                                                                                        toolbar: 'undo redo | blocks | ' +
+                                                                                            'bold italic underline forecolor | alignleft aligncenter ' +
+                                                                                            'alignright alignjustify | bullist numlist outdent indent | ' +
+                                                                                            'removeformat | help',
+                                                                                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }'
+                                                                                    }}
+                                                                                />
+                                                                            </div>
                                                                         </div>
                                                                         
                                                                         {/* Seçenekler */}
