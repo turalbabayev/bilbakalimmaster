@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { db } from "../firebase";
+import { db, storage } from "../firebase";
+import { ref, getDownloadURL } from "firebase/storage";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { saveAs } from "file-saver";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun } from "docx";
@@ -34,11 +35,25 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
         return urls;
     };
 
-    // Resmi base64'e çevir
+    // Resmi base64'e çevir (Firebase Storage SDK ile)
     const imageToBase64 = async (url) => {
         try {
-            const response = await fetch(url);
+            // Firebase Storage URL'sini parse et
+            const urlObj = new URL(url);
+            const pathMatch = urlObj.pathname.match(/\/o\/(.+)\?/);
+            if (!pathMatch) {
+                console.error('Geçersiz Firebase Storage URL:', url);
+                return null;
+            }
+            
+            const filePath = decodeURIComponent(pathMatch[1]);
+            const storageRef = ref(storage, filePath);
+            
+            // Firebase Storage'dan resmi indir
+            const downloadURL = await getDownloadURL(storageRef);
+            const response = await fetch(downloadURL);
             const blob = await response.blob();
+            
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onloadend = () => resolve(reader.result);
