@@ -14,6 +14,9 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
     const [hepsiSecili, setHepsiSecili] = useState(false);
     const [indirmeTipi, setIndirmeTipi] = useState("tum");
     const [indirmeMiktari, setIndirmeMiktari] = useState("secili");
+    const [customAmount, setCustomAmount] = useState("");
+    const [isFormatSelectionOpen, setIsFormatSelectionOpen] = useState(false);
+    const [selectedJsonFormat, setSelectedJsonFormat] = useState("");
 
     // HTML entity'leri düzgün karakterlere çevir
     const decodeHtmlEntities = (text) => {
@@ -399,6 +402,80 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
         }
     };
 
+    // İndirilecek soruları getir
+    const getIndirilecekSorular = () => {
+        if (indirmeMiktari === "secili") {
+            return sorular.filter(soru => selectedSorular[soru.id]);
+        } else if (indirmeMiktari === "all") {
+            return sorular;
+        } else if (indirmeMiktari === "custom") {
+            const count = parseInt(customAmount) || 0;
+            return sorular.slice(0, count);
+        } else {
+            const count = parseInt(indirmeMiktari) || 0;
+            return sorular.slice(0, count);
+        }
+    };
+
+    // Format seçimi fonksiyonları
+    const handleFormatSelection = (format) => {
+        setSelectedJsonFormat(format);
+        setIsFormatSelectionOpen(false);
+        
+        if (format === "deneme-sinavi") {
+            createDenemeSinaviJson();
+        } else if (format === "normal") {
+            createJson();
+        }
+    };
+
+    const createDenemeSinaviJson = async () => {
+        if (jsonLoading) {
+            console.log("JSON indirme işlemi zaten devam ediyor...");
+            return;
+        }
+
+        setJsonLoading(true);
+        try {
+            const indirilecekSorular = getIndirilecekSorular();
+            
+            if (indirilecekSorular.length === 0) {
+                toast.error("İndirilecek soru bulunamadı!");
+                return;
+            }
+
+            console.log("Deneme sınavı formatında JSON için indirilecek soru sayısı:", indirilecekSorular.length);
+
+            // Deneme sınavları manuel soru havuzu formatında soruları hazırla
+            const jsonSorular = indirilecekSorular.map(soru => {
+                return {
+                    soruMetni: soru.soru || soru.soruMetni || '',
+                    cevaplar: soru.cevaplar || [],
+                    dogruCevap: soru.dogruCevap || 'A',
+                    aciklama: soru.aciklama || '',
+                    difficulty: normalizeDifficulty(soru.zorluk || soru.difficulty || soru.level)
+                };
+            });
+
+            // JSON dosyasını oluştur ve indir
+            const jsonContent = JSON.stringify(jsonSorular, null, 2);
+            const blob = new Blob([jsonContent], { type: 'application/json' });
+            
+            const fileName = `deneme-sinavi-sorulari-${new Date().toISOString().split('T')[0]}.json`;
+            
+            saveAs(blob, fileName);
+            
+            toast.success(`${indirilecekSorular.length} soru deneme sınavı formatında indirildi!`);
+            console.log("Deneme sınavı formatında JSON indirme tamamlandı");
+            
+        } catch (error) {
+            console.error("Deneme sınavı JSON oluşturma hatası:", error);
+            toast.error("JSON oluşturulurken bir hata oluştu!");
+        } finally {
+            setJsonLoading(false);
+        }
+    };
+
     const createJson = async () => {
         if (jsonLoading) {
             console.log("JSON indirme işlemi zaten devam ediyor...");
@@ -476,6 +553,7 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
     if (!isOpen) return null;
 
     return (
+        <>
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
             <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-11/12 max-w-5xl max-h-[calc(100vh-40px)] overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col">
                 <div className="p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
@@ -640,10 +718,7 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                     <button
                         onClick={() => {
                             console.log("JSON İndir butonuna tıklandı");
-                            createJson().catch(error => {
-                                console.error("JSON indirme işlemi başarısız:", error);
-                                toast.error("JSON indirme işlemi başarısız oldu!");
-                            });
+                            setIsFormatSelectionOpen(true);
                         }}
                         className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                         disabled={jsonLoading || loading || (indirmeMiktari === "secili" && seciliSoruSayisi() === 0)}
@@ -696,6 +771,94 @@ const BulkDownloadQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId })
                 </div>
             </div>
         </div>
+
+        {/* JSON Format Seçimi Modalı */}
+        {isFormatSelectionOpen && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md border border-gray-100 dark:border-gray-800">
+                    {/* Header */}
+                    <div className="p-6 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 rounded-t-3xl">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-xl flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">JSON Format Seçimi</h2>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Hangi formatta indirmek istiyorsunuz?</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-6 space-y-4">
+                        <div className="space-y-3">
+                            {/* Deneme Sınavları Formatı */}
+                            <button
+                                onClick={() => handleFormatSelection("deneme-sinavi")}
+                                className="w-full p-4 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200 group"
+                            >
+                                <div className="flex items-start gap-4">
+                                    <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center group-hover:bg-green-200 dark:group-hover:bg-green-800 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                        <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-300">
+                                            Deneme Sınavları Formatı
+                                        </h3>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                            Manuel soru havuzu formatında (soruMetni, cevaplar, dogruCevap, aciklama, difficulty)
+                                        </p>
+                                        <div className="mt-2 text-xs text-blue-600 dark:text-blue-400 font-mono bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">
+                                            Deneme sınavları toplu yükleme uyumlu
+                                        </div>
+                                    </div>
+                                </div>
+                            </button>
+
+                            {/* Normal Format */}
+                            <button
+                                onClick={() => handleFormatSelection("normal")}
+                                className="w-full p-4 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200 group"
+                            >
+                                <div className="flex items-start gap-4">
+                                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-800 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                                        </svg>
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                        <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-300">
+                                            Standart Format
+                                        </h3>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                            Mevcut sistem formatında (question, options, answer, explanation, difficulty)
+                                        </p>
+                                        <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                            Genel kullanım için
+                                        </div>
+                                    </div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 rounded-b-3xl">
+                        <button
+                            onClick={() => setIsFormatSelectionOpen(false)}
+                            className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                        >
+                            İptal
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 };
 
