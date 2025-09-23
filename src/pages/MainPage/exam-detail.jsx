@@ -148,8 +148,9 @@ const ExamDetailPage = () => {
             // Firebase storage yolunu ayıkla: .../o/<path>?alt=media&token=...
             const pathMatch = urlObj.pathname.match(/\/o\/(.+?)(\?|$)/);
             if (!pathMatch) {
-                // Doğrudan fetch fallback (CORS izinliyse)
-                const resp = await fetch(cleanUrl);
+                // Doğrudan fetch fallback (CORS sorunlarında proxy kullan)
+                const proxy = `/api/image-proxy?url=${encodeURIComponent(cleanUrl)}`;
+                const resp = await fetch(proxy);
                 if (!resp.ok) return null;
                 const buf = await resp.arrayBuffer();
                 return new Uint8Array(buf);
