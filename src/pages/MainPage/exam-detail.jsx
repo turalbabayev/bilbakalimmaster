@@ -142,23 +142,13 @@ const ExamDetailPage = () => {
     const imageUrlToBytes = async (url) => {
         try {
             if (!url) return null;
-            // HTML entity düzeltmesi
             const cleanUrl = url.replace(/&amp;/g, '&');
-            const urlObj = new URL(cleanUrl);
-            // Firebase storage yolunu ayıkla: .../o/<path>?alt=media&token=...
-            const pathMatch = urlObj.pathname.match(/\/o\/(.+?)(\?|$)/);
-            if (!pathMatch) {
-                // Doğrudan fetch fallback (CORS sorunlarında proxy kullan)
-                const proxy = `/api/image-proxy?url=${encodeURIComponent(cleanUrl)}`;
-                const resp = await fetch(proxy);
-                if (!resp.ok) return null;
-                const buf = await resp.arrayBuffer();
-                return new Uint8Array(buf);
-            }
-            const filePath = decodeURIComponent(pathMatch[1]);
-            const sRef = storageRef(storage, filePath);
-            const bytes = await getBytes(sRef);
-            return new Uint8Array(bytes);
+            // Tüm URL'leri proxy üzerinden çek (CORS sorunlarını önlemek için)
+            const proxy = `/api/image-proxy?url=${encodeURIComponent(cleanUrl)}`;
+            const resp = await fetch(proxy);
+            if (!resp.ok) return null;
+            const buf = await resp.arrayBuffer();
+            return new Uint8Array(buf);
         } catch (e) {
             console.error('Görsel indirme hatası:', e);
             return null;
