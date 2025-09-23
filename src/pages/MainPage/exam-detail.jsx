@@ -143,7 +143,20 @@ const ExamDetailPage = () => {
         try {
             if (!url) return null;
             const cleanUrl = url.replace(/&amp;/g, '&');
-            // Tüm URL'leri proxy üzerinden çek (CORS sorunlarını önlemek için)
+            // 1) Firebase Storage URL'lerini doğrudan SDK ile indir (CORS yok)
+            try {
+                const u = new URL(cleanUrl);
+                const isFirebaseHost = u.hostname.includes('firebasestorage.googleapis.com');
+                const oMatch = u.pathname.match(/\/o\/(.+?)(\?|$)/);
+                if (isFirebaseHost && oMatch && oMatch[1]) {
+                    const filePath = decodeURIComponent(oMatch[1]);
+                    const sRef = storageRef(storage, filePath);
+                    const bytes = await getBytes(sRef);
+                    return new Uint8Array(bytes);
+                }
+            } catch (_) {}
+
+            // 2) Diğer tüm URL'ler için proxy kullan
             const proxy = `/api/image-proxy?url=${encodeURIComponent(cleanUrl)}`;
             const resp = await fetch(proxy);
             if (!resp.ok) return null;
