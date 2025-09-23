@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Document, Packer, Paragraph, HeadingLevel, TextRun, ImageRun } from 'docx';
+import { saveAs } from 'file-saver';
 import Layout from '../../components/layout';
 import { 
     FaArrowLeft, 
@@ -30,7 +32,8 @@ import {
     FaCompress
 } from 'react-icons/fa';
 import { useNavigate, useParams } from 'react-router-dom';
-import { db } from '../../firebase';
+import { db, storage } from '../../firebase';
+import { ref as storageRef, getBytes } from 'firebase/storage';
 import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
 
@@ -111,6 +114,239 @@ const ExamDetailPage = () => {
             navigate('/deneme-sinavlari/liste');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Basit HTML -> düz metin çevirici
+    const stripHtml = (html) => {
+        if (!html) return '';
+        const tmp = document.createElement('div');
+        tmp.innerHTML = String(html);
+        const text = tmp.textContent || tmp.innerText || '';
+        return text.replace(/\s+\n/g, '\n').replace(/\n\n+/g, '\n\n');
+    };
+
+    // HTML içinden <img src="..."> URL'lerini çıkar
+    const extractImageUrls = (html) => {
+        if (!html) return [];
+        const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/g;
+        const urls = [];
+        let match;
+        while ((match = imgRegex.exec(html)) !== null) {
+            urls.push(match[1]);
+        }
+        return urls;
+    };
+
+    // Firebase Storage URL'lerinden güvenli şekilde bytes al
+    const imageUrlToBytes = async (url) => {
+        try {
+            if (!url) return null;
+            // HTML entity düzeltmesi
+            const cleanUrl = url.replace(/&amp;/g, '&');
+            const urlObj = new URL(cleanUrl);
+            // Firebase storage yolunu ayıkla: .../o/<path>?alt=media&token=...
+            const pathMatch = urlObj.pathname.match(/\/o\/(.+?)(\?|$)/);
+            if (!pathMatch) {
+                // Doğrudan fetch fallback (CORS izinliyse)
+                const resp = await fetch(cleanUrl);
+                if (!resp.ok) return null;
+                const buf = await resp.arrayBuffer();
+                return new Uint8Array(buf);
+            }
+            const filePath = decodeURIComponent(pathMatch[1]);
+            const sRef = storageRef(storage, filePath);
+            const bytes = await getBytes(sRef);
+            return new Uint8Array(bytes);
+        } catch (e) {
+            console.error('Görsel indirme hatası:', e);
+            return null;
+        }
+    };
+
+    // Sınavı DOCX olarak indir
+    const handleDownloadExamDocx = async () => {
+        try {
+            if (!exam) {
+                toast.error('Sınav bulunamadı');
+                return;
+            }
+
+            const questionsData = exam.questions || exam.selectedQuestions || {};
+            const sections = [];
+
+            // Başlık
+            sections.push(new Paragraph({
+                text: exam.title || 'Deneme Sınavı',
+                heading: HeadingLevel.TITLE
+            }));
+
+            // Özet bilgileri
+            sections.push(new Paragraph(''));
+            sections.push(new Paragraph({
+                children: [
+                    new TextRun({ text: 'Toplam Soru: ', bold: true }),
+                    new TextRun(String(exam.totalQuestions || 0))
+                ]
+            }));
+            if (exam.duration) {
+                sections.push(new Paragraph({
+                    children: [
+                        new TextRun({ text: 'Süre: ', bold: true }),
+                        new TextRun(String(exam.duration) + ' dakika')
+                    ]
+                }));
+            }
+            sections.push(new Paragraph(''));
+
+            // Soruları düz bir listeye dönüştür (kategori/zorluk sırasıyla)
+            let flatQuestions = [];
+            Object.entries(questionsData).forEach(([categoryName, categoryData]) => {
+                const categoryQuestions = categoryData?.questions || categoryData || {};
+                Object.entries(categoryQuestions).forEach(([difficulty, arr]) => {
+                    if (Array.isArray(arr)) {
+                        arr.forEach((q) => {
+                            flatQuestions.push({ categoryName, difficulty, q });
+                        });
+                    }
+                });
+            });
+
+            // Soru numarasına göre sırala, yoksa olduğu gibi
+            flatQuestions.sort((a, b) => {
+                const an = typeof a.q?.soruNumarasi === 'number' ? a.q.soruNumarasi : Number.POSITIVE_INFINITY;
+                const bn = typeof b.q?.soruNumarasi === 'number' ? b.q.soruNumarasi : Number.POSITIVE_INFINITY;
+                if (an !== bn) return an - bn;
+                return 0;
+            });
+
+            // Soruları yaz
+            for (let idx = 0; idx < flatQuestions.length; idx++) {
+                const item = flatQuestions[idx];
+                const question = item.q || {};
+                const number = question.soruNumarasi || idx + 1;
+                const qText = stripHtml(question.soruMetni || question.question || '');
+                const answers = Array.isArray(question.cevaplar)
+                    ? question.cevaplar
+                    : Array.isArray(question.options)
+                        ? question.options
+                        : [];
+
+                sections.push(new Paragraph({
+                    text: `Soru ${number}`,
+                    heading: HeadingLevel.HEADING_2
+                }));
+
+                if (item.categoryName) {
+                    sections.push(new Paragraph({
+                        children: [
+                            new TextRun({ text: 'Konu: ', bold: true }),
+                            new TextRun(item.categoryName)
+                        ]
+                    }));
+                }
+
+                if (item.difficulty) {
+                    sections.push(new Paragraph({
+                        children: [
+                            new TextRun({ text: 'Zorluk: ', bold: true }),
+                            new TextRun(String(item.difficulty))
+                        ]
+                    }));
+                }
+
+                sections.push(new Paragraph(qText || ''));
+
+                // Soru metnindeki görseller
+                const questionImages = extractImageUrls(question.soruMetni || question.question || '');
+                for (let i = 0; i < questionImages.length; i++) {
+                    const bytes = await imageUrlToBytes(questionImages[i]);
+                    if (bytes) {
+                        sections.push(new Paragraph({
+                            children: [
+                                new ImageRun({
+                                    data: bytes,
+                                    transformation: { width: 480, height: 320 }
+                                })
+                            ]
+                        }));
+                    }
+                }
+
+                // Şıklar
+                if (Array.isArray(answers) && answers.length > 0) {
+                    for (let i = 0; i < answers.length; i++) {
+                        const opt = answers[i];
+                        const letter = String.fromCharCode(65 + i);
+                        const line = `${letter}. ${stripHtml(opt || '')}`;
+                        sections.push(new Paragraph(line));
+
+                        // Şık metnindeki görseller
+                        const optionImages = extractImageUrls(String(opt || ''));
+                        for (let k = 0; k < optionImages.length; k++) {
+                            const bytes = await imageUrlToBytes(optionImages[k]);
+                            if (bytes) {
+                                sections.push(new Paragraph({
+                                    children: [
+                                        new ImageRun({
+                                            data: bytes,
+                                            transformation: { width: 420, height: 280 }
+                                        })
+                                    ]
+                                }));
+                            }
+                        }
+                    }
+                }
+
+                // Doğru cevap
+                if (question.dogruCevap) {
+                    sections.push(new Paragraph({
+                        children: [
+                            new TextRun({ text: 'Doğru Cevap: ', bold: true }),
+                            new TextRun(String(question.dogruCevap))
+                        ]
+                    }));
+                }
+
+                // Açıklama
+                if (question.aciklama) {
+                    sections.push(new Paragraph({
+                        children: [
+                            new TextRun({ text: 'Açıklama: ', bold: true }),
+                            new TextRun(stripHtml(question.aciklama))
+                        ]
+                    }));
+                }
+
+                sections.push(new Paragraph(''));
+            }
+
+            const doc = new Document({
+                sections: [
+                    {
+                        children: sections
+                    }
+                ]
+            });
+
+            const blob = await Packer.toBlob(doc);
+            const sanitizedTitle = (exam.title || 'Deneme Sinavi')
+                .replace(/ç/g, 'c').replace(/Ç/g, 'C')
+                .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+                .replace(/ı/g, 'i').replace(/İ/g, 'I')
+                .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+                .replace(/ş/g, 's').replace(/Ş/g, 'S')
+                .replace(/ü/g, 'u').replace(/Ü/g, 'U')
+                .replace(/[^\w\s-]/g, '')
+                .trim()
+                .replace(/\s+/g, '_');
+
+            saveAs(blob, `${sanitizedTitle}_Deneme_Sinavi.docx`);
+            toast.success('DOCX indirildi');
+        } catch (error) {
+            console.error('DOCX oluşturma hatası:', error);
+            toast.error('DOCX oluşturulurken bir hata oluştu');
         }
     };
 
@@ -577,6 +813,16 @@ const ExamDetailPage = () => {
                                                     </>
                                                 )}
                                             </button>
+
+                                        {/* Bu sınavı indir */}
+                                        <button
+                                            onClick={handleDownloadExamDocx}
+                                            className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors"
+                                            title="Bu sınavı DOCX olarak indir"
+                                        >
+                                            <FaDownload className="h-3 w-3" />
+                                            Bu sınavı indir (DOCX)
+                                        </button>
                                         </div>
                                     </div>
                                     
