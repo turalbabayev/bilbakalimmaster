@@ -330,9 +330,8 @@ const CreateExamStep3Page = () => {
         const searchNum = parseInt(replaceSearchTerm);
         if (isNaN(searchNum)) return filteredIndex + 1;
         
-        // Arama yapıldığında, orijinal listedeki gerçek numarayı bul
-        const originalIndex = replaceOptions.findIndex((_, index) => (index + 1) === searchNum);
-        return originalIndex + 1;
+        // Arama yapıldığında, aranan numarayı döndür
+        return searchNum;
     };
 
     const applyReplacement = (newQuestion) => {

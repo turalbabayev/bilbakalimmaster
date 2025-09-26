@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Document, Packer, Paragraph, HeadingLevel, TextRun, ImageRun } from 'docx';
 import { saveAs } from 'file-saver';
+import { Editor } from '@tinymce/tinymce-react';
+import { uploadBytes, getDownloadURL } from 'firebase/storage';
 import Layout from '../../components/layout';
 import { 
     FaArrowLeft, 
@@ -72,6 +74,37 @@ const ExamDetailPage = () => {
     const [recentlyChangedQuestions, setRecentlyChangedQuestions] = useState(new Set());
     const [replaceSearchTerm, setReplaceSearchTerm] = useState('');
 
+    // Soru düzenleme modal state'leri
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editTarget, setEditTarget] = useState(null);
+    const [editForm, setEditForm] = useState({
+        soruMetni: '',
+        cevaplar: ['', '', '', '', ''],
+        dogruCevap: 'A',
+        aciklama: '',
+        difficulty: 'medium'
+    });
+    const [editLoading, setEditLoading] = useState(false);
+    const [zenginSecenekAktif, setZenginSecenekAktif] = useState(false);
+
+    // TinyMCE için resim upload handler: Firebase Storage'a yükler ve URL döner
+    const handleTinyImageUpload = async (blobInfo) => {
+        try {
+            const file = blobInfo.blob();
+            const fileName = `images/${Date.now()}_${blobInfo.filename()}`;
+            const imageRef = storageRef(storage, fileName);
+            
+            await uploadBytes(imageRef, file);
+            const downloadURL = await getDownloadURL(imageRef);
+            
+            return Promise.resolve(downloadURL);
+        } catch (error) {
+            console.error('Resim yükleme hatası:', error);
+            return Promise.reject('Resim yüklenemedi');
+        }
+    };
+
+
     // Sınavı yükle
     useEffect(() => {
         if (examId) {
@@ -127,13 +160,92 @@ const ExamDetailPage = () => {
         }
     };
 
-    // Basit HTML -> düz metin çevirici
+    // HTML etiketlerini temizleme ve Türkçe karakterleri düzeltme fonksiyonu
     const stripHtml = (html) => {
         if (!html) return '';
         const tmp = document.createElement('div');
         tmp.innerHTML = String(html);
-        const text = tmp.textContent || tmp.innerText || '';
+        let text = tmp.textContent || tmp.innerText || '';
+        
+        // Türkçe karakterleri düzelt
+        text = text
+            .replace(/&uuml;/g, 'ü')
+            .replace(/&Uuml;/g, 'Ü')
+            .replace(/&ouml;/g, 'ö')
+            .replace(/&Ouml;/g, 'Ö')
+            .replace(/&ccedil;/g, 'ç')
+            .replace(/&Ccedil;/g, 'Ç')
+            .replace(/&scedil;/g, 'ş')
+            .replace(/&Scedil;/g, 'Ş')
+            .replace(/&igrave;/g, 'ı')
+            .replace(/&Igrave;/g, 'İ')
+            .replace(/&gbreve;/g, 'ğ')
+            .replace(/&Gbreve;/g, 'Ğ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&eacute;/g, 'é')
+            .replace(/&Eacute;/g, 'É')
+            .replace(/&egrave;/g, 'è')
+            .replace(/&Egrave;/g, 'È')
+            .replace(/&iacute;/g, 'í')
+            .replace(/&Iacute;/g, 'Í')
+            .replace(/&oacute;/g, 'ó')
+            .replace(/&Oacute;/g, 'Ó')
+            .replace(/&uacute;/g, 'ú')
+            .replace(/&Uacute;/g, 'Ú')
+            .replace(/&aacute;/g, 'á')
+            .replace(/&Aacute;/g, 'Á')
+            .replace(/&ntilde;/g, 'ñ')
+            .replace(/&Ntilde;/g, 'Ñ')
+            .trim();
+        
         return text.replace(/\s+\n/g, '\n').replace(/\n\n+/g, '\n\n');
+    };
+
+    // HTML içeriğini güvenli şekilde render etme fonksiyonu
+    const renderHtmlContent = (html) => {
+        if (!html) return "";
+        
+        // Türkçe karakterleri düzelt
+        let processedHtml = html
+            .replace(/&uuml;/g, 'ü')
+            .replace(/&Uuml;/g, 'Ü')
+            .replace(/&ouml;/g, 'ö')
+            .replace(/&Ouml;/g, 'Ö')
+            .replace(/&ccedil;/g, 'ç')
+            .replace(/&Ccedil;/g, 'Ç')
+            .replace(/&scedil;/g, 'ş')
+            .replace(/&Scedil;/g, 'Ş')
+            .replace(/&igrave;/g, 'ı')
+            .replace(/&Igrave;/g, 'İ')
+            .replace(/&gbreve;/g, 'ğ')
+            .replace(/&Gbreve;/g, 'Ğ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&eacute;/g, 'é')
+            .replace(/&Eacute;/g, 'É')
+            .replace(/&egrave;/g, 'è')
+            .replace(/&Egrave;/g, 'È')
+            .replace(/&iacute;/g, 'í')
+            .replace(/&Iacute;/g, 'Í')
+            .replace(/&oacute;/g, 'ó')
+            .replace(/&Oacute;/g, 'Ó')
+            .replace(/&uacute;/g, 'ú')
+            .replace(/&Uacute;/g, 'Ú')
+            .replace(/&aacute;/g, 'á')
+            .replace(/&Aacute;/g, 'Á')
+            .replace(/&ntilde;/g, 'ñ')
+            .replace(/&Ntilde;/g, 'Ñ');
+        
+        return processedHtml;
     };
 
     // HTML içinden <img src="..."> URL'lerini çıkar
@@ -676,9 +788,179 @@ const ExamDetailPage = () => {
         const searchNum = parseInt(replaceSearchTerm);
         if (isNaN(searchNum)) return filteredIndex + 1;
         
-        // Arama yapıldığında, orijinal listedeki gerçek numarayı bul
-        const originalIndex = replaceOptions.findIndex((_, index) => (index + 1) === searchNum);
-        return originalIndex + 1;
+        // Arama yapıldığında, aranan numarayı döndür
+        return searchNum;
+    };
+
+    // Soru düzenleme modalını aç
+    const openEditModal = (question) => {
+        setEditTarget(question);
+        setEditForm({
+            soruMetni: question.soruMetni || '',
+            cevaplar: question.cevaplar || ['', '', '', '', ''],
+            dogruCevap: question.dogruCevap || 'A',
+            aciklama: question.aciklama || '',
+            difficulty: question.difficulty || 'medium'
+        });
+        setShowEditModal(true);
+    };
+
+    // Soru düzenleme modalını kapat
+    const closeEditModal = () => {
+        setShowEditModal(false);
+        setEditTarget(null);
+        setEditForm({
+            soruMetni: '',
+            cevaplar: ['', '', '', '', ''],
+            dogruCevap: 'A',
+            aciklama: '',
+            difficulty: 'medium'
+        });
+    };
+
+    // Soruyu düzenle
+    const handleEditQuestion = async () => {
+        if (!editTarget || !exam) return;
+
+        setEditLoading(true);
+        try {
+            // 1. Sınavdaki soruyu güncelle
+            const questionsData = exam.questions || exam.selectedQuestions || {};
+            const updatedQuestions = { ...questionsData };
+
+            Object.entries(updatedQuestions).forEach(([categoryName, categoryData]) => {
+                const categoryQuestions = categoryData?.questions || categoryData || {};
+                Object.entries(categoryQuestions).forEach(([difficulty, questions]) => {
+                    if (Array.isArray(questions)) {
+                        const questionIndex = questions.findIndex(q => q.id === editTarget.id);
+                        if (questionIndex !== -1) {
+                            questions[questionIndex] = {
+                                ...questions[questionIndex],
+                                soruMetni: editForm.soruMetni,
+                                cevaplar: editForm.cevaplar,
+                                dogruCevap: editForm.dogruCevap,
+                                aciklama: editForm.aciklama,
+                                difficulty: normalizeDifficulty(editForm.difficulty)
+                            };
+                        }
+                    }
+                });
+            });
+
+            // 2. Firestore'da sınavı güncelle
+            await updateDoc(doc(db, 'examlar', examId), {
+                questions: updatedQuestions,
+                updatedAt: new Date()
+            });
+
+            // 3. Gerçek kaynağı güncelle
+            await updateSourceQuestion(editTarget, editForm);
+
+            // 4. Local state'i güncelle
+            setExam(prev => ({
+                ...prev,
+                questions: updatedQuestions,
+                updatedAt: new Date()
+            }));
+
+            // 5. Animasyon için işaretle
+            setRecentlyChangedQuestions(prev => new Set([...prev, editTarget.id]));
+            setTimeout(() => {
+                setRecentlyChangedQuestions(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(editTarget.id);
+                    return newSet;
+                });
+            }, 3000);
+
+            closeEditModal();
+            toast.success('Soru başarıyla güncellendi');
+        } catch (error) {
+            console.error('Soru güncellenirken hata:', error);
+            toast.error('Soru güncellenirken hata oluştu');
+        } finally {
+            setEditLoading(false);
+        }
+    };
+
+    // Gerçek kaynağı güncelle
+    const updateSourceQuestion = async (question, formData) => {
+        try {
+            // Manuel soru havuzundan mı geldi kontrol et
+            if (question.topicId && !question.topicId.startsWith('konu:')) {
+                // Manuel soru havuzu
+                const manualRef = doc(db, 'manual-questions', question.id);
+                await updateDoc(manualRef, {
+                    soruMetni: formData.soruMetni,
+                    cevaplar: formData.cevaplar,
+                    dogruCevap: formData.dogruCevap,
+                    aciklama: formData.aciklama,
+                    difficulty: normalizeDifficulty(formData.difficulty),
+                    updatedAt: new Date()
+                });
+            } else if (question.topicId && question.topicId.startsWith('konu:')) {
+                // Alt konu soruları - konular koleksiyonunda güncelle
+                const konuId = question.topicId.replace('konu:', '');
+                
+                // Önce alt konuları bul
+                const altKonularRef = collection(db, 'konular', konuId, 'altkonular');
+                const altKonularSnap = await getDocs(altKonularRef);
+                
+                for (const altKonuDoc of altKonularSnap.docs) {
+                    const altKonuData = altKonuDoc.data();
+                    if (altKonuData.sorular && typeof altKonuData.sorular === 'object') {
+                        let updated = false;
+                        const updatedSorular = { ...altKonuData.sorular };
+                        
+                        Object.entries(updatedSorular).forEach(([difficulty, questions]) => {
+                            if (Array.isArray(questions)) {
+                                const questionIndex = questions.findIndex(q => q.id === question.id);
+                                if (questionIndex !== -1) {
+                                    // Mevcut soruyu güncelle
+                                    updatedSorular[difficulty][questionIndex] = {
+                                        ...questions[questionIndex],
+                                        soruMetni: formData.soruMetni,
+                                        cevaplar: formData.cevaplar,
+                                        dogruCevap: formData.dogruCevap,
+                                        aciklama: formData.aciklama,
+                                        difficulty: normalizeDifficulty(formData.difficulty)
+                                    };
+                                    updated = true;
+                                }
+                            }
+                        });
+                        
+                        if (updated) {
+                            await updateDoc(altKonuDoc.ref, {
+                                sorular: updatedSorular,
+                                updatedAt: new Date()
+                            });
+                            console.log('Alt konu sorusu güncellendi:', question.id, 'Alt konu:', altKonuDoc.id);
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // ID ile manuel soru havuzunda ara
+                const manualRef = doc(db, 'manual-questions', question.id);
+                try {
+                    await updateDoc(manualRef, {
+                        soruMetni: formData.soruMetni,
+                        cevaplar: formData.cevaplar,
+                        dogruCevap: formData.dogruCevap,
+                        aciklama: formData.aciklama,
+                        difficulty: normalizeDifficulty(formData.difficulty),
+                        updatedAt: new Date()
+                    });
+                    console.log('Manuel soru havuzu güncellendi (ID ile):', question.id);
+                } catch (error) {
+                    console.log('Manuel soru havuzunda bulunamadı');
+                }
+            }
+        } catch (error) {
+            console.error('Kaynak soru güncellenirken hata:', error);
+            // Hata olsa bile devam et, sınavdaki soru zaten güncellendi
+        }
     };
 
     // Soruyu değiştir
@@ -1160,6 +1442,14 @@ const ExamDetailPage = () => {
                                                                                             </span>
                                                                                             <div className="flex items-center gap-2">
                                                                                                 <button
+                                                                                                    onClick={() => openEditModal(question)}
+                                                                                                    className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                                                                                    title="Soruyu düzenle"
+                                                                                                >
+                                                                                                    <FaEdit className="w-3 h-3" />
+                                                                                                    Düzenle
+                                                                                                </button>
+                                                                                                <button
                                                                                                     onClick={() => openReplaceModal(question)}
                                                                                                     className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                                                                                                     title="Soruyu değiştir"
@@ -1186,7 +1476,12 @@ const ExamDetailPage = () => {
                                                                                         
                                                                                         {/* Soru Metni */}
                                                                                         <div className="text-sm text-gray-900 mb-4 font-medium">
-                                                                                            {question.soruMetni || 'Soru metni bulunamadı'}
+                                                                                            <div 
+                                                                                                dangerouslySetInnerHTML={{ 
+                                                                                                    __html: renderHtmlContent(question.soruMetni || question.question || 'Soru metni bulunamadı')
+                                                                                                }}
+                                                                                                className="prose prose-sm max-w-none"
+                                                                                            />
                                                                                         </div>
                                                                                         
                                                                                         {/* Şıklar - Farklı formatlarda kontrol et */}
@@ -1245,7 +1540,12 @@ const ExamDetailPage = () => {
                                                                                                                     <span className="font-bold min-w-[16px]">
                                                                                                                         {letter}:
                                                                                                                     </span>
-                                                                                                                    <span className="flex-1">{choice}</span>
+                                                                                                                    <span 
+                                                                                                                        className="flex-1"
+                                                                                                                        dangerouslySetInnerHTML={{ 
+                                                                                                                            __html: renderHtmlContent(choice)
+                                                                                                                        }}
+                                                                                                                    />
                                                                                                                     {isCorrect && (
                                                                                                                         <FaCheckCircle className="h-3 w-3 text-green-600 mt-0.5" />
                                                                                                                     )}
@@ -1261,9 +1561,12 @@ const ExamDetailPage = () => {
                                                                                         {question.aciklama && (
                                                                                             <div className="mb-3">
                                                                                                 <div className="text-xs font-medium text-gray-600 mb-1">Açıklama:</div>
-                                                                                                <div className="text-xs text-gray-700 bg-blue-50 p-2 rounded border border-blue-200">
-                                                                                                    {question.aciklama}
-                                                                                                </div>
+                                                                                                <div 
+                                                                                                    className="text-xs text-gray-700 bg-blue-50 p-2 rounded border border-blue-200"
+                                                                                                    dangerouslySetInnerHTML={{ 
+                                                                                                        __html: renderHtmlContent(question.aciklama)
+                                                                                                    }}
+                                                                                                />
                                                                                             </div>
                                                                                         )}
                                                                                         
@@ -1915,6 +2218,220 @@ const ExamDetailPage = () => {
                                     </div>
                                 </>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Soru Düzenleme Modal */}
+            {showEditModal && editTarget && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+                        {/* Header */}
+                        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center">
+                                    <FaEdit className="text-white text-lg" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-gray-900">Soruyu Düzenle</h3>
+                                    <p className="text-sm text-gray-600">Konu: {editTarget.topicName}</p>
+                                </div>
+                                <button
+                                    onClick={closeEditModal}
+                                    className="ml-auto p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                    <FaTimes className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                            <div className="space-y-6">
+                                {/* Soru Metni */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Soru Metni *
+                                    </label>
+                                    <div className="rounded-xl overflow-hidden border-2 border-gray-300">
+                                        <Editor
+                                            apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
+                                            value={editForm.soruMetni}
+                                            onEditorChange={(content) => setEditForm(prev => ({ ...prev, soruMetni: content }))}
+                                            init={{
+                                                height: 300,
+                                                menubar: false,
+                                                plugins: [
+                                                    'advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                                                    'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                                                    'insertdatetime', 'image', 'media', 'table', 'code', 'help', 'wordcount'
+                                                ],
+                                                toolbar: 'undo redo | blocks | ' +
+                                                    'bold italic underline forecolor | alignleft aligncenter ' +
+                                                    'alignright alignjustify | bullist numlist outdent indent | ' +
+                                                    'image media | removeformat | help',
+                                                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                                                images_upload_handler: handleTinyImageUpload
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                                
+                                {/* Seçenekler */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <label className="block text-sm font-semibold text-gray-700">Seçenekler *</label>
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setZenginSecenekAktif(prev => {
+                                                    const next = !prev;
+                                                    if (!next) {
+                                                        // Zengin'den normale geçişte HTML etiketlerini temizle
+                                                        const temiz = (editForm.cevaplar || []).map(c => stripHtml(c));
+                                                        setEditForm(prevForm => ({ ...prevForm, cevaplar: temiz }));
+                                                    }
+                                                    return next;
+                                                });
+                                            }}
+                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${zenginSecenekAktif ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}
+                                        >
+                                            {zenginSecenekAktif ? 'Normal editörde kal' : 'Zengin metin editörüne geç'}
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {editForm.cevaplar.map((cevap, index) => (
+                                            <div key={index} className="relative">
+                                                <div className="flex items-start gap-3">
+                                                    <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0 mt-2">
+                                                        <span className="text-gray-600 font-bold text-sm">
+                                                            {String.fromCharCode(65 + index)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        {zenginSecenekAktif ? (
+                                                            <div className="rounded-xl overflow-hidden border-2 border-gray-300">
+                                                                <Editor
+                                                                    apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
+                                                                    value={cevap}
+                                                                    onEditorChange={(content) => {
+                                                                        const newCevaplar = [...editForm.cevaplar];
+                                                                        newCevaplar[index] = content;
+                                                                        setEditForm(prev => ({ ...prev, cevaplar: newCevaplar }));
+                                                                    }}
+                                                                    init={{
+                                                                        height: 180,
+                                                                        menubar: false,
+                                                                        plugins: [
+                                                                            'advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                                                                            'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                                                                            'insertdatetime', 'image', 'media', 'table', 'help', 'wordcount'
+                                                                        ],
+                                                                        toolbar: 'bold italic underline | bullist numlist | alignleft aligncenter alignright | image media | removeformat',
+                                                                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                                                                        images_upload_handler: handleTinyImageUpload
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        ) : (
+                                                            <input
+                                                                type="text"
+                                                                value={cevap}
+                                                                onChange={(e) => {
+                                                                    const newCevaplar = [...editForm.cevaplar];
+                                                                    newCevaplar[index] = e.target.value;
+                                                                    setEditForm(prev => ({ ...prev, cevaplar: newCevaplar }));
+                                                                }}
+                                                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                                                placeholder={`${String.fromCharCode(65 + index)} seçeneğini girin...`}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Diğer Ayarlar */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Doğru Cevap *
+                                        </label>
+                                        <select
+                                            value={editForm.dogruCevap}
+                                            onChange={(e) => setEditForm(prev => ({ ...prev, dogruCevap: e.target.value }))}
+                                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                        >
+                                            <option value="A">A Seçeneği</option>
+                                            <option value="B">B Seçeneği</option>
+                                            <option value="C">C Seçeneği</option>
+                                            <option value="D">D Seçeneği</option>
+                                            <option value="E">E Seçeneği</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Zorluk Seviyesi *
+                                        </label>
+                                        <select
+                                            value={editForm.difficulty}
+                                            onChange={(e) => setEditForm(prev => ({ ...prev, difficulty: e.target.value }))}
+                                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                        >
+                                            <option value="easy">🟢 Kolay</option>
+                                            <option value="medium">🟡 Orta</option>
+                                            <option value="hard">🔴 Zor</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Açıklama */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Açıklama
+                                    </label>
+                                    <div className="rounded-xl overflow-hidden border-2 border-gray-300">
+                                        <Editor
+                                            apiKey={process.env.REACT_APP_TINYMCE_API_KEY}
+                                            value={editForm.aciklama}
+                                            onEditorChange={(content) => setEditForm(prev => ({ ...prev, aciklama: content }))}
+                                            init={{
+                                                height: 240,
+                                                menubar: false,
+                                                plugins: [
+                                                    'advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                                                    'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                                                    'insertdatetime', 'image', 'media', 'table', 'help', 'wordcount'
+                                                ],
+                                                toolbar: 'undo redo | bold italic underline | bullist numlist | alignleft aligncenter alignright | image media | removeformat',
+                                                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                                                images_upload_handler: handleTinyImageUpload
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Butonlar */}
+                                <div className="flex gap-3 pt-4 border-t border-gray-200">
+                                    <button
+                                        onClick={closeEditModal}
+                                        className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all duration-200 font-semibold"
+                                    >
+                                        İptal
+                                    </button>
+                                    <button
+                                        onClick={handleEditQuestion}
+                                        disabled={editLoading || !editForm.soruMetni.trim()}
+                                        className="flex-1 bg-green-600 text-white px-6 py-3 rounded-xl hover:bg-green-700 transition-all duration-200 font-semibold shadow-sm hover:shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+                                    >
+                                        {editLoading ? <FaSpinner className="animate-spin h-4 w-4" /> : <FaEdit />}
+                                        {editLoading ? 'Güncelleniyor...' : '✅ Kaydet'}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
