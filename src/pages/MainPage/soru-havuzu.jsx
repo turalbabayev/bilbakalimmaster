@@ -5,7 +5,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Layout from '../../components/layout';
 import { FaArrowLeft, FaEdit, FaTrash, FaBookReader, FaChevronDown, FaChevronRight, FaTrashAlt, FaDownload } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, deleteDoc, doc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, deleteDoc, doc, updateDoc, query, orderBy, getDocs } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
 import { saveAs } from 'file-saver';
 
@@ -276,20 +276,86 @@ const SoruHavuzuPage = () => {
     // Soru güncelleme
     const handleUpdateQuestion = async () => {
         try {
+            // 1. Manuel soru havuzunu güncelle
             await updateDoc(doc(db, 'manual-questions', editingQuestion), {
                 soruMetni: editForm.soruMetni,
                 cevaplar: editForm.cevaplar,
                 dogruCevap: editForm.dogruCevap,
                 aciklama: editForm.aciklama,
                 difficulty: editForm.difficulty,
-                topicName: editForm.topicName
+                topicName: editForm.topicName,
+                updatedAt: new Date()
             });
+            
+            // 2. Deneme sınavlarında bu sourceId'ye sahip soruları güncelle
+            await updateQuestionInExamsBySourceId(editingQuestion, editForm);
             
             toast.success('Soru başarıyla güncellendi!');
             setEditingQuestion(null);
         } catch (error) {
             console.error('Soru güncellenirken hata:', error);
             toast.error('Soru güncellenirken bir hata oluştu!');
+        }
+    };
+
+    // SourceId kullanarak deneme sınavlarında soruyu güncelle
+    const updateQuestionInExamsBySourceId = async (sourceId, updatedData) => {
+        try {
+            console.log('Deneme sınavlarında sourceId ile soru güncelleniyor:', sourceId);
+            
+            // Tüm deneme sınavlarını al
+            const examsRef = collection(db, 'examlar');
+            const examsSnap = await getDocs(examsRef);
+            
+            let updatedExamsCount = 0;
+            
+            for (const examDoc of examsSnap.docs) {
+                const examData = examDoc.data();
+                const questionsData = examData.questions || examData.selectedQuestions || {};
+                
+                let examUpdated = false;
+                const updatedQuestions = { ...questionsData };
+                
+                // Her kategoride sourceId'ye sahip soruyu ara ve güncelle
+                Object.entries(updatedQuestions).forEach(([categoryName, categoryData]) => {
+                    const categoryQuestions = categoryData?.questions || categoryData || {};
+                    Object.entries(categoryQuestions).forEach(([difficulty, questions]) => {
+                        if (Array.isArray(questions)) {
+                            const questionIndex = questions.findIndex(q => q.sourceId === sourceId);
+                            if (questionIndex !== -1) {
+                                // Soruyu güncelle
+                                questions[questionIndex] = {
+                                    ...questions[questionIndex],
+                                    soruMetni: updatedData.soruMetni,
+                                    cevaplar: updatedData.cevaplar,
+                                    dogruCevap: updatedData.dogruCevap,
+                                    aciklama: updatedData.aciklama,
+                                    difficulty: updatedData.difficulty,
+                                    topicName: updatedData.topicName,
+                                    updatedAt: new Date()
+                                };
+                                examUpdated = true;
+                                console.log('Sınavda soru güncellendi:', examDoc.id, 'Kategori:', categoryName, 'Zorluk:', difficulty);
+                            }
+                        }
+                    });
+                });
+                
+                // Eğer sınavda güncelleme yapıldıysa, sınavı kaydet
+                if (examUpdated) {
+                    await updateDoc(examDoc.ref, {
+                        questions: updatedQuestions,
+                        updatedAt: new Date()
+                    });
+                    updatedExamsCount++;
+                }
+            }
+            
+            console.log(`Toplam ${updatedExamsCount} sınav güncellendi`);
+            
+        } catch (error) {
+            console.error('Deneme sınavlarında soru güncellenirken hata:', error);
+            // Hata olsa bile devam et, manuel soru havuzu zaten güncellendi
         }
     };
 

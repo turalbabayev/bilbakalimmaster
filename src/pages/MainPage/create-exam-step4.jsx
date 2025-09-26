@@ -122,7 +122,16 @@ const CreateExamStep4Page = () => {
                     }
                     
                     const difficulty = normalizeDifficulty(question.difficulty);
-                    tempGrouped[category].questions[difficulty].push(question);
+                    
+                    // Soruya kaynak ID'sini ekle
+                    const questionWithSourceId = {
+                        ...question,
+                        sourceId: question.id, // Kaynak ID'sini sakla
+                        sourceType: question.source || 'manual', // Kaynak tipini sakla (manual/konular)
+                        sourceTopicId: question.topicId || question.konuId // Kaynak konu ID'sini sakla
+                    };
+                    
+                    tempGrouped[category].questions[difficulty].push(questionWithSourceId);
                 });
 
                 // Debug: kaydedilecek dağılımı logla

@@ -1033,7 +1033,10 @@ const CreateExamStep2Page = () => {
                                     ...data,
                                     topicName: topic.name,
                                     topicId: topic.id,
-                                    source: 'konular'
+                                    source: 'konular',
+                                    sourceId: doc.id,
+                                    sourceType: 'konular',
+                                    sourceTopicId: topic.id
                                 });
                             }
                         }
@@ -1064,7 +1067,10 @@ const CreateExamStep2Page = () => {
                                 ...data,
                                 topicName: topic.name,
                                 topicId: topic.topicId || topic.id,
-                                source: 'manual'
+                                source: 'manual',
+                                sourceId: doc.id,
+                                sourceType: 'manual',
+                                sourceTopicId: topic.topicId || topic.id
                             });
                         }
                     });

@@ -886,21 +886,43 @@ const ExamDetailPage = () => {
     // Gerçek kaynağı güncelle
     const updateSourceQuestion = async (question, formData) => {
         try {
-            // Manuel soru havuzundan mı geldi kontrol et
-            if (question.topicId && !question.topicId.startsWith('konu:')) {
+            // Kaynak ID'lerini kullan
+            const sourceId = question.sourceId || question.id;
+            const sourceType = question.sourceType || 'manual';
+            const sourceTopicId = question.sourceTopicId || question.topicId;
+            
+            console.log('Kaynak güncelleme bilgileri:', {
+                sourceId,
+                sourceType,
+                sourceTopicId,
+                questionId: question.id
+            });
+            
+            // Eğer sourceId yoksa veya eski sınav ise kaynak güncelleme yapma
+            if (!question.sourceId) {
+                console.log('Eski sınav sorusu - kaynak güncelleme atlanıyor');
+                return;
+            }
+            
+            if (sourceType === 'manual') {
                 // Manuel soru havuzu
-                const manualRef = doc(db, 'manual-questions', question.id);
-                await updateDoc(manualRef, {
-                    soruMetni: formData.soruMetni,
-                    cevaplar: formData.cevaplar,
-                    dogruCevap: formData.dogruCevap,
-                    aciklama: formData.aciklama,
-                    difficulty: normalizeDifficulty(formData.difficulty),
-                    updatedAt: new Date()
-                });
-            } else if (question.topicId && question.topicId.startsWith('konu:')) {
+                const manualRef = doc(db, 'manual-questions', sourceId);
+                try {
+                    await updateDoc(manualRef, {
+                        soruMetni: formData.soruMetni,
+                        cevaplar: formData.cevaplar,
+                        dogruCevap: formData.dogruCevap,
+                        aciklama: formData.aciklama,
+                        difficulty: normalizeDifficulty(formData.difficulty),
+                        updatedAt: new Date()
+                    });
+                    console.log('Manuel soru havuzu güncellendi:', sourceId);
+                } catch (error) {
+                    console.log('Manuel soru havuzunda bulunamadı:', sourceId);
+                }
+            } else if (sourceType === 'konular' || (sourceTopicId && sourceTopicId.startsWith('konu:'))) {
                 // Alt konu soruları - konular koleksiyonunda güncelle
-                const konuId = question.topicId.replace('konu:', '');
+                const konuId = sourceTopicId ? sourceTopicId.replace('konu:', '') : question.topicId.replace('konu:', '');
                 
                 // Önce alt konuları bul
                 const altKonularRef = collection(db, 'konular', konuId, 'altkonular');
@@ -914,7 +936,7 @@ const ExamDetailPage = () => {
                         
                         Object.entries(updatedSorular).forEach(([difficulty, questions]) => {
                             if (Array.isArray(questions)) {
-                                const questionIndex = questions.findIndex(q => q.id === question.id);
+                                const questionIndex = questions.findIndex(q => q.id === sourceId);
                                 if (questionIndex !== -1) {
                                     // Mevcut soruyu güncelle
                                     updatedSorular[difficulty][questionIndex] = {
@@ -935,14 +957,14 @@ const ExamDetailPage = () => {
                                 sorular: updatedSorular,
                                 updatedAt: new Date()
                             });
-                            console.log('Alt konu sorusu güncellendi:', question.id, 'Alt konu:', altKonuDoc.id);
+                            console.log('Alt konu sorusu güncellendi:', sourceId, 'Alt konu:', altKonuDoc.id);
                             break;
                         }
                     }
                 }
             } else {
-                // ID ile manuel soru havuzunda ara
-                const manualRef = doc(db, 'manual-questions', question.id);
+                // Fallback: ID ile manuel soru havuzunda ara
+                const manualRef = doc(db, 'manual-questions', sourceId);
                 try {
                     await updateDoc(manualRef, {
                         soruMetni: formData.soruMetni,
@@ -952,9 +974,9 @@ const ExamDetailPage = () => {
                         difficulty: normalizeDifficulty(formData.difficulty),
                         updatedAt: new Date()
                     });
-                    console.log('Manuel soru havuzu güncellendi (ID ile):', question.id);
+                    console.log('Manuel soru havuzu güncellendi (fallback):', sourceId);
                 } catch (error) {
-                    console.log('Manuel soru havuzunda bulunamadı');
+                    console.log('Manuel soru havuzunda bulunamadı (fallback):', sourceId);
                 }
             }
         } catch (error) {
@@ -993,7 +1015,11 @@ const ExamDetailPage = () => {
                                 difficulty: normalizeDifficulty(newQuestion.difficulty),
                                 // Konu bilgilerini koru
                                 topicName: replaceTarget.topicName,
-                                topicId: replaceTarget.topicId
+                                topicId: replaceTarget.topicId,
+                                // Kaynak bilgilerini koru (eski sorunun kaynak bilgilerini)
+                                sourceId: replaceTarget.sourceId || newQuestion.sourceId || newQuestion.id,
+                                sourceType: replaceTarget.sourceType || newQuestion.sourceType || 'manual',
+                                sourceTopicId: replaceTarget.sourceTopicId || newQuestion.sourceTopicId || newQuestion.topicId
                             };
                         }
                     }

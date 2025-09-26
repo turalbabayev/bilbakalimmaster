@@ -253,6 +253,9 @@ const CreateExamStep3Page = () => {
                         topicName,
                         topicId: data.topicId || topicId,
                         source: 'manual',
+                        sourceId: doc.id,
+                        sourceType: 'manual',
+                        sourceTopicId: data.topicId || topicId,
                         soruMetni: data.soruMetni,
                         cevaplar: data.cevaplar,
                         difficulty: normalizeDifficulty(data.difficulty || question.difficulty),
@@ -275,6 +278,9 @@ const CreateExamStep3Page = () => {
                             topicName,
                             topicId: topicId,
                             source: 'konular',
+                            sourceId: doc.id,
+                            sourceType: 'konular',
+                            sourceTopicId: topicId,
                             soruMetni: data.soruMetni,
                             cevaplar: data.cevaplar || data.secenekler || data.siklar || [data.a, data.b, data.c, data.d, data.e].filter(Boolean),
                             difficulty: normalizeDifficulty(data.difficulty || question.difficulty),
@@ -336,7 +342,18 @@ const CreateExamStep3Page = () => {
 
     const applyReplacement = (newQuestion) => {
         if (!replaceTarget) return;
-        const normalizedNew = { ...newQuestion, difficulty: normalizeDifficulty(newQuestion.difficulty) };
+        // Yeni soruya kaynak bilgilerini ekle (eski sorunun kaynak bilgilerini koru)
+        const normalizedNew = { 
+            ...newQuestion, 
+            difficulty: normalizeDifficulty(newQuestion.difficulty),
+            // Eski sorunun kaynak bilgilerini koru
+            sourceId: replaceTarget.sourceId || newQuestion.sourceId || newQuestion.id,
+            sourceType: replaceTarget.sourceType || newQuestion.sourceType || 'manual',
+            sourceTopicId: replaceTarget.sourceTopicId || newQuestion.sourceTopicId || newQuestion.topicId,
+            // Eski sorunun diğer bilgilerini koru
+            soruNumarasi: replaceTarget.soruNumarasi,
+            id: replaceTarget.id // Eski sorunun ID'sini koru
+        };
         
         // Eski sorunun index'ini bul
         const oldIndex = shuffledQuestions.findIndex(q => q.id === replaceTarget.id);
