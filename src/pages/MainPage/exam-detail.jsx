@@ -29,12 +29,14 @@ import {
     FaChevronDown,
     FaChevronRight,
     FaExpand,
-    FaCompress
+    FaCompress,
+    FaExchangeAlt,
+    FaTimes
 } from 'react-icons/fa';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db, storage } from '../../firebase';
 import { ref as storageRef, getBytes } from 'firebase/storage';
-import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
 
 const ExamDetailPage = () => {
@@ -61,6 +63,14 @@ const ExamDetailPage = () => {
         publishDuration: 2,
         publishUnit: 'hours'
     });
+
+    // Soru değiştirme modal state'leri
+    const [showReplaceModal, setShowReplaceModal] = useState(false);
+    const [replaceTarget, setReplaceTarget] = useState(null);
+    const [replaceOptions, setReplaceOptions] = useState([]);
+    const [replaceLoading, setReplaceLoading] = useState(false);
+    const [recentlyChangedQuestions, setRecentlyChangedQuestions] = useState(new Set());
+    const [replaceSearchTerm, setReplaceSearchTerm] = useState('');
 
     // Sınavı yükle
     useEffect(() => {
@@ -539,6 +549,208 @@ const ExamDetailPage = () => {
         });
     };
 
+    // Zorluk normalizasyonu
+    const normalizeDifficulty = (raw) => {
+        if (!raw) return 'medium';
+        const s = String(raw).toLowerCase().trim();
+        if (['kolay','easy','e','k','1','low','basit','easy-peasy'].includes(s)) return 'easy';
+        if (['zor','hard','z','h','3','difficult','high'].includes(s)) return 'hard';
+        if (['orta','medium','m','2','mid','normal'].includes(s)) return 'medium';
+        return 'medium';
+    };
+
+    // Soru değiştirme modalını aç
+    const openReplaceModal = async (question) => {
+        try {
+            setReplaceTarget(question);
+            setReplaceLoading(true);
+            setShowReplaceModal(true);
+
+            const topicName = question.topicName;
+            const topicId = question.topicId;
+
+            const options = [];
+
+            // Manuel sorulardan arama
+            if (topicName) {
+                const manualRef = collection(db, 'manual-questions');
+                let qRef;
+                if (topicId) {
+                    qRef = query(manualRef, where('topicId', '==', String(topicId).replace('konu:', '')));
+                } else {
+                    qRef = query(manualRef, where('topicName', '==', topicName));
+                }
+                
+                const snap = await getDocs(qRef);
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    if (!data?.soruMetni || !String(data.soruMetni).trim()) return;
+                    if (data.id === question.id) return; // Aynı soruyu ekleme
+                    
+                    options.push({
+                        id: data.id || doc.id,
+                        soruMetni: data.soruMetni,
+                        cevaplar: data.cevaplar || [],
+                        dogruCevap: data.dogruCevap,
+                        aciklama: data.aciklama,
+                        difficulty: normalizeDifficulty(data.difficulty),
+                        topicName: data.topicName,
+                        topicId: data.topicId,
+                        createdAt: data.createdAt
+                    });
+                });
+            }
+
+            // Alt konu sorularından arama
+            if (topicId && topicId.startsWith('konu:')) {
+                const konuId = topicId.replace('konu:', '');
+                const sorularRef = collection(db, 'konular', konuId, 'altkonular');
+                const snap = await getDocs(sorularRef);
+                snap.forEach(altKonuDoc => {
+                    const altKonuData = altKonuDoc.data();
+                    if (altKonuData.sorular && typeof altKonuData.sorular === 'object') {
+                        Object.entries(altKonuData.sorular).forEach(([difficulty, questions]) => {
+                            if (Array.isArray(questions)) {
+                                questions.forEach(q => {
+                                    if (!q?.soruMetni || !String(q.soruMetni).trim()) return;
+                                    if (q.id === question.id) return; // Aynı soruyu ekleme
+                                    
+                                    options.push({
+                                        id: q.id,
+                                        soruMetni: q.soruMetni,
+                                        cevaplar: q.cevaplar || [],
+                                        dogruCevap: q.dogruCevap,
+                                        aciklama: q.aciklama,
+                                        difficulty: normalizeDifficulty(q.difficulty),
+                                        topicName: q.topicName || altKonuData.baslik,
+                                        topicId: topicId,
+                                        createdAt: q.createdAt || new Date()
+                                    });
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+
+            // Soruları manuel havuzundaki sıraya göre sırala (createdAt ASC)
+            const sortedOptions = options.sort((a, b) => {
+                const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+                const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+                return aDate - bDate;
+            });
+
+            setReplaceOptions(sortedOptions);
+        } catch (error) {
+            console.error('Alternatif sorular yüklenirken hata:', error);
+            toast.error('Alternatif sorular yüklenirken hata oluştu');
+        } finally {
+            setReplaceLoading(false);
+        }
+    };
+
+    // Soru değiştirme modalını kapat
+    const closeReplaceModal = () => {
+        setShowReplaceModal(false);
+        setReplaceTarget(null);
+        setReplaceOptions([]);
+        setReplaceSearchTerm('');
+    };
+
+    // Filtrelenmiş soruları al
+    const getFilteredReplaceOptions = () => {
+        if (!replaceSearchTerm.trim()) return replaceOptions;
+        
+        const searchNum = parseInt(replaceSearchTerm);
+        if (isNaN(searchNum)) return replaceOptions;
+        
+        return replaceOptions.filter((_, index) => (index + 1) === searchNum);
+    };
+
+    // Soru numarasını al (filtrelenmiş listede gerçek numarayı döndür)
+    const getQuestionNumber = (question, filteredIndex) => {
+        if (!replaceSearchTerm.trim()) {
+            return filteredIndex + 1;
+        }
+        
+        const searchNum = parseInt(replaceSearchTerm);
+        if (isNaN(searchNum)) return filteredIndex + 1;
+        
+        // Arama yapıldığında, orijinal listedeki gerçek numarayı bul
+        const originalIndex = replaceOptions.findIndex((_, index) => (index + 1) === searchNum);
+        return originalIndex + 1;
+    };
+
+    // Soruyu değiştir
+    const applyReplacement = (newQuestion) => {
+        if (!replaceTarget || !exam) return;
+
+        try {
+            // Sınav verisini güncelle
+            const questionsData = exam.questions || exam.selectedQuestions || {};
+            const updatedQuestions = { ...questionsData };
+
+            // Soruyu bul ve değiştir
+            Object.entries(updatedQuestions).forEach(([categoryName, categoryData]) => {
+                const categoryQuestions = categoryData?.questions || categoryData || {};
+                Object.entries(categoryQuestions).forEach(([difficulty, questions]) => {
+                    if (Array.isArray(questions)) {
+                        const questionIndex = questions.findIndex(q => q.id === replaceTarget.id);
+                        if (questionIndex !== -1) {
+                            // Mevcut sorunun numarasını ve diğer önemli alanlarını koru
+                            questions[questionIndex] = {
+                                ...newQuestion,
+                                // Mevcut sorunun numarasını ve ID'sini koru
+                                soruNumarasi: replaceTarget.soruNumarasi,
+                                id: replaceTarget.id,
+                                // Yeni sorunun içeriğini al
+                                soruMetni: newQuestion.soruMetni,
+                                cevaplar: newQuestion.cevaplar,
+                                dogruCevap: newQuestion.dogruCevap,
+                                aciklama: newQuestion.aciklama,
+                                difficulty: normalizeDifficulty(newQuestion.difficulty),
+                                // Konu bilgilerini koru
+                                topicName: replaceTarget.topicName,
+                                topicId: replaceTarget.topicId
+                            };
+                        }
+                    }
+                });
+            });
+
+            // Firestore'da güncelle
+            updateDoc(doc(db, 'examlar', examId), {
+                questions: updatedQuestions,
+                updatedAt: new Date()
+            });
+
+            // Local state'i güncelle
+            setExam(prev => ({
+                ...prev,
+                questions: updatedQuestions,
+                updatedAt: new Date()
+            }));
+
+            // Değişen soruyu animasyon için işaretle
+            setRecentlyChangedQuestions(prev => new Set([...prev, replaceTarget.id]));
+            
+            // 3 saniye sonra animasyonu kaldır
+            setTimeout(() => {
+                setRecentlyChangedQuestions(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(replaceTarget.id);
+                    return newSet;
+                });
+            }, 3000);
+
+            closeReplaceModal();
+            toast.success('Soru başarıyla değiştirildi');
+        } catch (error) {
+            console.error('Soru değiştirilirken hata:', error);
+            toast.error('Soru değiştirilirken hata oluştu');
+        }
+    };
+
     // Kategori expand/collapse
     const toggleCategory = (categoryName) => {
         setExpandedCategories(prev => ({
@@ -934,18 +1146,35 @@ const ExamDetailPage = () => {
                                                                                     const isExpandedAll = !!showAllInDifficulty[key];
                                                                                     const visible = isExpandedAll ? sortedQuestions : sortedQuestions.slice(0, 5);
                                                                                     return visible.map((question, index) => (
-                                                                                    <div key={question.id || index} className="bg-gray-50 rounded-lg p-4 border">
+                                                                                    <div 
+                                                                                        key={question.id || index} 
+                                                                                        className={`bg-gray-50 rounded-lg p-4 border transition-all duration-500 ${
+                                                                                            recentlyChangedQuestions.has(question.id) 
+                                                                                                ? 'border-green-400 bg-green-50 shadow-lg animate-pulse' 
+                                                                                                : 'border-gray-200'
+                                                                                        }`}
+                                                                                    >
                                                                                         <div className="flex items-start justify-between mb-3">
                                                                                             <span className="text-sm font-medium text-gray-700">
                                                                                                 Soru {question.soruNumarasi || (index + 1)}
                                                                                             </span>
-                                                                                            <button
-                                                                                                onClick={() => handleCopyToClipboard(question.id)}
-                                                                                                className="text-xs text-gray-400 hover:text-gray-600"
-                                                                                                title="Soru ID'sini kopyala"
-                                                                                            >
-                                                                                                <FaCopy className="h-3 w-3" />
-                                                                                            </button>
+                                                                                            <div className="flex items-center gap-2">
+                                                                                                <button
+                                                                                                    onClick={() => openReplaceModal(question)}
+                                                                                                    className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                                                                                                    title="Soruyu değiştir"
+                                                                                                >
+                                                                                                    <FaExchangeAlt className="w-3 h-3" />
+                                                                                                    Değiştir
+                                                                                                </button>
+                                                                                                <button
+                                                                                                    onClick={() => handleCopyToClipboard(question.id)}
+                                                                                                    className="text-xs text-gray-400 hover:text-gray-600"
+                                                                                                    title="Soru ID'sini kopyala"
+                                                                                                >
+                                                                                                    <FaCopy className="h-3 w-3" />
+                                                                                                </button>
+                                                                                            </div>
                                                                                         </div>
                                                                                         {question.topicName && (
                                                                                             <div className="mb-2">
@@ -1577,6 +1806,115 @@ const ExamDetailPage = () => {
                                     Zamanla
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Soruyu Değiştir Modal */}
+            {showReplaceModal && replaceTarget && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+                        {/* Header */}
+                        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-gray-900">Soruyu Değiştir</h3>
+                                    <p className="text-sm text-gray-600">Konu: {replaceTarget.topicName}</p>
+                                </div>
+                                <button
+                                    onClick={closeReplaceModal}
+                                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                    <FaTimes className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                            {replaceLoading ? (
+                                <div className="flex justify-center py-12">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                                </div>
+                            ) : replaceOptions.length === 0 ? (
+                                <div className="text-center py-12 text-gray-600">Bu konuda alternatif soru bulunamadı.</div>
+                            ) : (
+                                <>
+                                    {/* Arama Fieldı */}
+                                    <div className="mb-6">
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                placeholder="Soru numarası ile ara (örn: 5)"
+                                                value={replaceSearchTerm}
+                                                onChange={(e) => setReplaceSearchTerm(e.target.value)}
+                                                className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                                min="1"
+                                            />
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                                </svg>
+                                            </div>
+                                            {replaceSearchTerm && (
+                                                <button
+                                                    onClick={() => setReplaceSearchTerm('')}
+                                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                                >
+                                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            Toplam {replaceOptions.length} soru • {getFilteredReplaceOptions().length} sonuç
+                                        </p>
+                                    </div>
+
+                                    {/* Sorular */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {getFilteredReplaceOptions().map((q, index) => (
+                                        <div key={q.id} className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                                                        #{getQuestionNumber(q, index)}
+                                                    </span>
+                                                    <span className={`text-xs px-2 py-1 rounded-full ${
+                                                        q.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
+                                                        q.difficulty === 'hard' ? 'bg-red-100 text-red-800' :
+                                                        'bg-yellow-100 text-yellow-800'
+                                                    }`}>
+                                                        {q.difficulty === 'easy' ? 'Kolay' : q.difficulty === 'hard' ? 'Zor' : 'Orta'}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    onClick={() => applyReplacement(q)}
+                                                    className="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
+                                                >
+                                                    Bu Soruyu Seç
+                                                </button>
+                                            </div>
+                                            <div className="text-sm text-gray-900 mb-2 line-clamp-3">
+                                                {q.soruMetni?.replace(/<[^>]*>/g, '') || 'Soru metni bulunamadı'}
+                                            </div>
+                                            {q.cevaplar && q.cevaplar.length > 0 && (
+                                                <div className="text-xs text-gray-600">
+                                                    {q.cevaplar.slice(0, 2).map((cevap, idx) => (
+                                                        <div key={idx} className="truncate">
+                                                            {String.fromCharCode(65 + idx)}. {cevap?.replace(/<[^>]*>/g, '')}
+                                                        </div>
+                                                    ))}
+                                                    {q.cevaplar.length > 2 && <div>...</div>}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>

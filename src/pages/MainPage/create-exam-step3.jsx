@@ -21,6 +21,7 @@ const CreateExamStep3Page = () => {
     const [replaceOptions, setReplaceOptions] = useState([]);
     const [replaceLoading, setReplaceLoading] = useState(false);
     const [recentlyChangedQuestionIndex, setRecentlyChangedQuestionIndex] = useState(null);
+    const [replaceSearchTerm, setReplaceSearchTerm] = useState('');
     
     const { selectedQuestions, totalQuestions, questionCounts, topicStats } = location.state || {};
 
@@ -256,7 +257,8 @@ const CreateExamStep3Page = () => {
                         cevaplar: data.cevaplar,
                         difficulty: normalizeDifficulty(data.difficulty || question.difficulty),
                         dogruCevap: data.dogruCevap,
-                        aciklama: data.aciklama
+                        aciklama: data.aciklama,
+                        createdAt: data.createdAt
                     });
                 });
             } else {
@@ -277,7 +279,8 @@ const CreateExamStep3Page = () => {
                             cevaplar: data.cevaplar || data.secenekler || data.siklar || [data.a, data.b, data.c, data.d, data.e].filter(Boolean),
                             difficulty: normalizeDifficulty(data.difficulty || question.difficulty),
                             dogruCevap: data.dogruCevap,
-                            aciklama: data.aciklama
+                            aciklama: data.aciklama,
+                            createdAt: data.createdAt || new Date()
                         });
                     }
                 });
@@ -285,7 +288,15 @@ const CreateExamStep3Page = () => {
 
             // Mevcuttaki soruyu en üste koymamak için aynı id'yi sonda tutalım
             const filtered = options.filter(o => o.id !== question.id && o.soruMetni && String(o.soruMetni).trim());
-            setReplaceOptions(filtered);
+            
+            // Soruları manuel havuzundaki sıraya göre sırala (createdAt ASC)
+            const sortedOptions = filtered.sort((a, b) => {
+                const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+                const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+                return aDate - bDate;
+            });
+            
+            setReplaceOptions(sortedOptions);
         } catch (e) {
             console.error('Sorular yüklenemedi:', e);
         } finally {
@@ -297,6 +308,31 @@ const CreateExamStep3Page = () => {
         setReplaceTarget(null);
         setReplaceOptions([]);
         setShowReplaceModal(false);
+        setReplaceSearchTerm('');
+    };
+
+    // Filtrelenmiş soruları al
+    const getFilteredReplaceOptions = () => {
+        if (!replaceSearchTerm.trim()) return replaceOptions;
+        
+        const searchNum = parseInt(replaceSearchTerm);
+        if (isNaN(searchNum)) return replaceOptions;
+        
+        return replaceOptions.filter((_, index) => (index + 1) === searchNum);
+    };
+
+    // Soru numarasını al (filtrelenmiş listede gerçek numarayı döndür)
+    const getQuestionNumber = (question, filteredIndex) => {
+        if (!replaceSearchTerm.trim()) {
+            return filteredIndex + 1;
+        }
+        
+        const searchNum = parseInt(replaceSearchTerm);
+        if (isNaN(searchNum)) return filteredIndex + 1;
+        
+        // Arama yapıldığında, orijinal listedeki gerçek numarayı bul
+        const originalIndex = replaceOptions.findIndex((_, index) => (index + 1) === searchNum);
+        return originalIndex + 1;
     };
 
     const applyReplacement = (newQuestion) => {
@@ -802,13 +838,52 @@ const CreateExamStep3Page = () => {
                             ) : replaceOptions.length === 0 ? (
                                 <div className="text-center py-12 text-gray-600">Bu konuda alternatif soru bulunamadı.</div>
                             ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {replaceOptions.map((q) => (
+                                <>
+                                    {/* Arama Fieldı */}
+                                    <div className="mb-6">
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                placeholder="Soru numarası ile ara (örn: 5)"
+                                                value={replaceSearchTerm}
+                                                onChange={(e) => setReplaceSearchTerm(e.target.value)}
+                                                className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                                min="1"
+                                            />
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                                </svg>
+                                            </div>
+                                            {replaceSearchTerm && (
+                                                <button
+                                                    onClick={() => setReplaceSearchTerm('')}
+                                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                                >
+                                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            Toplam {replaceOptions.length} soru • {getFilteredReplaceOptions().length} sonuç
+                                        </p>
+                                    </div>
+
+                                    {/* Sorular */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {getFilteredReplaceOptions().map((q, index) => (
                                         <div key={q.id} className="bg-gray-50 rounded-lg border border-gray-200 p-4">
                                             <div className="flex items-center justify-between mb-2">
-                                                <span className={`text-xs px-2 py-1 rounded-full ${getDifficultyColor(q.difficulty)}`}>
-                                                    {getDifficultyLabel(q.difficulty)}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                                                        #{getQuestionNumber(q, index)}
+                                                    </span>
+                                                    <span className={`text-xs px-2 py-1 rounded-full ${getDifficultyColor(q.difficulty)}`}>
+                                                        {getDifficultyLabel(q.difficulty)}
+                                                    </span>
+                                                </div>
                                                 <button
                                                     onClick={() => applyReplacement(q)}
                                                     className="text-xs px-2 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700"
@@ -826,7 +901,8 @@ const CreateExamStep3Page = () => {
                                             )}
                                         </div>
                                     ))}
-                                </div>
+                                    </div>
+                                </>
                             )}
                         </div>
                     </div>
