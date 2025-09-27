@@ -23,6 +23,7 @@
     "emoji-picker-react": "^4.13.2",
     "file-saver": "^2.0.5",
     "firebase": "^11.6.0",
+    "html2canvas": "^1.4.1",
     "jodit-react": "^5.2.19",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
