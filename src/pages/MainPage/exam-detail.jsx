@@ -990,8 +990,36 @@ const ExamDetailPage = () => {
         if (!replaceTarget || !exam) return;
 
         try {
-            // Sınav verisini güncelle
+            // Önce aynı sorunun zaten sınavda olup olmadığını kontrol et
             const questionsData = exam.questions || exam.selectedQuestions || {};
+            let isDuplicate = false;
+            let duplicateLocation = '';
+
+            Object.entries(questionsData).forEach(([categoryName, categoryData]) => {
+                const categoryQuestions = categoryData?.questions || categoryData || {};
+                Object.entries(categoryQuestions).forEach(([difficulty, questions]) => {
+                    if (Array.isArray(questions)) {
+                        const existingQuestion = questions.find(q => 
+                            q.id === newQuestion.id || 
+                            q.sourceId === newQuestion.sourceId ||
+                            (q.soruMetni === newQuestion.soruMetni && q.dogruCevap === newQuestion.dogruCevap)
+                        );
+                        
+                        if (existingQuestion && existingQuestion.id !== replaceTarget.id) {
+                            isDuplicate = true;
+                            duplicateLocation = `${categoryName} - ${difficulty === 'easy' ? 'Kolay' : difficulty === 'hard' ? 'Zor' : 'Orta'}`;
+                        }
+                    }
+                });
+            });
+
+            // Eğer aynı soru zaten varsa uyar
+            if (isDuplicate) {
+                toast.error(`Bu soru zaten sınavda mevcut! Konum: ${duplicateLocation}`);
+                return;
+            }
+
+            // Sınav verisini güncelle
             const updatedQuestions = { ...questionsData };
 
             // Soruyu bul ve değiştir

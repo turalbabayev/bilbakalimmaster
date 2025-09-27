@@ -342,6 +342,19 @@ const CreateExamStep3Page = () => {
 
     const applyReplacement = (newQuestion) => {
         if (!replaceTarget) return;
+        
+        // Önce aynı sorunun zaten sınavda olup olmadığını kontrol et
+        const existingQuestion = shuffledQuestions.find(q => 
+            q.id === newQuestion.id || 
+            q.sourceId === newQuestion.sourceId ||
+            (q.soruMetni === newQuestion.soruMetni && q.dogruCevap === newQuestion.dogruCevap)
+        );
+        
+        if (existingQuestion && existingQuestion.id !== replaceTarget.id) {
+            toast.error('Bu soru zaten sınavda mevcut!');
+            return;
+        }
+        
         // Yeni soruya kaynak bilgilerini ekle (eski sorunun kaynak bilgilerini koru)
         const normalizedNew = { 
             ...newQuestion, 
