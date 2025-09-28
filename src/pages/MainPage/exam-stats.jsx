@@ -17,6 +17,8 @@ import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firesto
 import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, ImageRun } from 'docx';
+import { saveAs } from 'file-saver';
 
 const ExamStatsPage = () => {
     const navigate = useNavigate();
@@ -30,6 +32,9 @@ const ExamStatsPage = () => {
     const [showQuestionDetail, setShowQuestionDetail] = useState(false);
     const [selectedQuestion, setSelectedQuestion] = useState(null);
     const [showLeaderboard, setShowLeaderboard] = useState(false);
+    const [showDownloadModal, setShowDownloadModal] = useState(false);
+    const [downloadModalId, setDownloadModalId] = useState('');
+    const [downloadFilename, setDownloadFilename] = useState('');
 
     // Sınavı yükle
     useEffect(() => {
@@ -389,6 +394,284 @@ const ExamStatsPage = () => {
         }
     };
 
+    // Resim URL'lerini HTML'den çıkar
+    const extractImageUrls = (html) => {
+        if (!html) return [];
+        const imgRegex = /<img[^>]+src="([^"]+)"/g;
+        const urls = [];
+        let match;
+        while ((match = imgRegex.exec(html)) !== null) {
+            urls.push(match[1]);
+        }
+        return urls;
+    };
+
+    // Resmi arrayBuffer'a çevir
+    const imageToArrayBuffer = async (url) => {
+        try {
+            if (!url) return null;
+            
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const blob = await response.blob();
+            if (!blob || blob.size === 0) {
+                throw new Error('Boş resim');
+            }
+            
+            return await blob.arrayBuffer();
+        } catch (error) {
+            console.error('Resim yükleme hatası:', error);
+            return null;
+        }
+    };
+
+    // Metinsel DOCX oluşturma fonksiyonu
+    const createTextualDOCX = async (filename) => {
+        try {
+            const paragraphs = [];
+
+            // Başlık
+            paragraphs.push(
+                new Paragraph({
+                    text: "Yanlış Yapılan Sorular Raporu",
+                    heading: HeadingLevel.TITLE,
+                    alignment: AlignmentType.CENTER,
+                })
+            );
+
+            // Sınav bilgisi
+            paragraphs.push(
+                new Paragraph({
+                    text: `Sınav: ${exam?.title || exam?.name || exam?.examName || 'Bilinmeyen Sınav'}`,
+                    heading: HeadingLevel.HEADING_2,
+                })
+            );
+
+            paragraphs.push(
+                new Paragraph({
+                    text: `Tarih: ${new Date().toLocaleDateString('tr-TR')}`,
+                })
+            );
+
+            paragraphs.push(
+                new Paragraph({
+                    text: `Toplam Soru: ${getMostIncorrectQuestions().length}`,
+                })
+            );
+
+            paragraphs.push(new Paragraph({ text: "" })); // Boş satır
+
+            // Sorular
+            getMostIncorrectQuestions().forEach((question, index) => {
+                // Soru numarası ve kategori
+                paragraphs.push(
+                    new Paragraph({
+                        text: `Soru ${question.questionNumber} - ${question.category}`,
+                        heading: HeadingLevel.HEADING_3,
+                    })
+                );
+
+                // Soru metni
+                const questionText = decodeHtmlEntities(question.questionText?.replace(/<[^>]*>/g, '') || 'Soru metni bulunamadı');
+                paragraphs.push(
+                    new Paragraph({
+                        text: questionText,
+                        spacing: { after: 200 },
+                    })
+                );
+
+                // Soru metnindeki resimleri ekle
+                const questionImages = extractImageUrls(question.questionText || '');
+                for (const imageUrl of questionImages) {
+                    try {
+                        const arrayBuffer = await imageToArrayBuffer(imageUrl);
+                        if (arrayBuffer) {
+                            paragraphs.push(
+                                new Paragraph({
+                                    children: [
+                                        new ImageRun({
+                                            data: arrayBuffer,
+                                            transformation: {
+                                                width: 400,
+                                                height: 300,
+                                            },
+                                        }),
+                                    ],
+                                    alignment: AlignmentType.CENTER,
+                                    spacing: { after: 200 },
+                                })
+                            );
+                        }
+                    } catch (error) {
+                        console.error('Soru resmi yüklenirken hata:', error);
+                    }
+                }
+
+                // Seçenekler
+                if (question.cevaplar && question.cevaplar.length > 0) {
+                    paragraphs.push(
+                        new Paragraph({
+                            text: "Seçenekler:",
+                            heading: HeadingLevel.HEADING_4,
+                        })
+                    );
+
+                    for (let optionIndex = 0; optionIndex < question.cevaplar.length; optionIndex++) {
+                        const option = question.cevaplar[optionIndex];
+                        const letter = String.fromCharCode(65 + optionIndex);
+                        const isCorrect = letter === question.correctAnswer;
+                        const optionText = decodeHtmlEntities(option?.replace(/<[^>]*>/g, '') || '');
+                        
+                        const optionParagraph = new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `${letter}) ${optionText}`,
+                                    bold: isCorrect,
+                                }),
+                                ...(isCorrect ? [
+                                    new TextRun({
+                                        text: " ✓",
+                                        bold: true,
+                                        color: "00AA00",
+                                    })
+                                ] : [])
+                            ],
+                            indent: { left: 400 },
+                        });
+                        
+                        paragraphs.push(optionParagraph);
+
+                        // Seçenekteki resimleri ekle
+                        const optionImages = extractImageUrls(option || '');
+                        for (const imageUrl of optionImages) {
+                            try {
+                                const arrayBuffer = await imageToArrayBuffer(imageUrl);
+                                if (arrayBuffer) {
+                                    paragraphs.push(
+                                        new Paragraph({
+                                            children: [
+                                                new ImageRun({
+                                                    data: arrayBuffer,
+                                                    transformation: {
+                                                        width: 300,
+                                                        height: 200,
+                                                    },
+                                                }),
+                                            ],
+                                            alignment: AlignmentType.CENTER,
+                                            indent: { left: 400 },
+                                            spacing: { after: 100 },
+                                        })
+                                    );
+                                }
+                            } catch (error) {
+                                console.error('Seçenek resmi yüklenirken hata:', error);
+                            }
+                        }
+                    }
+
+                    paragraphs.push(new Paragraph({ text: "" })); // Boş satır
+                }
+
+                // Açıklama
+                if (question.aciklama) {
+                    paragraphs.push(
+                        new Paragraph({
+                            text: "Açıklama:",
+                            heading: HeadingLevel.HEADING_4,
+                        })
+                    );
+                    
+                    const explanationText = decodeHtmlEntities(question.aciklama.replace(/<[^>]*>/g, ''));
+                    paragraphs.push(
+                        new Paragraph({
+                            text: explanationText,
+                            indent: { left: 400 },
+                            spacing: { after: 200 },
+                        })
+                    );
+
+                    // Açıklamadaki resimleri ekle
+                    const explanationImages = extractImageUrls(question.aciklama || '');
+                    for (const imageUrl of explanationImages) {
+                        try {
+                            const arrayBuffer = await imageToArrayBuffer(imageUrl);
+                            if (arrayBuffer) {
+                                paragraphs.push(
+                                    new Paragraph({
+                                        children: [
+                                            new ImageRun({
+                                                data: arrayBuffer,
+                                                transformation: {
+                                                    width: 400,
+                                                    height: 300,
+                                                },
+                                            }),
+                                        ],
+                                        alignment: AlignmentType.CENTER,
+                                        indent: { left: 400 },
+                                        spacing: { after: 200 },
+                                    })
+                                );
+                            }
+                        } catch (error) {
+                            console.error('Açıklama resmi yüklenirken hata:', error);
+                        }
+                    }
+                }
+
+                // İstatistikler
+                paragraphs.push(
+                    new Paragraph({
+                        text: `Doğru: ${question.correctCount} | Yanlış: ${question.incorrectCount} | Oran: %${question.incorrectPercentage.toFixed(1)}`,
+                        italics: true,
+                        color: "666666",
+                    })
+                );
+
+                // Ayırıcı çizgi (son soru değilse)
+                if (index < getMostIncorrectQuestions().length - 1) {
+                    paragraphs.push(
+                        new Paragraph({
+                            text: "────────────────────────────────────────",
+                            alignment: AlignmentType.CENTER,
+                            color: "CCCCCC",
+                        })
+                    );
+                    paragraphs.push(new Paragraph({ text: "" })); // Boş satır
+                }
+            });
+
+            // DOCX oluştur
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: paragraphs,
+                }],
+            });
+
+            // DOCX'i indir
+            const blob = await Packer.toBlob(doc);
+            saveAs(blob, filename);
+            
+            toast.success('Metinsel DOCX başarıyla indirildi!');
+
+        } catch (error) {
+            console.error('Metinsel DOCX oluşturma hatası:', error);
+            toast.error('Metinsel DOCX oluşturulurken hata oluştu!');
+        }
+    };
+
+    // İndirme modalını aç
+    const openDownloadModal = (modalId, filename) => {
+        setDownloadModalId(modalId);
+        setDownloadFilename(filename);
+        setShowDownloadModal(true);
+    };
+
     // En çok yanlış yapılan soruları hesapla
     const getMostIncorrectQuestions = () => {
         if (!exam.results || exam.results.length === 0) return [];
@@ -514,15 +797,15 @@ const ExamStatsPage = () => {
                     <div className="mb-8">
                         <div className="flex items-center justify-between">
                             <div>
-                                <button
-                                    onClick={() => navigate(`/deneme-sinavlari/detay/${examId}`)}
+                        <button
+                            onClick={() => navigate(`/deneme-sinavlari/detay/${examId}`)}
                                     className="inline-flex items-center text-gray-600 hover:text-gray-800 transition-colors mb-4 group"
                                 >
                                     <div className="bg-gray-100 group-hover:bg-gray-200 rounded-lg p-2 mr-3 transition-colors">
                                         <FaArrowLeft className="h-4 w-4" />
                                     </div>
                                     <span className="font-medium">Detaya Dön</span>
-                                </button>
+                        </button>
                                 <div className="flex items-center gap-3 mb-2">
                                     <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-3">
                                         <FaChartBar className="h-6 w-6 text-white" />
@@ -530,7 +813,7 @@ const ExamStatsPage = () => {
                                     <div>
                                         <h1 className="text-3xl font-bold text-gray-900">
                                             {exam.name || 'Sınav İstatistikleri'}
-                                        </h1>
+                            </h1>
                                         <p className="text-gray-600 mt-1">
                                             Performans analizi ve detaylı istatistikler
                                         </p>
@@ -605,10 +888,10 @@ const ExamStatsPage = () => {
                                             }
                                         })()}
                                     </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
 
                     {/* Hızlı Erişim Butonları */}
@@ -620,7 +903,7 @@ const ExamStatsPage = () => {
                             <div className="flex items-center justify-between mb-3">
                                 <div className="bg-blue-100 rounded-xl p-3 group-hover:bg-blue-200 transition-colors">
                                     <FaChartBar className="h-6 w-6 text-blue-600" />
-                                </div>
+                    </div>
                                 <div className="text-blue-600 group-hover:text-blue-700">
                                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -711,7 +994,7 @@ const ExamStatsPage = () => {
                                         </div>
                                         <div className="flex items-center space-x-2">
                                             <button
-                                                onClick={() => downloadModalAsPDF('detailed-stats-modal', `Detayli_Istatistikler_${exam?.title || 'Sinav'}.pdf`)}
+                                                onClick={() => openDownloadModal('detailed-stats-modal', `Detayli_Istatistikler_${exam?.title || 'Sinav'}.pdf`)}
                                                 className="bg-white/20 hover:bg-white/30 rounded-xl p-3 transition-colors"
                                                 title="PDF İndir"
                                             >
@@ -790,17 +1073,17 @@ const ExamStatsPage = () => {
                                         <div className="flex items-center space-x-4">
                                             <div className="bg-white/20 rounded-2xl p-3">
                                                 <FaQuestionCircle className="h-8 w-8" />
-                                            </div>
+                            </div>
                                             <div>
                                                 <h2 className="text-3xl font-bold">En Çok Yanlış Yapılan Sorular</h2>
                                                 <p className="text-red-100 mt-1">
                                                     <span className="font-semibold">{exam?.title || exam?.name || exam?.examName || 'Sınav'}</span> • {getMostIncorrectQuestions().length} soru bulundu
                                                 </p>
-                                            </div>
+                        </div>
                                         </div>
                                         <div className="flex items-center space-x-2">
                                             <button
-                                                onClick={() => downloadModalAsPDF('incorrect-questions-modal', `Yanlis_Yapilan_Sorular_${exam?.title || 'Sinav'}.pdf`)}
+                                                onClick={() => openDownloadModal('incorrect-questions-modal', `Yanlis_Yapilan_Sorular_${exam?.title || 'Sinav'}.pdf`)}
                                                 className="bg-white/20 hover:bg-white/30 rounded-xl p-3 transition-colors"
                                                 title="PDF İndir"
                                             >
@@ -863,15 +1146,15 @@ const ExamStatsPage = () => {
                                                         <div className="mb-4">
                                                             <p className="text-gray-800 text-sm leading-relaxed line-clamp-2">
                                                                 {decodeHtmlEntities(question.questionText?.replace(/<[^>]*>/g, '') || 'Soru metni bulunamadı')}
-                                                            </p>
-                                                        </div>
+                            </p>
+                        </div>
 
                                                         {/* Stats */}
                                                         <div className="grid grid-cols-2 gap-2 mb-4">
                                                             <div className="bg-green-50 rounded-lg p-3 text-center">
                                                                 <div className="text-lg font-bold text-green-600 mb-1">{question.correctCount}</div>
                                                                 <div className="text-xs text-green-700 font-medium">Doğru</div>
-                                                            </div>
+                    </div>
                                                             <div className="bg-red-50 rounded-lg p-3 text-center">
                                                                 <div className="text-lg font-bold text-red-600 mb-1">{question.incorrectCount}</div>
                                                                 <div className="text-xs text-red-700 font-medium">Yanlış</div>
@@ -1105,7 +1388,7 @@ const ExamStatsPage = () => {
                                         </div>
                                         <div className="flex items-center space-x-2">
                                             <button
-                                                onClick={() => downloadModalAsPDF('performance-analysis-modal', `Performans_Analizi_${exam?.title || 'Sinav'}.pdf`)}
+                                                onClick={() => openDownloadModal('performance-analysis-modal', `Performans_Analizi_${exam?.title || 'Sinav'}.pdf`)}
                                                 className="bg-white/20 hover:bg-white/30 rounded-xl p-3 transition-colors"
                                                 title="PDF İndir"
                                             >
@@ -1239,7 +1522,7 @@ const ExamStatsPage = () => {
                                         </div>
                                         <div className="flex items-center space-x-2">
                                             <button
-                                                onClick={() => downloadModalAsPDF('leaderboard-modal', `Liderlik_Tablosu_${exam?.title || 'Sinav'}.pdf`)}
+                                                onClick={() => openDownloadModal('leaderboard-modal', `Liderlik_Tablosu_${exam?.title || 'Sinav'}.pdf`)}
                                                 className="bg-white/20 hover:bg-white/30 rounded-xl p-3 transition-colors"
                                                 title="PDF İndir"
                                             >
@@ -1365,6 +1648,85 @@ const ExamStatsPage = () => {
                                             ))}
                                         </div>
                                     )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* İndirme Seçenekleri Modal */}
+                    {showDownloadModal && (
+                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md">
+                                {/* Header */}
+                                <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 text-white rounded-t-3xl">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center space-x-3">
+                                            <div className="bg-white/20 rounded-xl p-2">
+                                                <FaDownload className="h-5 w-5" />
+                                            </div>
+                                            <div>
+                                                <h2 className="text-xl font-bold">İndirme Seçenekleri</h2>
+                                                <p className="text-blue-100 text-sm">Nasıl indirmek istiyorsunuz?</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => setShowDownloadModal(false)}
+                                            className="bg-white/20 hover:bg-white/30 rounded-lg p-2 transition-colors"
+                                        >
+                                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Content */}
+                                <div className="p-6">
+                                    <div className="space-y-4">
+                                        {/* Resim Olarak İndir */}
+                                        <button
+                                            onClick={() => {
+                                                downloadModalAsPDF(downloadModalId, downloadFilename);
+                                                setShowDownloadModal(false);
+                                            }}
+                                            className="w-full p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 group text-left"
+                                        >
+                                            <div className="flex items-center space-x-4">
+                                                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                                                    <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-semibold text-gray-900 group-hover:text-blue-700">Resim Olarak İndir</h3>
+                                                    <p className="text-sm text-gray-600">Modalın görsel halini PDF olarak indir</p>
+                                                </div>
+                                            </div>
+                                        </button>
+
+                                        {/* Metinsel DOCX (sadece Yanlış Yapılan Sorular için) */}
+                                        {downloadModalId === 'incorrect-questions-modal' && (
+                                            <button
+                                                onClick={() => {
+                                                    createTextualDOCX(downloadFilename.replace('.pdf', '_Metinsel.docx'));
+                                                    setShowDownloadModal(false);
+                                                }}
+                                                className="w-full p-4 border-2 border-gray-200 rounded-xl hover:border-green-300 hover:bg-green-50 transition-all duration-200 group text-left"
+                                            >
+                                                <div className="flex items-center space-x-4">
+                                                    <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                                                        <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                        </svg>
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-semibold text-gray-900 group-hover:text-green-700">Metinsel DOCX İndir</h3>
+                                                        <p className="text-sm text-gray-600">Soruları metin formatında düzenli Word belgesi olarak indir</p>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
