@@ -465,7 +465,7 @@ const ExamStatsPage = () => {
             paragraphs.push(new Paragraph({ text: "" })); // Boş satır
 
             // Sorular
-            getMostIncorrectQuestions().forEach((question, index) => {
+            for (const [index, question] of getMostIncorrectQuestions().entries()) {
                 // Soru numarası ve kategori
                 paragraphs.push(
                     new Paragraph({
@@ -643,7 +643,7 @@ const ExamStatsPage = () => {
                     );
                     paragraphs.push(new Paragraph({ text: "" })); // Boş satır
                 }
-            });
+            }
 
             // DOCX oluştur
             const doc = new Document({
