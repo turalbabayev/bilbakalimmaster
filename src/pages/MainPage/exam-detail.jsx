@@ -55,6 +55,10 @@ const ExamDetailPage = () => {
     const [expandedCategories, setExpandedCategories] = useState({});
     const [expandedDifficulties, setExpandedDifficulties] = useState({});
     const [showAllQuestions, setShowAllQuestions] = useState(false);
+    
+    // Arama state'i
+    const [searchQuestionNumber, setSearchQuestionNumber] = useState('');
+    const [highlightedQuestion, setHighlightedQuestion] = useState(null);
     const [showAllInDifficulty, setShowAllInDifficulty] = useState({});
 
     // Zamanla modal state'i
@@ -111,6 +115,16 @@ const ExamDetailPage = () => {
             loadExam();
         }
     }, [examId]);
+
+    // Highlight'ı temizle
+    useEffect(() => {
+        if (highlightedQuestion) {
+            const timer = setTimeout(() => {
+                setHighlightedQuestion(null);
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [highlightedQuestion]);
 
     const loadExam = async () => {
         try {
@@ -1104,6 +1118,91 @@ const ExamDetailPage = () => {
         }));
     };
 
+    // Soru numarası ile arama
+    const handleSearchQuestion = (questionNumber) => {
+        if (!questionNumber || !exam) return;
+        
+        const num = parseInt(questionNumber);
+        if (isNaN(num)) return;
+        
+        const questionsData = exam.questions || exam.selectedQuestions || {};
+        let foundQuestion = null;
+        let foundCategory = null;
+        let foundDifficulty = null;
+        
+        // Tüm kategorilerde ara
+        for (const [categoryName, categoryData] of Object.entries(questionsData)) {
+            if (!categoryData || typeof categoryData !== 'object') continue;
+            
+            const categoryQuestions = categoryData.questions || categoryData;
+            
+            for (const [difficulty, questions] of Object.entries(categoryQuestions)) {
+                if (!Array.isArray(questions)) continue;
+                
+                const question = questions.find(q => q.soruNumarasi === num);
+                if (question) {
+                    foundQuestion = question;
+                    foundCategory = categoryName;
+                    foundDifficulty = difficulty;
+                    break;
+                }
+            }
+            if (foundQuestion) break;
+        }
+        
+        if (foundQuestion) {
+            // Kategori ve zorluk seviyesini aç
+            setExpandedCategories(prev => ({
+                ...prev,
+                [foundCategory]: true
+            }));
+            
+            setExpandedDifficulties(prev => ({
+                ...prev,
+                [`${foundCategory}-${foundDifficulty}`]: true
+            }));
+
+            // Eğer soru "Daha Fazla" butonunun arkasındaysa, o zorluk seviyesini de aç
+            const difficultyKey = `${foundCategory}-${foundDifficulty}`;
+            setShowAllInDifficulty(prev => ({
+                ...prev,
+                [difficultyKey]: true
+            }));
+            
+            // Soruyu highlight et
+            setHighlightedQuestion(foundQuestion.id);
+            
+            // Scroll to question - daha güvenilir yöntem
+            const scrollToQuestion = () => {
+                const element = document.getElementById(`question-${foundQuestion.id}`);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return true;
+                }
+                return false;
+            };
+
+            // İlk deneme - daha uzun bekleme süresi
+            setTimeout(() => {
+                if (!scrollToQuestion()) {
+                    // İkinci deneme
+                    setTimeout(() => {
+                        if (!scrollToQuestion()) {
+                            // Üçüncü deneme
+                            setTimeout(() => {
+                                scrollToQuestion();
+                            }, 500);
+                        }
+                    }, 500);
+                }
+            }, 800);
+            
+            toast.success(`Soru #${num} bulundu!`);
+        } else {
+            toast.error(`Soru #${num} bulunamadı!`);
+        }
+    };
+
     // Tüm kategorileri aç/kapat
     const toggleAllCategories = () => {
         const questionsData = exam.questions || exam.selectedQuestions || {};
@@ -1378,6 +1477,56 @@ const ExamDetailPage = () => {
                                         </div>
                                     </div>
                                     
+                                    {/* Soru Arama Container */}
+                                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 mb-6">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-blue-100 rounded-lg p-2">
+                                                    <FaQuestionCircle className="h-5 w-5 text-blue-600" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-lg font-semibold text-gray-900">Soru Arama</h4>
+                                                    <p className="text-sm text-gray-600">Soru numarası ile hızlı arama yapın</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="number"
+                                                        placeholder="Soru numarası girin..."
+                                                        value={searchQuestionNumber}
+                                                        onChange={(e) => setSearchQuestionNumber(e.target.value)}
+                                                        onKeyPress={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                handleSearchQuestion(searchQuestionNumber);
+                                                            }
+                                                        }}
+                                                        className="w-32 px-3 py-2 text-sm border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                                                    />
+                                                    <button
+                                                        onClick={() => handleSearchQuestion(searchQuestionNumber)}
+                                                        className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+                                                    >
+                                                        <FaQuestionCircle className="h-4 w-4" />
+                                                        Ara
+                                                    </button>
+                                                </div>
+                                                {searchQuestionNumber && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setSearchQuestionNumber('');
+                                                            setHighlightedQuestion(null);
+                                                        }}
+                                                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                                                        title="Temizle"
+                                                    >
+                                                        <FaTimes className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
                                     <div className="space-y-4">
                                         {Object.entries(exam.questions || exam.selectedQuestions || {}).map(([categoryName, categoryData]) => {
                                             if (!categoryData || typeof categoryData !== 'object') {
@@ -1483,10 +1632,13 @@ const ExamDetailPage = () => {
                                                                                     const visible = isExpandedAll ? sortedQuestions : sortedQuestions.slice(0, 5);
                                                                                     return visible.map((question, index) => (
                                                                                     <div 
-                                                                                        key={question.id || index} 
+                                                                                        key={question.id || index}
+                                                                                        id={`question-${question.id}`}
                                                                                         className={`bg-gray-50 rounded-lg p-4 border transition-all duration-500 ${
                                                                                             recentlyChangedQuestions.has(question.id) 
                                                                                                 ? 'border-green-400 bg-green-50 shadow-lg animate-pulse' 
+                                                                                                : highlightedQuestion === question.id
+                                                                                                ? 'border-blue-400 bg-blue-50 shadow-lg ring-2 ring-blue-200'
                                                                                                 : 'border-gray-200'
                                                                                         }`}
                                                                                     >
