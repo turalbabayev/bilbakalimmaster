@@ -20,6 +20,9 @@ const Layout = ({ children }) => {
             <Header />
             <div 
                 className={`transition-all duration-300 min-h-screen ${
+                    // Mobilde üstte header var (h-16), desktop'ta sidebar durumuna göre margin
+                    'pt-16 lg:pt-0'
+                } ${
                     isSidebarOpen ? 'lg:ml-64' : 'lg:ml-16'
                 }`}
             >

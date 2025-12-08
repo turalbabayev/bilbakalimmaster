@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
-import { FaBell, FaUsers, FaExclamationTriangle, FaChartBar, FaFilePdf, FaVideo, FaMobileAlt, FaComments, FaPodcast, FaQuestionCircle, FaGamepad, FaHome, FaStickyNote, FaGraduationCap, FaBullhorn, FaSignOutAlt, FaChevronRight, FaChevronLeft, FaBook } from 'react-icons/fa';
+import { FaBell, FaUsers, FaExclamationTriangle, FaChartBar, FaFilePdf, FaVideo, FaMobileAlt, FaComments, FaPodcast, FaQuestionCircle, FaGamepad, FaHome, FaStickyNote, FaGraduationCap, FaBullhorn, FaSignOutAlt, FaChevronRight, FaChevronLeft, FaBook, FaBars, FaTimes, FaCreditCard } from 'react-icons/fa';
 import { SidebarContext } from './layout';
 
 const Header = () => {
@@ -37,7 +37,8 @@ const Header = () => {
             title: "Yönetim",
             items: [
                 { path: "/bildirimler", label: "Bildirimler", icon: <FaBell /> },
-                { path: "/users", label: "Kullanıcılar", icon: <FaUsers /> }
+                { path: "/users", label: "Kullanıcılar", icon: <FaUsers /> },
+                { path: "/odemeler", label: "Ödemeler", icon: <FaCreditCard /> }
             ]
         },
         {
@@ -71,18 +72,6 @@ const Header = () => {
     };
 
 
-    // Sidebar dışına tıklandığında kapat (sadece mobile'da)
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (window.innerWidth < 1024 && isSidebarOpen && !event.target.closest('.sidebar-container') && !event.target.closest('.sidebar-toggle')) {
-                setIsSidebarOpen(false);
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isSidebarOpen]);
-
     // ESC tuşu ile sidebar'ı daralt (sadece desktop'ta)
     useEffect(() => {
         const handleEscape = (event) => {
@@ -98,34 +87,113 @@ const Header = () => {
 
     return (
         <>
-            {/* Overlay - Sadece mobile'da göster */}
+            {/* Mobile Header - Sadece mobilde göster */}
+            <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-50 flex items-center justify-between px-4 shadow-sm">
+                <Link to="/home" className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    BilBakalım
+                </Link>
+                <button
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    aria-label="Menüyü aç/kapat"
+                >
+                    {isSidebarOpen ? <FaTimes className="h-6 w-6" /> : <FaBars className="h-6 w-6" />}
+                </button>
+            </div>
+
+            {/* Mobile Menu Overlay */}
             {isSidebarOpen && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300 lg:hidden"
+                    className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300"
                     onClick={() => setIsSidebarOpen(false)}
                 />
             )}
 
-            {/* Sidebar */}
+            {/* Mobile Menu Drawer */}
+            <div
+                className={`lg:hidden fixed top-16 left-0 right-0 bottom-0 bg-white dark:bg-gray-800 z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto ${
+                    isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                }`}
+            >
+                <nav className="p-4 space-y-6">
+                    {menuCategories.map((category, categoryIndex) => (
+                        <div key={categoryIndex}>
+                            {/* Kategori Başlığı */}
+                            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-2">
+                                {category.title}
+                            </h3>
+                            
+                            {/* Kategori Öğeleri */}
+                            <div className="space-y-1">
+                                {category.items.map((item) => (
+                                    <Link
+                                        key={item.path}
+                                        to={item.path}
+                                        onClick={() => setIsSidebarOpen(false)}
+                                        className={`flex items-center px-4 py-3 rounded-lg transition-all duration-200 ${
+                                            isActive(item.path)
+                                                ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/50'
+                                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                        }`}
+                                    >
+                                        <span className={`text-lg mr-3 ${isActive(item.path) ? 'text-white' : 'text-gray-500'}`}>
+                                            {item.icon}
+                                        </span>
+                                        <span className="flex-1 text-sm font-medium">{item.label}</span>
+                                        {isActive(item.path) && (
+                                            <FaChevronRight className="text-xs" />
+                                        )}
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                    
+                    {/* Sign Out Button - Mobile */}
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-6">
+                        <button
+                            onClick={async () => {
+                                await handleSignOut();
+                                setIsSidebarOpen(false);
+                            }}
+                            className="w-full flex items-center justify-center px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-medium transition-all duration-200 shadow-lg shadow-red-500/50"
+                        >
+                            <FaSignOutAlt className="mr-2" />
+                            <span>Çıkış Yap</span>
+                        </button>
+                    </div>
+                </nav>
+            </div>
+
+            {/* Desktop Sidebar */}
             <aside
-                className={`sidebar-container fixed top-0 left-0 h-full dark:from-gray-900 dark:to-gray-800 z-50 transition-all duration-300 ease-in-out border-r border-gray-200 dark:border-gray-700 ${
+                className={`hidden lg:flex fixed top-0 left-0 h-full dark:from-gray-900 dark:to-gray-800 z-50 transition-all duration-300 ease-in-out border-r border-gray-200 dark:border-gray-700 ${
                     isSidebarOpen ? 'w-64' : 'w-16'
                 }`}
                 style={{ backgroundColor: '#f7f9fa' }}
             >
                 <div className="flex flex-col h-full">
                     {/* Logo Section */}
-                    <div className={`border-b border-gray-200 dark:border-gray-700 transition-all duration-300 ${isSidebarOpen ? 'p-6' : 'p-4'}`}>
+                    <div className={`border-b border-gray-200 dark:border-gray-700 transition-all duration-300 ${isSidebarOpen ? 'p-4 lg:p-6' : 'p-4'}`}>
                         <div className="flex items-center justify-between">
                             {isSidebarOpen ? (
                                 <>
-                                    <Link to="/home" className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                                    <Link 
+                                        to="/home" 
+                                        className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"
+                                        onClick={() => {
+                                            // Mobile'da tıklanınca kapat
+                                            if (window.innerWidth < 1024) {
+                                                setIsSidebarOpen(false);
+                                            }
+                                        }}
+                                    >
                                         BilBakalım
                                     </Link>
                                     <button
                                         onClick={() => setIsSidebarOpen(false)}
                                         className="sidebar-toggle p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                        aria-label="Menüyü daralt"
+                                        aria-label="Menüyü kapat"
                                     >
                                         <FaChevronLeft className="h-5 w-5" />
                                     </button>
@@ -143,7 +211,7 @@ const Header = () => {
                     </div>
 
                     {/* Navigation Menu */}
-                    <nav className="flex-1 overflow-y-auto py-4 px-2">
+                    <nav className="flex-1 overflow-y-auto py-4 px-2 overscroll-contain">
                         {menuCategories.map((category, categoryIndex) => (
                             <div key={categoryIndex} className={categoryIndex > 0 ? 'mt-6' : ''}>
                                 {/* Kategori Başlığı */}
@@ -168,7 +236,7 @@ const Header = () => {
                                                 }
                                             }}
                                             className={`flex items-center rounded-lg transition-all duration-200 group ${
-                                                isSidebarOpen ? 'px-4 py-3' : 'px-2 py-3 justify-center'
+                                                isSidebarOpen ? 'px-3 lg:px-4 py-2.5 lg:py-3' : 'px-2 py-3 justify-center'
                                             } ${
                                                 isActive(item.path)
                                                     ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/50'
@@ -176,14 +244,14 @@ const Header = () => {
                                             }`}
                                             title={!isSidebarOpen ? item.label : ''}
                                         >
-                                            <span className={`text-lg ${isSidebarOpen ? 'mr-3' : ''} ${isActive(item.path) ? 'text-white' : 'text-gray-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'}`}>
+                                            <span className={`text-base lg:text-lg flex-shrink-0 ${isSidebarOpen ? 'mr-2 lg:mr-3' : ''} ${isActive(item.path) ? 'text-white' : 'text-gray-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'}`}>
                                                 {item.icon}
                                             </span>
                                             {isSidebarOpen && (
                                                 <>
-                                                    <span className="flex-1 text-sm font-medium">{item.label}</span>
+                                                    <span className="flex-1 text-xs lg:text-sm font-medium truncate">{item.label}</span>
                                                     {isActive(item.path) && (
-                                                        <FaChevronRight className="text-xs" />
+                                                        <FaChevronRight className="text-xs flex-shrink-0 ml-1" />
                                                     )}
                                                 </>
                                             )}

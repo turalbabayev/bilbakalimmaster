@@ -39,6 +39,7 @@ import PodcastUnitsPage from './pages/MainPage/podcast_units';
 import FAQPage from './pages/MainPage/faq_page';
 import DraftsPage from './pages/MainPage/drafts_page';
 import SoruBankasiYonetimiPage from './pages/MainPage/soru-bankasi-yonetimi';
+import PaymentsPage from './pages/MainPage/payments';
 
 function App() {
     return (
@@ -57,6 +58,7 @@ function App() {
                     <Route path='/notes' element={<ProtectedRouter><NotesPage /></ProtectedRouter>} />
                     <Route path='/bildirimler' element={<ProtectedRouter><NotificationsPage /></ProtectedRouter>} />
                     <Route path='/users' element={<ProtectedRouter><UsersPage /></ProtectedRouter>} />
+                    <Route path='/odemeler' element={<ProtectedRouter><PaymentsPage /></ProtectedRouter>} />
                     <Route path='/delete-account' element={<DeleteAccountPage />} />
                     <Route path='/deneme-sinavlari' element={<ProtectedRouter><DenemeSinavlariPage /></ProtectedRouter>} />
                     <Route path='/create-exam' element={<ProtectedRouter><CreateExamPage /></ProtectedRouter>} />
