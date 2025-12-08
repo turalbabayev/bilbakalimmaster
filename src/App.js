@@ -38,6 +38,7 @@ import PodcastPage from './pages/MainPage/podcast_page';
 import PodcastUnitsPage from './pages/MainPage/podcast_units';
 import FAQPage from './pages/MainPage/faq_page';
 import DraftsPage from './pages/MainPage/drafts_page';
+import SoruBankasiYonetimiPage from './pages/MainPage/soru-bankasi-yonetimi';
 
 function App() {
     return (
@@ -47,6 +48,7 @@ function App() {
                 <Routes>
                     <Route path="/" element={<LoginPage />} />
                     <Route path='/home' element={<ProtectedRouter><HomePage /></ProtectedRouter>} />
+                    <Route path='/soru-bankasi-yonetimi' element={<ProtectedRouter><SoruBankasiYonetimiPage /></ProtectedRouter>} />
                     <Route path='/question' element={<ProtectedRouter><QuestionsPage /></ProtectedRouter>} />
                     <Route path='/question/:id' element={<ProtectedRouter><QuestionContent /></ProtectedRouter>}/>
                     <Route path='/question/:konuId/:altKonuId' element={<ProtectedRouter><SubbranchContent/></ProtectedRouter>} />

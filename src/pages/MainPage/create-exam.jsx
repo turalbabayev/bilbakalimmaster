@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast';
 import { db } from '../../firebase';
 import CreateExamModal from '../../components/CreateExamModal';
 import { Editor } from '@tinymce/tinymce-react';
+import statsService from '../../services/statsService';
 
 const CreateExamPage = () => {
     const navigate = useNavigate();
@@ -87,6 +88,14 @@ const CreateExamPage = () => {
                 id: docRef.id
             });
 
+            // Genel istatistikleri güncelle (soru sayısını artır - arka planda son 30 gün de güncellenir)
+            try {
+                const createdAt = serverTimestamp();
+                await statsService.incrementSoruCount(1, createdAt);
+            } catch (statsError) {
+                console.error("Genel istatistikler güncellenirken hata:", statsError);
+            }
+
             toast.success('Soru başarıyla eklendi!');
             resetForm();
             setShowManualQuestionModal(false);
@@ -135,6 +144,15 @@ const CreateExamPage = () => {
                 });
                 
                 successCount++;
+            }
+
+            // Genel istatistikleri güncelle (toplu soru ekleme)
+            if (successCount > 0) {
+                try {
+                    await statsService.incrementSoruCount(successCount);
+                } catch (statsError) {
+                    console.error("Genel istatistikler güncellenirken hata:", statsError);
+                }
             }
 
             toast.success(`${successCount} soru başarıyla eklendi!`);

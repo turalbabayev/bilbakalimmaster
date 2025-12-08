@@ -3,6 +3,7 @@ import { db } from "../firebase";
 import { collection, getDocs, deleteDoc, doc, query, orderBy, updateDoc } from "firebase/firestore";
 import { toast } from 'react-hot-toast';
 import konuStatsService from "../services/konuStatsService";
+import statsService from "../services/statsService";
 
 const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) => {
     const [sorular, setSorular] = useState([]);
@@ -106,6 +107,13 @@ const BulkDeleteQuestions = ({ isOpen, onClose, konuId, altKonuId, altDalId }) =
 
             // Tüm güncelleme işlemlerini bekle
             await Promise.all(updatePromises);
+            
+            // Genel istatistikleri güncelle (toplu soru silme)
+            try {
+                await statsService.decrementSoruCount(seciliIDs.length);
+            } catch (statsError) {
+                console.error("Genel istatistikler güncellenirken hata:", statsError);
+            }
             
             // Konu istatistiklerini otomatik güncelle
             try {

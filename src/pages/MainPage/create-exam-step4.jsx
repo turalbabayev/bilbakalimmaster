@@ -5,6 +5,7 @@ import { FaArrowLeft, FaPlay, FaClock, FaFileAlt } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { db } from '../../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import statsService from '../../services/statsService';
 
 const CreateExamStep4Page = () => {
     const navigate = useNavigate();
@@ -195,6 +196,13 @@ const CreateExamStep4Page = () => {
 
             // Firestore'a kaydet
             const docRef = await addDoc(collection(db, 'examlar'), examToSave);
+            
+            // Genel istatistikleri güncelle (deneme sınavı sayısını artır)
+            try {
+                await statsService.incrementDenemeSinaviCount(1);
+            } catch (statsError) {
+                console.error("Genel istatistikler güncellenirken hata:", statsError);
+            }
             
             console.log('Sınav başarıyla kaydedildi, ID:', docRef.id);
             toast.success(`Sınav başarıyla oluşturuldu ve yayınlandı! ID: ${docRef.id}`);

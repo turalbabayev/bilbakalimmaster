@@ -29,6 +29,7 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../../firebase';
 import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
+import statsService from '../../services/statsService';
 
 const ExamListPage = () => {
     const navigate = useNavigate();
@@ -189,6 +190,14 @@ const ExamListPage = () => {
         try {
             setDeleteLoading(true);
             await deleteDoc(doc(db, 'examlar', examId));
+            
+            // Genel istatistikleri güncelle (deneme sınavı sayısını azalt)
+            try {
+                await statsService.decrementDenemeSinaviCount(1);
+            } catch (statsError) {
+                console.error("Genel istatistikler güncellenirken hata:", statsError);
+            }
+            
             setExams(exams.filter(exam => exam.id !== examId));
             setSelectedExams(prev => {
                 const newSet = new Set(prev);

@@ -1,14 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
-import { FaBell, FaUsers, FaExclamationTriangle, FaChartBar, FaTools, FaChevronDown, FaFilePdf, FaVideo, FaMobileAlt, FaComments, FaPodcast, FaQuestionCircle } from 'react-icons/fa';
+import { FaBell, FaUsers, FaExclamationTriangle, FaChartBar, FaFilePdf, FaVideo, FaMobileAlt, FaComments, FaPodcast, FaQuestionCircle, FaGamepad, FaHome, FaStickyNote, FaGraduationCap, FaBullhorn, FaSignOutAlt, FaChevronRight, FaChevronLeft, FaBook } from 'react-icons/fa';
+import { SidebarContext } from './layout';
 
 const Header = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false);
+    const { isSidebarOpen, setIsSidebarOpen } = useContext(SidebarContext);
 
     const handleSignOut = async () => {
         try {
@@ -21,164 +21,198 @@ const Header = () => {
         }
     };
 
-    const mainMenuItems = [
-        { path: "/home", label: "Ana Sayfa" },
-        { path: "/question", label: "Sorular" },
-        { path: "/announcements", label: "Duyurular" },
-        { path: "/games", label: "Oyunlar" },
-        { path: "/notes", label: "Notlar" },
-        { path: "/deneme-sinavlari", label: "Deneme Sınavları" },
-        { path: "/bildirimler", label: "Bildirimler", icon: <FaBell className="inline-block mr-1" /> },
-        { path: "/users", label: "Kullanıcılar", icon: <FaUsers className="inline-block mr-1" /> }
-    ];
-
-    const toolsMenuItems = [
-        { path: "/konu-istatistikler", label: "Konu İstatistikleri", icon: <FaChartBar className="inline-block mr-1" /> },
-        { path: "/pdf-bank", label: "PDF Bankası", icon: <FaFilePdf className="inline-block mr-1" /> },
-        { path: "/toplanti-arsivi", label: "Toplantı Arşivi", icon: <FaVideo className="inline-block mr-1" /> },
-        { path: "/mobile-settings", label: "Mobil Dinamik Ayarlar", icon: <FaMobileAlt className="inline-block mr-1" /> },
-        { path: "/app-feedback", label: "Uygulama Geri Bildirimleri", icon: <FaComments className="inline-block mr-1" /> },
-        { path: "/podcast-uniteleri", label: "Podcast Yönetimi", icon: <FaPodcast className="inline-block mr-1" /> },
-        { path: "/faq", label: "Sıkça Sorulan Sorular", icon: <FaQuestionCircle className="inline-block mr-1" /> },
-        { path: "/error-logs", label: "Hata Kayıtları", icon: <FaExclamationTriangle className="inline-block mr-1" /> }
+    const menuCategories = [
+        {
+            title: "Ana Menü",
+            items: [
+                { path: "/home", label: "Ana Sayfa", icon: <FaHome /> },
+                { path: "/soru-bankasi-yonetimi", label: "Soru Bankası Yönetimi", icon: <FaBook /> },
+                { path: "/question", label: "Sorular", icon: <FaQuestionCircle /> },
+                { path: "/announcements", label: "Duyurular", icon: <FaBullhorn /> },
+                { path: "/notes", label: "Notlar", icon: <FaStickyNote /> },
+                { path: "/deneme-sinavlari", label: "Deneme Sınavları", icon: <FaGraduationCap /> }
+            ]
+        },
+        {
+            title: "Yönetim",
+            items: [
+                { path: "/bildirimler", label: "Bildirimler", icon: <FaBell /> },
+                { path: "/users", label: "Kullanıcılar", icon: <FaUsers /> }
+            ]
+        },
+        {
+            title: "İçerik",
+            items: [
+                { path: "/games", label: "Oyunlar", icon: <FaGamepad /> },
+                { path: "/pdf-bank", label: "PDF Bankası", icon: <FaFilePdf /> },
+                { path: "/toplanti-arsivi", label: "Toplantı Arşivi", icon: <FaVideo /> },
+                { path: "/podcast-uniteleri", label: "Podcast Yönetimi", icon: <FaPodcast /> }
+            ]
+        },
+        {
+            title: "İstatistikler",
+            items: [
+                { path: "/konu-istatistikler", label: "Konu İstatistikleri", icon: <FaChartBar /> }
+            ]
+        },
+        {
+            title: "Ayarlar & Destek",
+            items: [
+                { path: "/mobile-settings", label: "Mobil Dinamik Ayarlar", icon: <FaMobileAlt /> },
+                { path: "/app-feedback", label: "Uygulama Geri Bildirimleri", icon: <FaComments /> },
+                { path: "/faq", label: "Sıkça Sorulan Sorular", icon: <FaQuestionCircle /> },
+                { path: "/error-logs", label: "Hata Kayıtları", icon: <FaExclamationTriangle /> }
+            ]
+        }
     ];
 
     const isActive = (path) => {
         return location.pathname === path;
     };
 
-    return (
-        <header className="bg-white dark:bg-gray-900 shadow-lg">
-            <div className="container mx-auto">
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-                    {/* Mobile Menu Button */}
-                    <div className="flex items-center justify-between p-4 lg:hidden">
-                        <Link to="/home" className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
-                            BilBakalım
-                        </Link>
-                        <button
-                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="p-2 rounded-lg text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline-none"
-                        >
-                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                {isMobileMenuOpen ? (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                ) : (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                                )}
-                            </svg>
-                        </button>
-                    </div>
 
-                    {/* Desktop Logo - Hidden on Mobile */}
-                    <div className="hidden lg:flex lg:items-center lg:pl-4">
-                        <Link to="/home" className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
-                            BilBakalım
-                        </Link>
+    // Sidebar dışına tıklandığında kapat (sadece mobile'da)
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (window.innerWidth < 1024 && isSidebarOpen && !event.target.closest('.sidebar-container') && !event.target.closest('.sidebar-toggle')) {
+                setIsSidebarOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isSidebarOpen]);
+
+    // ESC tuşu ile sidebar'ı daralt (sadece desktop'ta)
+    useEffect(() => {
+        const handleEscape = (event) => {
+            if (event.key === 'Escape' && isSidebarOpen && window.innerWidth >= 1024) {
+                setIsSidebarOpen(false);
+            }
+        };
+
+        document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, [isSidebarOpen]);
+
+
+    return (
+        <>
+            {/* Overlay - Sadece mobile'da göster */}
+            {isSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300 lg:hidden"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+
+            {/* Sidebar */}
+            <aside
+                className={`sidebar-container fixed top-0 left-0 h-full dark:from-gray-900 dark:to-gray-800 z-50 transition-all duration-300 ease-in-out border-r border-gray-200 dark:border-gray-700 ${
+                    isSidebarOpen ? 'w-64' : 'w-16'
+                }`}
+                style={{ backgroundColor: '#f7f9fa' }}
+            >
+                <div className="flex flex-col h-full">
+                    {/* Logo Section */}
+                    <div className={`border-b border-gray-200 dark:border-gray-700 transition-all duration-300 ${isSidebarOpen ? 'p-6' : 'p-4'}`}>
+                        <div className="flex items-center justify-between">
+                            {isSidebarOpen ? (
+                                <>
+                                    <Link to="/home" className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                                        BilBakalım
+                                    </Link>
+                                    <button
+                                        onClick={() => setIsSidebarOpen(false)}
+                                        className="sidebar-toggle p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                        aria-label="Menüyü daralt"
+                                    >
+                                        <FaChevronLeft className="h-5 w-5" />
+                                    </button>
+                                </>
+                            ) : (
+                                <button
+                                    onClick={() => setIsSidebarOpen(true)}
+                                    className="sidebar-toggle w-full flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                    aria-label="Menüyü genişlet"
+                                >
+                                    <FaChevronRight className="h-5 w-5" />
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {/* Navigation Menu */}
-                    <nav className={`${isMobileMenuOpen ? 'block' : 'hidden'} lg:flex lg:items-center`}>
-                        <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-1">
-                            {/* Ana menü öğeleri */}
-                            {mainMenuItems.map((item) => (
-                                <Link
-                                    key={item.path}
-                                    to={item.path}
-                                    className={`px-4 py-3 lg:py-5 text-sm font-medium transition-colors duration-200 ${
-                                        isActive(item.path)
-                                        ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/50'
-                                        : 'text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/50'
-                                    }`}
-                                >
-                                    {item.icon && item.icon}
-                                    {item.label}
-                                </Link>
-                            ))}
-
-                            {/* Araçlar Dropdown - Desktop */}
-                            <div className="relative hidden lg:block">
-                                <button
-                                    onClick={() => setIsToolsDropdownOpen(!isToolsDropdownOpen)}
-                                    className={`px-4 py-5 text-sm font-medium transition-colors duration-200 flex items-center ${
-                                        isActive('/konu-istatistikler') || isActive('/pdf-bank') || isActive('/toplanti-arsivi') || isActive('/error-logs') || isActive('/faq')
-                                        ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/50'
-                                        : 'text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/50'
-                                    }`}
-                                >
-                                    <FaTools className="inline-block mr-1" />
-                                    Araçlar
-                                    <FaChevronDown className={`ml-1 transition-transform duration-200 ${isToolsDropdownOpen ? 'rotate-180' : ''}`} />
-                                </button>
-
-                                {isToolsDropdownOpen && (
-                                    <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
-                                        {toolsMenuItems.map((item) => (
-                                            <Link
-                                                key={item.path}
-                                                to={item.path}
-                                                onClick={() => setIsToolsDropdownOpen(false)}
-                                                className={`block px-4 py-3 text-sm font-medium transition-colors duration-200 ${
-                                                    isActive(item.path)
-                                                    ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/50'
-                                                    : 'text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/50'
-                                                }`}
-                                            >
-                                                {item.icon && item.icon}
-                                                {item.label}
-                                            </Link>
-                                        ))}
+                    <nav className="flex-1 overflow-y-auto py-4 px-2">
+                        {menuCategories.map((category, categoryIndex) => (
+                            <div key={categoryIndex} className={categoryIndex > 0 ? 'mt-6' : ''}>
+                                {/* Kategori Başlığı */}
+                                {isSidebarOpen && (
+                                    <div className="px-4 mb-2">
+                                        <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                            {category.title}
+                                        </h3>
                                     </div>
                                 )}
-                            </div>
-
-                            {/* Araçlar Dropdown - Mobile */}
-                            <div className="lg:hidden">
-                                <div className="px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
-                                    <FaTools className="inline-block mr-1" />
-                                    Araçlar
+                                
+                                {/* Kategori Öğeleri */}
+                                <div className="space-y-1">
+                                    {category.items.map((item) => (
+                                        <Link
+                                            key={item.path}
+                                            to={item.path}
+                                            onClick={() => {
+                                                // Mobile'da tıklanınca kapat
+                                                if (window.innerWidth < 1024) {
+                                                    setIsSidebarOpen(false);
+                                                }
+                                            }}
+                                            className={`flex items-center rounded-lg transition-all duration-200 group ${
+                                                isSidebarOpen ? 'px-4 py-3' : 'px-2 py-3 justify-center'
+                                            } ${
+                                                isActive(item.path)
+                                                    ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/50'
+                                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-indigo-600 dark:hover:text-indigo-400'
+                                            }`}
+                                            title={!isSidebarOpen ? item.label : ''}
+                                        >
+                                            <span className={`text-lg ${isSidebarOpen ? 'mr-3' : ''} ${isActive(item.path) ? 'text-white' : 'text-gray-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'}`}>
+                                                {item.icon}
+                                            </span>
+                                            {isSidebarOpen && (
+                                                <>
+                                                    <span className="flex-1 text-sm font-medium">{item.label}</span>
+                                                    {isActive(item.path) && (
+                                                        <FaChevronRight className="text-xs" />
+                                                    )}
+                                                </>
+                                            )}
+                                        </Link>
+                                    ))}
                                 </div>
-                                {toolsMenuItems.map((item) => (
-                                    <Link
-                                        key={item.path}
-                                        to={item.path}
-                                        className={`block px-8 py-3 text-sm font-medium transition-colors duration-200 ${
-                                            isActive(item.path)
-                                            ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/50'
-                                            : 'text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/50'
-                                        }`}
-                                    >
-                                        {item.icon && item.icon}
-                                        {item.label}
-                                    </Link>
-                                ))}
                             </div>
-                        </div>
+                        ))}
                     </nav>
 
                     {/* Sign Out Button */}
-                    <div className={`${isMobileMenuOpen ? 'block' : 'hidden'} lg:flex lg:items-center lg:pr-4 p-4 lg:p-0`}>
+                    <div className={`border-t border-gray-200 dark:border-gray-700 ${isSidebarOpen ? 'p-4' : 'p-2'}`}>
                         <button
-                            onClick={handleSignOut}
-                            className="w-full lg:w-auto px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2"
+                            onClick={async () => {
+                                await handleSignOut();
+                            }}
+                            className={`w-full flex items-center justify-center bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-medium transition-all duration-200 shadow-lg shadow-red-500/50 hover:shadow-xl hover:shadow-red-500/50 ${
+                                isSidebarOpen ? 'px-4 py-3' : 'px-2 py-3'
+                            }`}
+                            title={!isSidebarOpen ? 'Çıkış Yap' : ''}
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                            Çıkış Yap
+                            <FaSignOutAlt className={isSidebarOpen ? 'mr-2' : ''} />
+                            {isSidebarOpen && <span>Çıkış Yap</span>}
                         </button>
                     </div>
                 </div>
-            </div>
+            </aside>
 
-            {/* Dropdown overlay - Desktop */}
-            {isToolsDropdownOpen && (
-                <div 
-                    className="fixed inset-0 z-40 lg:block hidden" 
-                    onClick={() => setIsToolsDropdownOpen(false)}
-                />
-            )}
-        </header>
+        </>
     );
 };
 

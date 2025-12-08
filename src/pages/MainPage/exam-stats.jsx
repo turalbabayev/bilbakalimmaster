@@ -800,7 +800,7 @@ const ExamStatsPage = () => {
                         <button
                             onClick={() => navigate(`/deneme-sinavlari/detay/${examId}`)}
                                     className="inline-flex items-center text-gray-600 hover:text-gray-800 transition-colors mb-4 group"
-                                >
+                        >
                                     <div className="bg-gray-100 group-hover:bg-gray-200 rounded-lg p-2 mr-3 transition-colors">
                                         <FaArrowLeft className="h-4 w-4" />
                                     </div>

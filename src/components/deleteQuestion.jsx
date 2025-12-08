@@ -3,6 +3,7 @@ import { db } from "../firebase";
 import { doc, deleteDoc, collection, getDocs, updateDoc, query, orderBy } from "firebase/firestore";
 import { toast } from 'react-hot-toast';
 import konuStatsService from "../services/konuStatsService";
+import statsService from "../services/statsService";
 
 const DeleteQuestion = ({ soruRef, onDelete }) => {
     const [isDeleting, setIsDeleting] = useState(false);
@@ -38,6 +39,13 @@ const DeleteQuestion = ({ soruRef, onDelete }) => {
             // Soruyu sil
             await deleteDoc(doc(db, soruRef));
             console.log("Soru başarıyla silindi");
+
+            // Genel istatistikleri güncelle (soru sayısını azalt)
+            try {
+                await statsService.decrementSoruCount(1);
+            } catch (statsError) {
+                console.error("Genel istatistikler güncellenirken hata:", statsError);
+            }
 
             // Koleksiyon yolunu belirle
             const koleksiyonPath = altDalId 

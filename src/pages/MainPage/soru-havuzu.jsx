@@ -7,6 +7,7 @@ import { FaArrowLeft, FaEdit, FaTrash, FaBookReader, FaChevronDown, FaChevronRig
 import { useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, deleteDoc, doc, updateDoc, query, orderBy, getDocs } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
+import statsService from '../../services/statsService';
 import { saveAs } from 'file-saver';
 
 const SoruHavuzuPage = () => {
@@ -156,6 +157,13 @@ const SoruHavuzuPage = () => {
             
             await Promise.all(deletePromises);
             
+            // Genel istatistikleri güncelle (toplu soru silme)
+            try {
+                await statsService.decrementSoruCount(questions.length);
+            } catch (statsError) {
+                console.error("Genel istatistikler güncellenirken hata:", statsError);
+            }
+            
             toast.success(`${topicName} konusundaki ${questions.length} soru başarıyla silindi!`);
         } catch (error) {
             console.error('Sorular silinirken hata:', error);
@@ -252,6 +260,14 @@ const SoruHavuzuPage = () => {
         if (window.confirm('Bu soruyu silmek istediğinizden emin misiniz?')) {
             try {
                 await deleteDoc(doc(db, 'manual-questions', questionId));
+                
+                // Genel istatistikleri güncelle (soru sayısını azalt)
+                try {
+                    await statsService.decrementSoruCount(1);
+                } catch (statsError) {
+                    console.error("Genel istatistikler güncellenirken hata:", statsError);
+                }
+                
                 toast.success('Soru başarıyla silindi!');
             } catch (error) {
                 console.error('Soru silinirken hata:', error);

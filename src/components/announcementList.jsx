@@ -3,6 +3,7 @@ import { db } from "../firebase";
 import { collection, onSnapshot, deleteDoc, doc, updateDoc, query, orderBy } from "firebase/firestore";
 import AddAnnouncement from "./addAnnouncement";
 import { toast } from "react-hot-toast";
+import statsService from "../services/statsService";
 
 const AnnouncementList = () => {
     const [announcements, setAnnouncements] = useState([]);
@@ -95,6 +96,16 @@ const AnnouncementList = () => {
         if (window.confirm(`Bu ${itemType} silmek istediğinizden emin misiniz?`)) {
             try {
                 await deleteDoc(doc(db, collectionName, id));
+                
+                // Genel istatistikleri güncelle (sadece duyurular için)
+                if (collectionName === "announcements") {
+                    try {
+                        await statsService.decrementDuyuruCount(1);
+                    } catch (statsError) {
+                        console.error("Genel istatistikler güncellenirken hata:", statsError);
+                    }
+                }
+                
                 toast.success(`${type} başarıyla silindi`);
             } catch (error) {
                 console.error('Error deleting:', error);

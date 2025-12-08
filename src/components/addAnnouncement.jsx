@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
 import { collection, addDoc, doc, updateDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
+import statsService from "../services/statsService";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
@@ -223,6 +224,16 @@ const AddAnnouncement = ({ isOpen, onClose, selectedType, editItem }) => {
             } else {
                 // Yeni ekleme işlemi
                 await addDoc(collection(db, collectionName), updatedFormData);
+                
+                // Genel istatistikleri güncelle (sadece duyurular için)
+                if (collectionName === "announcements") {
+                    try {
+                        await statsService.incrementDuyuruCount(1);
+                    } catch (statsError) {
+                        console.error("Genel istatistikler güncellenirken hata:", statsError);
+                    }
+                }
+                
                 toast.success(`${selectedType} başarıyla eklendi!`);
             }
             onClose();

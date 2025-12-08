@@ -40,6 +40,7 @@ import { db, storage } from '../../firebase';
 import { ref as storageRef, getBytes } from 'firebase/storage';
 import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
+import statsService from '../../services/statsService';
 
 const ExamDetailPage = () => {
     const navigate = useNavigate();
@@ -530,6 +531,14 @@ const ExamDetailPage = () => {
         try {
             setDeleteLoading(true);
             await deleteDoc(doc(db, 'examlar', examId));
+            
+            // Genel istatistikleri güncelle (deneme sınavı sayısını azalt)
+            try {
+                await statsService.decrementDenemeSinaviCount(1);
+            } catch (statsError) {
+                console.error("Genel istatistikler güncellenirken hata:", statsError);
+            }
+            
             toast.success('Sınav başarıyla silindi');
             navigate('/deneme-sinavlari/liste');
         } catch (error) {

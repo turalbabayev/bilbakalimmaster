@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { db } from "../firebase";
 import { collection, addDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
+import statsService from "../services/statsService";
 
 const AddTopics = ({ closeModal }) => {
     const [topicTitle, setTopicTitle] = useState("");
@@ -22,6 +23,13 @@ const AddTopics = ({ closeModal }) => {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             });
+
+            // Genel istatistikleri güncelle (konu sayısını artır)
+            try {
+                await statsService.incrementKonuCount(1);
+            } catch (statsError) {
+                console.error("Genel istatistikler güncellenirken hata:", statsError);
+            }
 
             toast.success("Konu başarıyla eklendi.");
             setTopicTitle("");

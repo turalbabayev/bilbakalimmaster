@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { db } from "../firebase";
 import { doc, deleteDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
+import statsService from "../services/statsService";
 
 const DeleteTopics = ({ konular, closeModal }) => {
     const [selectedTopic, setSelectedTopic] = useState("");
@@ -21,6 +22,14 @@ const DeleteTopics = ({ konular, closeModal }) => {
         try {
             const docRef = doc(db, "konular", selectedTopic);
             await deleteDoc(docRef);
+            
+            // Genel istatistikleri güncelle (konu sayısını azalt)
+            try {
+                await statsService.decrementKonuCount(1);
+            } catch (statsError) {
+                console.error("Genel istatistikler güncellenirken hata:", statsError);
+            }
+            
             toast.success("Konu başarıyla silindi.");
             closeModal();
         } catch (error) {

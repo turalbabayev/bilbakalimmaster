@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { db, storage } from "../firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Editor } from '@tinymce/tinymce-react';
 import { toast } from 'react-hot-toast';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import konuStatsService from "../services/konuStatsService";
+import statsService from "../services/statsService";
 
 const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
     const [selectedAltKonu, setSelectedAltKonu] = useState("");
@@ -110,6 +111,7 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
             const sorularCollectionRef = collection(db, "konular", currentKonuId, "altkonular", selectedAltKonu, "sorular");
             
             // Yeni soru objesi
+            const createdAt = serverTimestamp();
             const newQuestion = {
                 soruMetni,
                 cevaplar,
@@ -119,11 +121,19 @@ const AddQuestion = ({ isOpen, onClose, currentKonuId, altKonular }) => {
                 unliked: 0,
                 report: 0,
                 soruNumarasi: Date.now(), // Geçici olarak timestamp kullanıyoruz, daha sonra düzenlenebilir
-                soruResmi: soruResmi || null
+                soruResmi: soruResmi || null,
+                createdAt: createdAt
             };
 
             // Soruyu Firestore'a ekle
             await addDoc(sorularCollectionRef, newQuestion);
+            
+            // Genel istatistikleri güncelle (soru sayısını artır - arka planda son 30 gün de güncellenir)
+            try {
+                await statsService.incrementSoruCount(1, createdAt);
+            } catch (statsError) {
+                console.error("Genel istatistikler güncellenirken hata:", statsError);
+            }
             
             // Konu istatistiklerini otomatik güncelle
             try {
