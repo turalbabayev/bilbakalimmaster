@@ -40,6 +40,10 @@ import FAQPage from './pages/MainPage/faq_page';
 import DraftsPage from './pages/MainPage/drafts_page';
 import SoruBankasiYonetimiPage from './pages/MainPage/soru-bankasi-yonetimi';
 import PaymentsPage from './pages/MainPage/payments';
+import PackagesPage from './pages/MainPage/packages';
+import PackageDescriptionPage from './pages/MainPage/package-description';
+import PackageAddEditPage from './pages/MainPage/package-add-edit';
+import SiteSettingsPage from './pages/MainPage/site-settings';
 
 function App() {
     return (
@@ -59,6 +63,10 @@ function App() {
                     <Route path='/bildirimler' element={<ProtectedRouter><NotificationsPage /></ProtectedRouter>} />
                     <Route path='/users' element={<ProtectedRouter><UsersPage /></ProtectedRouter>} />
                     <Route path='/odemeler' element={<ProtectedRouter><PaymentsPage /></ProtectedRouter>} />
+                    <Route path='/paketlerimiz' element={<ProtectedRouter><PackagesPage /></ProtectedRouter>} />
+                    <Route path='/paketlerimiz/yeni' element={<ProtectedRouter><PackageAddEditPage /></ProtectedRouter>} />
+                    <Route path='/paketlerimiz/:id/duzenle' element={<ProtectedRouter><PackageAddEditPage /></ProtectedRouter>} />
+                    <Route path='/paketlerimiz/:id/aciklama' element={<ProtectedRouter><PackageDescriptionPage /></ProtectedRouter>} />
                     <Route path='/delete-account' element={<DeleteAccountPage />} />
                     <Route path='/deneme-sinavlari' element={<ProtectedRouter><DenemeSinavlariPage /></ProtectedRouter>} />
                     <Route path='/create-exam' element={<ProtectedRouter><CreateExamPage /></ProtectedRouter>} />
@@ -79,6 +87,7 @@ function App() {
                     <Route path='/pdf-bank' element={<ProtectedRouter><PDFBankPage /></ProtectedRouter>} />
                     <Route path='/toplanti-arsivi' element={<ProtectedRouter><MeetingArchivePage /></ProtectedRouter>} />
                     <Route path='/mobile-settings' element={<ProtectedRouter><MobileSettingsPage /></ProtectedRouter>} />
+                    <Route path='/site-ayarlari' element={<ProtectedRouter><SiteSettingsPage /></ProtectedRouter>} />
                     <Route path='/tekerleme' element={<ProtectedRouter><TekerlemePage /></ProtectedRouter>} />
                     <Route path='/app-feedback' element={<ProtectedRouter><AppFeedbackPage /></ProtectedRouter>} />
                     <Route path='/podcast' element={<ProtectedRouter><PodcastPage /></ProtectedRouter>} />

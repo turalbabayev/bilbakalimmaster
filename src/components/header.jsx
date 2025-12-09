@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
-import { FaBell, FaUsers, FaExclamationTriangle, FaChartBar, FaFilePdf, FaVideo, FaMobileAlt, FaComments, FaPodcast, FaQuestionCircle, FaGamepad, FaHome, FaStickyNote, FaGraduationCap, FaBullhorn, FaSignOutAlt, FaChevronRight, FaChevronLeft, FaBook, FaBars, FaTimes, FaCreditCard } from 'react-icons/fa';
+import { FaBell, FaUsers, FaExclamationTriangle, FaChartBar, FaFilePdf, FaVideo, FaMobileAlt, FaComments, FaPodcast, FaQuestionCircle, FaGamepad, FaHome, FaStickyNote, FaGraduationCap, FaBullhorn, FaSignOutAlt, FaChevronRight, FaChevronLeft, FaBook, FaBars, FaTimes, FaCreditCard, FaBox, FaCog } from 'react-icons/fa';
 import { SidebarContext } from './layout';
 
 const Header = () => {
@@ -34,11 +34,18 @@ const Header = () => {
             ]
         },
         {
+            title: "Satış Sayfası Yönetimi",
+            items: [
+                { path: "/paketlerimiz", label: "Paketlerimiz", icon: <FaBox /> },
+                { path: "/odemeler", label: "Ödemeler", icon: <FaCreditCard /> },
+                { path: "/site-ayarlari", label: "Site Ayarları", icon: <FaCog /> }
+            ]
+        },
+        {
             title: "Yönetim",
             items: [
                 { path: "/bildirimler", label: "Bildirimler", icon: <FaBell /> },
-                { path: "/users", label: "Kullanıcılar", icon: <FaUsers /> },
-                { path: "/odemeler", label: "Ödemeler", icon: <FaCreditCard /> }
+                { path: "/users", label: "Kullanıcılar", icon: <FaUsers /> }
             ]
         },
         {
