@@ -1,9 +1,39 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Layout from "../../components/layout";
 import { FaChevronDown, FaCog, FaImage, FaSave, FaSyncAlt, FaTextHeight, FaCreditCard } from "react-icons/fa";
 import siteSettingsService from "../../services/siteSettingsService";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+
+const SectionCard = React.memo(({ id, title, icon, children, isOpen, onToggle }) => {
+  return (
+    <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white/70 dark:bg-gray-900/50 shadow-sm">
+      <button
+        type="button"
+        onClick={() => onToggle(id)}
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <div className="flex items-center gap-2">
+          {icon}
+          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+            {title}
+          </span>
+        </div>
+        <FaChevronDown
+          className={`text-gray-500 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          size={14}
+        />
+      </button>
+      {isOpen && (
+        <div className="border-t border-gray-100 dark:border-gray-700 px-4 py-4 md:px-6 md:py-6">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+});
+
+SectionCard.displayName = "SectionCard";
 
 const SiteSettingsPage = () => {
   const [loading, setLoading] = useState(true);
@@ -535,34 +565,9 @@ const SiteSettingsPage = () => {
     setBankDragIndex(null);
   };
 
-  const SectionCard = ({ id, title, icon, children }) => {
-    const open = activeSection === id;
-    return (
-      <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white/70 dark:bg-gray-900/50 shadow-sm">
-        <button
-          type="button"
-          onClick={() => setActiveSection((prev) => (prev === id ? null : id))}
-          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
-        >
-          <div className="flex items-center gap-2">
-            {icon}
-            <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-              {title}
-            </span>
-          </div>
-          <FaChevronDown
-            className={`text-gray-500 transition-transform ${open ? "rotate-180" : ""}`}
-            size={14}
-          />
-        </button>
-        {open && (
-          <div className="border-t border-gray-100 dark:border-gray-700 px-4 py-4 md:px-6 md:py-6">
-            {children}
-          </div>
-        )}
-      </div>
-    );
-  };
+  const handleSectionToggle = useCallback((id) => {
+    setActiveSection((prev) => (prev === id ? null : id));
+  }, []);
 
   return (
     <Layout>
@@ -604,6 +609,8 @@ const SiteSettingsPage = () => {
                     id="hero"
                     title="Üst Başlık Ayarları"
                     icon={<FaTextHeight className="text-indigo-500" />}
+                    isOpen={activeSection === "hero"}
+                    onToggle={handleSectionToggle}
                   >
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <div className="space-y-4">
@@ -785,6 +792,8 @@ const SiteSettingsPage = () => {
                     id="platform"
                     title="Platform Özellikleri"
                     icon={<FaImage className="text-indigo-500" />}
+                    isOpen={activeSection === "platform"}
+                    onToggle={handleSectionToggle}
                   >
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <div className="space-y-4">
@@ -933,6 +942,8 @@ const SiteSettingsPage = () => {
                     id="faq"
                     title="Sıkça Sorulan Sorular"
                     icon={<FaTextHeight className="text-indigo-500" />}
+                    isOpen={activeSection === "faq"}
+                    onToggle={handleSectionToggle}
                   >
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <div className="space-y-4">
@@ -1011,6 +1022,8 @@ const SiteSettingsPage = () => {
                     id="about"
                     title="Hakkımızda"
                     icon={<FaTextHeight className="text-indigo-500" />}
+                    isOpen={activeSection === "about"}
+                    onToggle={handleSectionToggle}
                   >
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <div className="space-y-4">
@@ -1063,6 +1076,8 @@ const SiteSettingsPage = () => {
                     id="contracts"
                     title="Sözleşmeler"
                     icon={<FaTextHeight className="text-indigo-500" />}
+                    isOpen={activeSection === "contracts"}
+                    onToggle={handleSectionToggle}
                   >
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <div className="space-y-4">
@@ -1123,6 +1138,8 @@ const SiteSettingsPage = () => {
                     id="banks"
                     title="Banka Hesaplarımız"
                     icon={<FaCreditCard className="text-indigo-500" />}
+                    isOpen={activeSection === "banks"}
+                    onToggle={handleSectionToggle}
                   >
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <div className="space-y-4">
