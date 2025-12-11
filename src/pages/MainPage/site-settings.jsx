@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Layout from "../../components/layout";
-import { FaChevronDown, FaCog, FaImage, FaSave, FaSyncAlt, FaTextHeight, FaCreditCard } from "react-icons/fa";
+import { FaChevronDown, FaCog, FaImage, FaSave, FaSyncAlt, FaTextHeight, FaCreditCard, FaStar, FaComment } from "react-icons/fa";
 import siteSettingsService from "../../services/siteSettingsService";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
@@ -70,6 +70,21 @@ const SiteSettingsPage = () => {
   const [newBank, setNewBank] = useState({ bankName: "", iban: "", holder: "", logoFile: null, logoPreview: "", logoPath: "" });
   const [isNewBankDragging, setIsNewBankDragging] = useState(false);
   const [bankDragIndex, setBankDragIndex] = useState(null);
+  const [testimonialItems, setTestimonialItems] = useState([]);
+  const [newTestimonial, setNewTestimonial] = useState({
+    fullName: "",
+    date: "",
+    title: "",
+    text: "",
+    rating: 5,
+    platform: "google-play",
+    avatarFile: null,
+    avatarPreview: "",
+    avatarPath: "",
+    avatarUrl: "",
+  });
+  const [isNewTestimonialDragging, setIsNewTestimonialDragging] = useState(false);
+  const [testimonialDragIndex, setTestimonialDragIndex] = useState(null);
   const [activeSection, setActiveSection] = useState("hero");
   const quillModules = useMemo(
     () => ({
@@ -103,6 +118,7 @@ const SiteSettingsPage = () => {
         const about = await siteSettingsService.getAbout();
         const contracts = await siteSettingsService.getContracts();
         const banks = await siteSettingsService.getBankAccounts();
+        const testimonials = await siteSettingsService.getTestimonials();
         setHeroMode(data.heroMode || "text");
         setHeroTitle1(data.heroTitle1 || "");
         setHeroTitle2(data.heroTitle2 || "");
@@ -132,6 +148,20 @@ const SiteSettingsPage = () => {
             logoPath: b.logoPath || "",
             logoPreview: b.logoUrl || "",
             _newLogoFile: null,
+          }))
+        );
+        setTestimonialItems(
+          (Array.isArray(testimonials.items) ? testimonials.items : []).map((t, idx) => ({
+            fullName: t.fullName || "",
+            date: t.date || "",
+            title: t.title || "",
+            text: t.text || "",
+            rating: t.rating || 5,
+            platform: t.platform || "google-play",
+            avatarUrl: t.avatarUrl || "",
+            avatarPath: t.avatarPath || "",
+            avatarPreview: t.avatarUrl || "",
+            _newAvatarFile: null,
           }))
         );
       } catch (err) {
@@ -342,6 +372,47 @@ const SiteSettingsPage = () => {
         items: processedBankItems,
       });
 
+      const processedTestimonialItems = [];
+      for (const t of testimonialItems || []) {
+        const fullName = (t?.fullName || "").trim();
+        const date = (t?.date || "").trim();
+        const title = (t?.title || "").trim();
+        const text = (t?.text || "").trim();
+        const rating = t?.rating || 5;
+        const platform = t?.platform || "google-play";
+        let avatarUrl = t?.avatarUrl || "";
+        let avatarPath = t?.avatarPath || "";
+
+        if (t?._newAvatarFile) {
+          if (avatarPath) {
+            await siteSettingsService.deleteImage(avatarPath);
+          }
+          const uploaded = await siteSettingsService.uploadImage(
+            t._newAvatarFile,
+            "site-settings/testimonials/avatars"
+          );
+          avatarUrl = uploaded.url;
+          avatarPath = uploaded.path;
+        }
+
+        if (fullName || date || title || text || avatarUrl) {
+          processedTestimonialItems.push({
+            fullName,
+            date,
+            title,
+            text,
+            rating,
+            platform,
+            avatarUrl,
+            avatarPath,
+          });
+        }
+      }
+
+      await siteSettingsService.saveTestimonials({
+        items: processedTestimonialItems,
+      });
+
       setHeroImageUrl(newHeroImageUrl);
       setHeroImagePath(newHeroImagePath);
       setRightImageUrl(newRightImageUrl);
@@ -361,6 +432,13 @@ const SiteSettingsPage = () => {
           ...b,
           logoPreview: b.logoUrl,
           _newLogoFile: null,
+        }))
+      );
+      setTestimonialItems(
+        processedTestimonialItems.map((t) => ({
+          ...t,
+          avatarPreview: t.avatarUrl,
+          _newAvatarFile: null,
         }))
       );
       setMessage("Ayarlar kaydedildi.");
@@ -563,6 +641,118 @@ const SiteSettingsPage = () => {
 
   const handleBankLogoDragLeave = () => {
     setBankDragIndex(null);
+  };
+
+  const addTestimonial = () => {
+    const trimmed = {
+      fullName: (newTestimonial.fullName || "").trim(),
+      date: (newTestimonial.date || "").trim(),
+      title: (newTestimonial.title || "").trim(),
+      text: (newTestimonial.text || "").trim(),
+      rating: newTestimonial.rating || 5,
+      platform: newTestimonial.platform || "google-play",
+      avatarFile: newTestimonial.avatarFile,
+      avatarPreview: newTestimonial.avatarPreview,
+      avatarPath: "",
+      avatarUrl: "",
+      _newAvatarFile: newTestimonial.avatarFile,
+    };
+    if (!trimmed.fullName && !trimmed.date && !trimmed.title && !trimmed.text && !trimmed.avatarFile) {
+      return;
+    }
+    setTestimonialItems((prev) => [...prev, trimmed]);
+    setNewTestimonial({
+      fullName: "",
+      date: "",
+      title: "",
+      text: "",
+      rating: 5,
+      platform: "google-play",
+      avatarFile: null,
+      avatarPreview: "",
+      avatarPath: "",
+      avatarUrl: "",
+    });
+  };
+
+  const updateTestimonialItem = (idx, field, value) => {
+    setTestimonialItems((prev) =>
+      prev.map((t, i) => (i === idx ? { ...t, [field]: value } : t))
+    );
+  };
+
+  const removeTestimonialItem = (idx) => {
+    setTestimonialItems((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const setNewTestimonialAvatarFile = (file) => {
+    if (!file || !file.type?.startsWith("image/")) return;
+    setNewTestimonial((prev) => ({
+      ...prev,
+      avatarFile: file,
+      avatarPreview: URL.createObjectURL(file),
+    }));
+  };
+
+  const handleNewTestimonialFileSelect = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setNewTestimonialAvatarFile(file);
+  };
+
+  const handleNewTestimonialDrop = (event) => {
+    event.preventDefault();
+    setIsNewTestimonialDragging(false);
+    if (!event.dataTransfer.files?.length) return;
+    const file = event.dataTransfer.files[0];
+    setNewTestimonialAvatarFile(file);
+  };
+
+  const handleNewTestimonialDragOver = (event) => {
+    event.preventDefault();
+    setIsNewTestimonialDragging(true);
+  };
+
+  const handleNewTestimonialDragLeave = () => {
+    setIsNewTestimonialDragging(false);
+  };
+
+  const setExistingTestimonialAvatarFile = (idx, file) => {
+    if (!file || !file.type?.startsWith("image/")) return;
+    setTestimonialItems((prev) =>
+      prev.map((t, i) =>
+        i === idx
+          ? {
+              ...t,
+              avatarPreview: URL.createObjectURL(file),
+              _newAvatarFile: file,
+            }
+          : t
+      )
+    );
+  };
+
+  const handleTestimonialAvatarFileSelect = (idx, event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setExistingTestimonialAvatarFile(idx, file);
+  };
+
+  const handleTestimonialAvatarDrop = (idx, event) => {
+    event.preventDefault();
+    setTestimonialDragIndex(null);
+    if (!event.dataTransfer.files?.length) return;
+    const file = event.dataTransfer.files[0];
+    setExistingTestimonialAvatarFile(idx, file);
+  };
+
+  const handleTestimonialAvatarDragOver = (idx, event) => {
+    event.preventDefault();
+    setTestimonialDragIndex(idx);
+  };
+
+  const handleTestimonialAvatarDragLeave = () => {
+    setTestimonialDragIndex(null);
   };
 
   const handleSectionToggle = useCallback((id) => {
@@ -1327,6 +1517,290 @@ const SiteSettingsPage = () => {
                           ))}
                           {bankItems.length === 0 && (
                             <p className="text-xs text-gray-500 dark:text-gray-400">Henüz önizlenecek hesap yok.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </SectionCard>
+
+                  <SectionCard
+                    id="testimonials"
+                    title="Kullanıcı Yorumları"
+                    icon={<FaComment className="text-indigo-500" />}
+                    isOpen={activeSection === "testimonials"}
+                    onToggle={handleSectionToggle}
+                  >
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm p-4 space-y-4">
+                          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                            Yeni Yorum Ekle
+                          </p>
+                          <div className="grid grid-cols-1 gap-3">
+                            <input
+                              type="text"
+                              value={newTestimonial.fullName}
+                              onChange={(e) => setNewTestimonial((p) => ({ ...p, fullName: e.target.value }))}
+                              placeholder="Adı Soyadı"
+                              className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                            />
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Tarih
+                              </label>
+                              <input
+                                type="date"
+                                value={newTestimonial.date}
+                                onChange={(e) => setNewTestimonial((p) => ({ ...p, date: e.target.value }))}
+                                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                              />
+                            </div>
+                            <input
+                              type="text"
+                              value={newTestimonial.title}
+                              onChange={(e) => setNewTestimonial((p) => ({ ...p, title: e.target.value }))}
+                              placeholder="Başlık"
+                              className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                            />
+                            <textarea
+                              value={newTestimonial.text}
+                              onChange={(e) => setNewTestimonial((p) => ({ ...p, text: e.target.value }))}
+                              placeholder="Yorum metni"
+                              rows={4}
+                              className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                            />
+                            <div className="flex items-center gap-4">
+                              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Yıldız:
+                              </label>
+                              <select
+                                value={newTestimonial.rating}
+                                onChange={(e) => setNewTestimonial((p) => ({ ...p, rating: parseInt(e.target.value) }))}
+                                className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                              >
+                                {[1, 2, 3, 4, 5].map((r) => (
+                                  <option key={r} value={r}>
+                                    {r} {r === 1 ? "yıldız" : "yıldız"}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Platform:
+                              </label>
+                              <select
+                                value={newTestimonial.platform}
+                                onChange={(e) => setNewTestimonial((p) => ({ ...p, platform: e.target.value }))}
+                                className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                              >
+                                <option value="google-play">Google Play</option>
+                                <option value="app-store">App Store</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div
+                            onDragOver={handleNewTestimonialDragOver}
+                            onDragLeave={handleNewTestimonialDragLeave}
+                            onDrop={handleNewTestimonialDrop}
+                            className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-6 text-center transition shadow-sm
+                             ${isNewTestimonialDragging ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20" : "border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/30"}`}
+                          >
+                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                              Profil resmi: dosya seç veya sürükle-bırak
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              PNG/JPG desteklenir (Opsiyonel)
+                            </p>
+                            <label className="mt-2 inline-flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800 cursor-pointer transition">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleNewTestimonialFileSelect}
+                                className="hidden"
+                              />
+                              Dosya Seç
+                            </label>
+                            {newTestimonial.avatarPreview && (
+                              <div className="mt-2">
+                                <img
+                                  src={newTestimonial.avatarPreview}
+                                  alt="Yeni profil resmi"
+                                  className="h-16 w-16 object-cover rounded-full border-2 border-gray-200 dark:border-gray-700 bg-white"
+                                />
+                              </div>
+                            )}
+                            {!newTestimonial.avatarPreview && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Profil resmi eklemek opsiyonel</p>
+                            )}
+                          </div>
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={addTestimonial}
+                              className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-sm font-semibold shadow-sm"
+                            >
+                              Yorum Ekle
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          {testimonialItems.length === 0 && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Henüz yorum eklenmedi.</p>
+                          )}
+                          {testimonialItems.map((t, idx) => (
+                            <div
+                              key={`${t.fullName}-${idx}`}
+                              className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm p-4 space-y-3"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                  {t.avatarPreview ? (
+                                    <img src={t.avatarPreview} alt={t.fullName} className="h-10 w-10 object-cover rounded-full border-2 border-gray-200 dark:border-gray-700 bg-white" />
+                                  ) : (
+                                    <div className="h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-xs text-gray-500">
+                                      {t.fullName?.[0]?.toUpperCase() || "?"}
+                                    </div>
+                                  )}
+                                  <div>
+                                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t.fullName || "Kullanıcı"}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{t.date || "Tarih"}</p>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeTestimonialItem(idx)}
+                                  className="text-xs font-semibold text-red-500 hover:text-red-600"
+                                >
+                                  Sil
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-1 gap-2">
+                                <div
+                                  onDragOver={(e) => handleTestimonialAvatarDragOver(idx, e)}
+                                  onDragLeave={handleTestimonialAvatarDragLeave}
+                                  onDrop={(e) => handleTestimonialAvatarDrop(idx, e)}
+                                  className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-3 py-3 text-center transition shadow-sm
+                                   ${testimonialDragIndex === idx ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20" : "border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/30"}`}
+                                >
+                                  <p className="text-xs font-semibold text-gray-800 dark:text-gray-100">
+                                    Profil resmi değiştir (sürükle-bırak veya seç)
+                                  </p>
+                                  <label className="inline-flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800 cursor-pointer transition">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => handleTestimonialAvatarFileSelect(idx, e)}
+                                      className="hidden"
+                                    />
+                                    Dosya Seç
+                                  </label>
+                                </div>
+                                <input
+                                  type="text"
+                                  value={t.fullName}
+                                  onChange={(e) => updateTestimonialItem(idx, "fullName", e.target.value)}
+                                  placeholder="Adı Soyadı"
+                                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                                />
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Tarih
+                                  </label>
+                                  <input
+                                    type="date"
+                                    value={t.date}
+                                    onChange={(e) => updateTestimonialItem(idx, "date", e.target.value)}
+                                    className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                                  />
+                                </div>
+                                <input
+                                  type="text"
+                                  value={t.title}
+                                  onChange={(e) => updateTestimonialItem(idx, "title", e.target.value)}
+                                  placeholder="Başlık"
+                                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                                />
+                                <textarea
+                                  value={t.text}
+                                  onChange={(e) => updateTestimonialItem(idx, "text", e.target.value)}
+                                  placeholder="Yorum metni"
+                                  rows={3}
+                                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                                />
+                                <div className="flex items-center gap-4">
+                                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Yıldız:
+                                  </label>
+                                  <select
+                                    value={t.rating}
+                                    onChange={(e) => updateTestimonialItem(idx, "rating", parseInt(e.target.value))}
+                                    className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                                  >
+                                    {[1, 2, 3, 4, 5].map((r) => (
+                                      <option key={r} value={r}>
+                                        {r} {r === 1 ? "yıldız" : "yıldız"}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Platform:
+                                  </label>
+                                  <select
+                                    value={t.platform}
+                                    onChange={(e) => updateTestimonialItem(idx, "platform", e.target.value)}
+                                    className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                                  >
+                                    <option value="google-play">Google Play</option>
+                                    <option value="app-store">App Store</option>
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm p-4 space-y-2">
+                          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                            Önizleme
+                          </p>
+                          {testimonialItems.map((t, idx) => (
+                            <div key={`preview-${idx}`} className="space-y-2 pb-3 border-b last:border-b-0 border-gray-100 dark:border-gray-800">
+                              <div className="flex items-start gap-3">
+                                {t.avatarPreview ? (
+                                  <img src={t.avatarPreview} alt={t.fullName} className="h-12 w-12 object-cover rounded-full border-2 border-gray-200 dark:border-gray-700 bg-white" />
+                                ) : (
+                                  <div className="h-12 w-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-sm font-semibold text-gray-500">
+                                    {t.fullName?.[0]?.toUpperCase() || "?"}
+                                  </div>
+                                )}
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between gap-2 mb-1">
+                                    <p className="text-sm font-bold text-gray-900 dark:text-white">{t.fullName || "Kullanıcı"}</p>
+                                    <div className="flex items-center gap-1">
+                                      {[1, 2, 3, 4, 5].map((star) => (
+                                        <FaStar
+                                          key={star}
+                                          className={`text-xs ${star <= (t.rating || 5) ? "text-yellow-400 fill-current" : "text-gray-300"}`}
+                                        />
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                                    {t.date || "Tarih"} • {t.platform === "google-play" ? "Google Play" : "App Store"}
+                                  </p>
+                                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">{t.title || "Başlık"}</p>
+                                  <p className="text-xs text-gray-700 dark:text-gray-300">{t.text || "Yorum metni"}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {testimonialItems.length === 0 && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Henüz önizlenecek yorum yok.</p>
                           )}
                         </div>
                       </div>

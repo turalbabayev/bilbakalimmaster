@@ -18,6 +18,7 @@ const FAQ_DOC_REF = doc(db, "site-settings", "faq");
 const ABOUT_DOC_REF = doc(db, "site-settings", "about");
 const CONTRACTS_DOC_REF = doc(db, "site-settings", "contracts");
 const BANK_ACCOUNTS_DOC_REF = doc(db, "site-settings", "bank-accounts");
+const TESTIMONIALS_DOC_REF = doc(db, "site-settings", "testimonials");
 
 const getHeroSettings = async () => {
   const snap = await getDoc(HERO_DOC_REF);
@@ -217,6 +218,38 @@ const saveBankAccounts = async (payload) => {
   );
 };
 
+const getTestimonials = async () => {
+  const snap = await getDoc(TESTIMONIALS_DOC_REF);
+  if (!snap.exists()) {
+    return { items: [] };
+  }
+  const data = snap.data() || {};
+  const items = Array.isArray(data.items) ? data.items : [];
+  return {
+    items: items.map((i) => ({
+      fullName: i?.fullName || "",
+      date: i?.date || "",
+      title: i?.title || "",
+      text: i?.text || "",
+      rating: i?.rating || 5,
+      platform: i?.platform || "google-play",
+      avatarUrl: i?.avatarUrl || "",
+      avatarPath: i?.avatarPath || "",
+    })),
+  };
+};
+
+const saveTestimonials = async (payload) => {
+  await setDoc(
+    TESTIMONIALS_DOC_REF,
+    {
+      ...payload,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+};
+
 const siteSettingsService = {
   getHeroSettings,
   getPlatformFeatures,
@@ -224,6 +257,7 @@ const siteSettingsService = {
   getAbout,
   getContracts,
   getBankAccounts,
+  getTestimonials,
   uploadImage,
   deleteImage,
   saveHeroSettings,
@@ -232,6 +266,7 @@ const siteSettingsService = {
   saveAbout,
   saveContracts,
   saveBankAccounts,
+  saveTestimonials,
 };
 
 export default siteSettingsService;
