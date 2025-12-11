@@ -44,6 +44,7 @@ import PackagesPage from './pages/MainPage/packages';
 import PackageDescriptionPage from './pages/MainPage/package-description';
 import PackageAddEditPage from './pages/MainPage/package-add-edit';
 import SiteSettingsPage from './pages/MainPage/site-settings';
+import FormSettingsPage from './pages/MainPage/form-settings';
 
 function App() {
     return (
@@ -88,6 +89,7 @@ function App() {
                     <Route path='/toplanti-arsivi' element={<ProtectedRouter><MeetingArchivePage /></ProtectedRouter>} />
                     <Route path='/mobile-settings' element={<ProtectedRouter><MobileSettingsPage /></ProtectedRouter>} />
                     <Route path='/site-ayarlari' element={<ProtectedRouter><SiteSettingsPage /></ProtectedRouter>} />
+                    <Route path='/form-ayarlari' element={<ProtectedRouter><FormSettingsPage /></ProtectedRouter>} />
                     <Route path='/tekerleme' element={<ProtectedRouter><TekerlemePage /></ProtectedRouter>} />
                     <Route path='/app-feedback' element={<ProtectedRouter><AppFeedbackPage /></ProtectedRouter>} />
                     <Route path='/podcast' element={<ProtectedRouter><PodcastPage /></ProtectedRouter>} />
